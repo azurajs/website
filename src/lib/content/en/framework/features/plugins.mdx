@@ -1,0 +1,1033 @@
+---
+title: Plugins
+description: Complete guide to AzuraJS plugins - extend your application with powerful built-in features
+category: Features
+icon: lucide:plug
+order: 10
+---
+
+# Plugins 🔌
+
+AzuraJS comes with a comprehensive plugin ecosystem featuring **17 built-in plugins** that add powerful functionality to your applications without requiring external dependencies. All plugins are accessible through the `azurajs/plugins` export and follow a consistent, easy-to-use API.
+
+## Overview
+
+Plugins in AzuraJS are middleware functions that can be applied globally or to specific routes. They are designed to be:
+
+- **Zero Dependencies**: Built entirely with Node.js native modules
+- **Type-Safe**: Full TypeScript support with detailed type definitions
+- **Composable**: Combine multiple plugins for complex functionality
+- **Performant**: Optimized for production use
+- **Extensible**: Easy to create custom plugins
+
+## Available Plugins
+
+### Security Plugins
+
+#### 🛡️ Helmet
+
+Adds security headers to protect your application from common web vulnerabilities.
+
+```typescript
+import { AzuraClient } from "azurajs";
+import { helmet } from "azurajs/plugins";
+
+const app = new AzuraClient();
+
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"]
+    }
+  },
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true
+  },
+  frameguard: { action: 'deny' },
+  noSniff: true,
+  xssFilter: true,
+  hidePoweredBy: true
+}));
+```
+
+**Options:**
+- `contentSecurityPolicy`: Configure CSP directives
+- `hsts`: HTTP Strict Transport Security settings
+- `frameguard`: X-Frame-Options configuration
+- `noSniff`: Enable X-Content-Type-Options: nosniff
+- `xssFilter`: Enable X-XSS-Protection
+- `hidePoweredBy`: Remove X-Powered-By header
+- `dnsPrefetchControl`: Control DNS prefetching
+- `referrerPolicy`: Set Referrer-Policy
+
+#### 🌐 CORS
+
+Enable Cross-Origin Resource Sharing for your API.
+
+```typescript
+import { cors } from "azurajs/plugins";
+
+app.use(cors({
+  origins: ["http://localhost:3000", "https://example.com"],
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  exposedHeaders: ["X-Total-Count"],
+  credentials: true,
+  maxAge: 3600
+}));
+```
+
+**Options:**
+- `origins`: Array of allowed origins (use `["*"]` for all)
+- `methods`: Allowed HTTP methods
+- `allowedHeaders`: Allowed request headers
+- `exposedHeaders`: Headers exposed to the browser
+- `credentials`: Allow cookies and authorization headers
+- `maxAge`: Preflight cache duration (seconds)
+
+#### 🔒 CSRF
+
+Protect against Cross-Site Request Forgery attacks.
+
+```typescript
+import { csrf } from "azurajs/plugins";
+
+app.use(csrf({
+  secret: process.env.CSRF_SECRET,
+  cookie: {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'strict'
+  },
+  ignoreMethods: ['GET', 'HEAD', 'OPTIONS']
+}));
+
+// Use in your routes
+app.get('/form', (req, res) => {
+  res.send(`
+    <form method="POST" action="/submit">
+      <input type="hidden" name="_csrf" value="${req.csrfToken()}">
+      <button>Submit</button>
+    </form>
+  `);
+});
+```
+
+**Features:**
+- Automatic token generation
+- Cookie-based or session-based storage
+- Configurable ignored methods
+- Token validation
+
+#### 🔐 JWT Authentication
+
+Complete JWT authentication system with signing, verification, and middleware.
+
+```typescript
+import { jwtMiddleware, createJWT, verifyJWT } from "azurajs/plugins";
+
+// Create a JWT token
+const token = createJWT(
+  { userId: 123, role: 'admin' },
+  { 
+    secret: process.env.JWT_SECRET,
+    expiresIn: 3600,      // 1 hour
+    algorithm: 'HS256',
+    issuer: 'myapp',
+    audience: 'myapp-users'
+  }
+);
+
+// Protect routes
+app.use('/api/protected', jwtMiddleware({
+  secret: process.env.JWT_SECRET,
+  credentialsRequired: true,
+  algorithm: 'HS256',
+  getToken: (req) => {
+    const auth = req.headers.authorization;
+    if (auth && auth.startsWith('Bearer ')) {
+      return auth.substring(7);
+    }
+    return null;
+  }
+}));
+
+// Access decoded token
+app.get('/api/protected/profile', (req, res) => {
+  const user = req.user; // JWT payload
+  res.json({ user });
+});
+
+// Manually verify a token
+try {
+  const payload = verifyJWT(token, { 
+    secret: process.env.JWT_SECRET 
+  });
+  console.log(payload);
+} catch (error) {
+  console.error('Invalid token:', error.message);
+}
+```
+
+**Features:**
+- Supports HS256, HS384, and HS512 algorithms
+- Standard JWT claims (exp, iat, nbf, iss, aud)
+- Custom token extraction
+- Type-safe payload access
+- Zero external dependencies
+
+### Performance Plugins
+
+#### 🗜️ Compression
+
+Automatically compress responses with gzip, deflate, or Brotli.
+
+```typescript
+import { compression } from "azurajs/plugins";
+
+app.use(compression({
+  threshold: 1024,      // Only compress responses > 1KB
+  level: 6,             // Compression level (0-9, default: 6)
+  filter: (contentType) => {
+    // Compress text-based content
+    return /json|text|javascript|css|xml|svg/.test(contentType);
+  }
+}));
+```
+
+**Options:**
+- `threshold`: Minimum response size to compress (bytes)
+- `level`: Compression level (0-9, higher = better compression but slower)
+- `filter`: Function to determine which content types to compress
+
+**Benefits:**
+- Reduces bandwidth by up to 70%
+- Automatic encoding negotiation (accepts: gzip, deflate, br)
+- Smart content-type filtering
+
+#### 🏷️ ETag
+
+Enable HTTP caching with ETag generation and validation.
+
+```typescript
+import { etag } from "azurajs/plugins";
+
+app.use(etag({
+  algorithm: 'sha1',  // Hash algorithm
+  weak: true          // Use weak ETags (W/"...")
+}));
+```
+
+**Features:**
+- Automatic ETag generation
+- Returns 304 Not Modified when appropriate
+- Supports both strong and weak ETags
+- Reduces data transfer for unchanged resources
+
+#### 🗂️ Static Files
+
+Serve static files with caching and security features.
+
+```typescript
+import { serveStatic } from "azurajs/plugins";
+
+app.use('/public', serveStatic('./public', {
+  maxAge: 86400000,        // 1 day cache
+  index: 'index.html',     // Default file
+  dotfiles: 'ignore',      // Ignore dotfiles
+  etag: true,
+  lastModified: true,
+  extensions: ['html', 'htm']
+}));
+```
+
+**Options:**
+- `maxAge`: Cache duration in milliseconds
+- `index`: Default index file
+- `dotfiles`: How to handle dotfiles ('allow', 'ignore', 'deny')
+- `etag`: Enable ETag generation
+- `lastModified`: Send Last-Modified header
+- `extensions`: File extensions to try
+
+### Data Handling Plugins
+
+#### 📦 Session
+
+Manage user sessions with memory or custom store.
+
+```typescript
+import { session } from "azurajs/plugins";
+
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  name: 'sessionId',
+  cookie: {
+    maxAge: 86400000,    // 24 hours
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict'
+  },
+  rolling: true,         // Extend session on activity
+  resave: false,
+  saveUninitialized: false
+}));
+
+// Use sessions
+app.post('/login', (req, res) => {
+  req.session.userId = user.id;
+  req.session.role = user.role;
+  res.json({ success: true });
+});
+
+app.get('/profile', (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  res.json({ 
+    userId: req.session.userId,
+    role: req.session.role 
+  });
+});
+
+// Destroy session
+app.post('/logout', (req, res) => {
+  req.session.destroy();
+  res.json({ success: true });
+});
+```
+
+**Custom Store Example:**
+
+```typescript
+// Redis store implementation
+class RedisStore {
+  constructor(private redis: RedisClient) {}
+
+  async get(id: string) {
+    const data = await this.redis.get(`session:${id}`);
+    return data ? JSON.parse(data) : null;
+  }
+
+  async set(id: string, data: any) {
+    await this.redis.setex(`session:${id}`, 86400, JSON.stringify(data));
+  }
+
+  async destroy(id: string) {
+    await this.redis.del(`session:${id}`);
+  }
+}
+
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  store: new RedisStore(redisClient)
+}));
+```
+
+#### 📤 Multipart
+
+Handle file uploads with multipart/form-data.
+
+```typescript
+import { multipart } from "azurajs/plugins";
+
+app.post('/upload', multipart({
+  limits: { 
+    fileSize: 10 * 1024 * 1024,  // 10MB
+    files: 5                       // Max 5 files
+  },
+  allowedTypes: ['image/jpeg', 'image/png', 'application/pdf'],
+  uploadDir: './uploads'
+}), (req, res) => {
+  const files = req.files;
+  const fields = req.fields;
+  
+  res.json({ 
+    uploaded: files.length,
+    files: files.map(f => ({
+      name: f.originalFilename,
+      size: f.size,
+      type: f.mimetype
+    })),
+    fields 
+  });
+});
+```
+
+**Options:**
+- `limits`: Size and count limits
+- `allowedTypes`: Array of allowed MIME types
+- `uploadDir`: Directory to save uploaded files
+- `keepExtensions`: Keep original file extensions
+
+#### 📏 Body Limit
+
+Limit request body size to prevent abuse.
+
+```typescript
+import { bodyLimit } from "azurajs/plugins";
+
+app.use(bodyLimit({
+  limit: '10mb',  // String or number (bytes)
+  onLimit: (req, res) => {
+    res.status(413).json({ 
+      error: 'Payload too large',
+      maxSize: '10mb'
+    });
+  }
+}));
+```
+
+### Infrastructure Plugins
+
+#### ⚡ Rate Limiting
+
+Prevent API abuse with request rate limiting.
+
+```typescript
+import { rateLimit } from "azurajs/plugins";
+
+app.use('/api', rateLimit({
+  windowMs: 60000,         // 1 minute
+  max: 100,                // Max 100 requests per window
+  message: 'Too many requests, please try again later',
+  statusCode: 429,
+  skipSuccessfulRequests: false,
+  skipFailedRequests: false,
+  keyGenerator: (req) => req.ip  // Use IP as key
+}));
+```
+
+**Features:**
+- Configurable time windows
+- Per-IP or custom key tracking
+- Custom error responses
+- Skip successful/failed requests option
+
+#### 🔄 Proxy
+
+Reverse proxy for microservices and API gateways.
+
+```typescript
+import { proxyPlugin } from "azurajs/plugins";
+
+app.use('/api/users', proxyPlugin('http://users-service:4001', {
+  pathRewrite: {
+    '^/api/users': '/users'
+  },
+  headers: {
+    'X-Custom-Header': 'AzuraJS-Proxy'
+  },
+  timeout: 5000,
+  logLevel: 'info',
+  onProxyReq: (proxyReq, req) => {
+    proxyReq.setHeader('X-Real-IP', req.ip);
+  },
+  onProxyRes: (proxyRes, req, res) => {
+    console.log(`Proxied: ${req.url} -> ${proxyRes.statusCode}`);
+  }
+}));
+```
+
+#### ⚡ Circuit Breaker
+
+Implement fault tolerance pattern for resilient applications.
+
+```typescript
+import { circuitBreaker, CircuitBreaker } from "azurajs/plugins";
+
+// As middleware
+app.use('/api/external', circuitBreaker({
+  failureThreshold: 5,    // Open after 5 failures
+  timeout: 60000,         // Reset after 1 minute
+  onOpen: () => {
+    console.log('Circuit opened - stopping requests');
+  },
+  onClose: () => {
+    console.log('Circuit closed - resuming requests');
+  }
+}));
+
+// As utility class
+const dbBreaker = new CircuitBreaker({
+  failureThreshold: 3,
+  timeout: 30000
+});
+
+app.get('/users', async (req, res) => {
+  try {
+    const users = await dbBreaker.execute(async () => {
+      return await db.query('SELECT * FROM users');
+    });
+    res.json(users);
+  } catch (error) {
+    if (error.message === 'Circuit breaker is open') {
+      return res.status(503).json({ 
+        error: 'Service temporarily unavailable' 
+      });
+    }
+    throw error;
+  }
+});
+```
+
+**States:**
+- **Closed**: Normal operation, requests pass through
+- **Open**: Too many failures, requests are blocked
+- **Half-Open**: Testing if service recovered
+
+### Real-time & Monitoring
+
+#### 📊 Server-Sent Events (SSE)
+
+Enable real-time server push with SSE.
+
+```typescript
+import { SSEManager, createSSEHandler } from "azurajs/plugins";
+
+const sse = new SSEManager();
+
+// SSE endpoint
+app.get('/events', createSSEHandler(sse));
+
+// Broadcast to all clients
+app.post('/notify', (req, res) => {
+  sse.broadcast({
+    event: 'notification',
+    data: { message: 'Hello everyone!' }
+  });
+  res.json({ sent: true });
+});
+
+// Send to specific client
+app.post('/notify/:clientId', (req, res) => {
+  sse.send(req.params.clientId, {
+    event: 'private-message',
+    data: { message: 'Just for you' }
+  });
+  res.json({ sent: true });
+});
+
+// Real-time metrics
+setInterval(() => {
+  sse.broadcast({
+    event: 'metrics',
+    data: {
+      cpu: process.cpuUsage(),
+      memory: process.memoryUsage(),
+      uptime: process.uptime()
+    }
+  });
+}, 1000);
+```
+
+**Client-side usage:**
+
+```javascript
+const eventSource = new EventSource('/events');
+
+eventSource.addEventListener('notification', (event) => {
+  const data = JSON.parse(event.data);
+  console.log('Notification:', data.message);
+});
+
+eventSource.addEventListener('metrics', (event) => {
+  const data = JSON.parse(event.data);
+  updateDashboard(data);
+});
+```
+
+#### 🩺 Health Check
+
+Monitor application health and dependencies.
+
+```typescript
+import { healthCheck } from "azurajs/plugins";
+
+app.use('/health', healthCheck({
+  checks: {
+    database: async () => {
+      try {
+        await db.ping();
+        return { 
+          status: 'healthy',
+          latency: 5,
+          connections: db.pool.totalCount
+        };
+      } catch (error) {
+        return { 
+          status: 'unhealthy',
+          error: error.message 
+        };
+      }
+    },
+    redis: async () => {
+      try {
+        await redis.ping();
+        return { status: 'healthy' };
+      } catch (error) {
+        return { status: 'unhealthy', error: error.message };
+      }
+    },
+    externalApi: async () => {
+      const start = Date.now();
+      try {
+        await fetch('https://api.example.com/health');
+        return { 
+          status: 'healthy',
+          responseTime: Date.now() - start
+        };
+      } catch (error) {
+        return { status: 'unhealthy' };
+      }
+    }
+  },
+  timeout: 5000,  // 5 second timeout for checks
+  cache: 10000    // Cache results for 10 seconds
+}));
+```
+
+**Response format:**
+
+```json
+{
+  "status": "healthy",
+  "timestamp": "2026-02-04T10:30:00.000Z",
+  "uptime": 3600.5,
+  "checks": {
+    "database": {
+      "status": "healthy",
+      "latency": 5,
+      "connections": 10
+    },
+    "redis": {
+      "status": "healthy"
+    },
+    "externalApi": {
+      "status": "healthy",
+      "responseTime": 150
+    }
+  }
+}
+```
+
+#### 🔢 Request ID
+
+Add unique identifiers to requests for tracing.
+
+```typescript
+import { requestId } from "azurajs/plugins";
+
+app.use(requestId({
+  header: 'X-Request-ID',
+  generator: () => crypto.randomUUID()
+}));
+
+app.use((req, res, next) => {
+  console.log(`[${req.id}] ${req.method} ${req.url}`);
+  res.set('X-Request-ID', req.id);
+  next();
+});
+```
+
+#### ⏱️ Timeout
+
+Prevent hanging requests with automatic timeouts.
+
+```typescript
+import { timeout } from "azurajs/plugins";
+
+app.use(timeout({
+  duration: 30000,  // 30 seconds
+  onTimeout: (req, res) => {
+    console.error(`Request timeout: ${req.method} ${req.url}`);
+    res.status(408).json({ 
+      error: 'Request timeout',
+      message: 'The server did not receive a complete request in time'
+    });
+  }
+}));
+```
+
+## Plugin Composition
+
+Combine multiple plugins for powerful functionality:
+
+### Production-Ready Setup
+
+```typescript
+import { AzuraClient } from "azurajs";
+import { 
+  helmet, 
+  cors, 
+  compression, 
+  rateLimit, 
+  requestId,
+  timeout,
+  bodyLimit,
+  healthCheck
+} from "azurajs/plugins";
+
+const app = new AzuraClient();
+
+// Security layer
+app.use(helmet());
+app.use(cors({ 
+  origins: [process.env.FRONTEND_URL],
+  credentials: true 
+}));
+app.use(bodyLimit({ limit: '10mb' }));
+
+// Performance layer
+app.use(compression({ threshold: 1024 }));
+app.use(timeout({ duration: 30000 }));
+
+// Monitoring layer
+app.use(requestId());
+app.use('/health', healthCheck({
+  checks: {
+    db: async () => ({ status: await db.isHealthy() ? 'healthy' : 'unhealthy' })
+  }
+}));
+
+// Rate limiting
+app.use('/api', rateLimit({
+  windowMs: 60000,
+  max: 100
+}));
+
+// Your routes...
+app.get('/api/users', (req, res) => {
+  res.json({ users: [] });
+});
+
+app.listen(3000);
+```
+
+### Authentication API
+
+```typescript
+import { 
+  helmet, 
+  cors, 
+  csrf,
+  jwtMiddleware,
+  createJWT,
+  rateLimit,
+  bodyLimit
+} from "azurajs/plugins";
+
+const app = new AzuraClient();
+
+app.use(helmet());
+app.use(cors({ origins: [process.env.FRONTEND_URL], credentials: true }));
+app.use(bodyLimit({ limit: '1mb' }));
+
+// Rate limit auth endpoints
+app.use('/auth', rateLimit({
+  windowMs: 900000,  // 15 minutes
+  max: 5             // 5 attempts
+}));
+
+// Login endpoint
+app.post('/auth/login', async (req, res) => {
+  const { email, password } = req.body;
+  
+  const user = await validateCredentials(email, password);
+  if (!user) {
+    return res.status(401).json({ error: 'Invalid credentials' });
+  }
+  
+  const token = createJWT(
+    { userId: user.id, role: user.role },
+    { 
+      secret: process.env.JWT_SECRET,
+      expiresIn: 3600  // 1 hour
+    }
+  );
+  
+  res.json({ token, user: { id: user.id, email: user.email } });
+});
+
+// Protected routes
+app.use('/api', jwtMiddleware({
+  secret: process.env.JWT_SECRET,
+  credentialsRequired: true
+}));
+
+app.get('/api/profile', (req, res) => {
+  res.json({ user: req.user });
+});
+```
+
+### File Upload Service
+
+```typescript
+import { 
+  helmet,
+  csrf,
+  multipart,
+  bodyLimit,
+  jwtMiddleware
+} from "azurajs/plugins";
+
+const app = new AzuraClient();
+
+app.use(helmet());
+app.use(bodyLimit({ limit: '50mb' }));
+app.use(csrf());
+
+app.post('/upload',
+  jwtMiddleware({ secret: process.env.JWT_SECRET }),
+  multipart({
+    limits: { 
+      fileSize: 50 * 1024 * 1024,
+      files: 10
+    },
+    allowedTypes: ['image/*', 'application/pdf', 'video/mp4']
+  }),
+  async (req, res) => {
+    const files = req.files;
+    
+    // Process and save files
+    const savedFiles = await Promise.all(
+      files.map(file => saveToStorage(file))
+    );
+    
+    res.json({ 
+      uploaded: savedFiles.length,
+      files: savedFiles 
+    });
+  }
+);
+```
+
+### Microservices Gateway
+
+```typescript
+import { 
+  helmet,
+  cors,
+  rateLimit,
+  proxyPlugin,
+  circuitBreaker,
+  requestId,
+  healthCheck
+} from "azurajs/plugins";
+
+const gateway = new AzuraClient();
+
+gateway.use(helmet());
+gateway.use(cors({ origins: ['*'] }));
+gateway.use(requestId());
+gateway.use(rateLimit({ max: 1000, windowMs: 60000 }));
+
+// Health check for gateway
+gateway.use('/health', healthCheck({
+  checks: {
+    usersService: async () => {
+      try {
+        await fetch('http://users-service:4001/health');
+        return { status: 'healthy' };
+      } catch {
+        return { status: 'unhealthy' };
+      }
+    },
+    ordersService: async () => {
+      try {
+        await fetch('http://orders-service:4002/health');
+        return { status: 'healthy' };
+      } catch {
+        return { status: 'unhealthy' };
+      }
+    }
+  }
+}));
+
+// Proxy to services with circuit breaker
+gateway.use('/users', 
+  circuitBreaker({ failureThreshold: 5, timeout: 60000 }),
+  proxyPlugin('http://users-service:4001', {
+    pathRewrite: { '^/users': '' }
+  })
+);
+
+gateway.use('/orders',
+  circuitBreaker({ failureThreshold: 5, timeout: 60000 }),
+  proxyPlugin('http://orders-service:4002', {
+    pathRewrite: { '^/orders': '' }
+  })
+);
+
+gateway.listen(3000);
+```
+
+## Creating Custom Plugins
+
+You can create your own plugins following the same pattern:
+
+```typescript
+import type { RequestHandler } from "azurajs";
+
+interface CustomPluginOptions {
+  enabled?: boolean;
+  prefix?: string;
+}
+
+export function customPlugin(options: CustomPluginOptions = {}): RequestHandler {
+  const { enabled = true, prefix = 'custom' } = options;
+  
+  return (req, res, next) => {
+    if (!enabled) {
+      return next();
+    }
+    
+    // Your plugin logic
+    req.customData = `${prefix}-${Date.now()}`;
+    
+    res.on('finish', () => {
+      // Cleanup or logging
+      console.log(`Request finished: ${req.customData}`);
+    });
+    
+    next();
+  };
+}
+```
+
+**Advanced plugin with async operations:**
+
+```typescript
+export function asyncPlugin(options: Options): RequestHandler {
+  return async (req, res, next) => {
+    try {
+      // Async operations
+      const data = await fetchSomeData();
+      req.pluginData = data;
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+}
+```
+
+## Best Practices
+
+### 1. Order Matters
+
+Apply plugins in the right order for optimal functionality:
+
+```typescript
+// ✅ Correct order
+app.use(helmet());           // 1. Security first
+app.use(cors());             // 2. CORS
+app.use(bodyLimit());        // 3. Body parsing limits
+app.use(compression());      // 4. Compression
+app.use(requestId());        // 5. Request tracking
+app.use('/api', rateLimit()); // 6. Rate limiting
+// ... your routes
+```
+
+### 2. Environment-Specific Configuration
+
+```typescript
+const isProduction = process.env.NODE_ENV === 'production';
+
+app.use(helmet({
+  hsts: isProduction ? { maxAge: 31536000 } : false
+}));
+
+app.use(session({
+  cookie: {
+    secure: isProduction,
+    sameSite: isProduction ? 'strict' : 'lax'
+  }
+}));
+```
+
+### 3. Performance Tuning
+
+```typescript
+// Only compress large responses
+app.use(compression({ 
+  threshold: 2048  // 2KB minimum
+}));
+
+// Cache health checks
+app.use('/health', healthCheck({
+  checks: { /* ... */ },
+  cache: 30000  // Cache for 30 seconds
+}));
+
+// Optimize rate limiting for high traffic
+app.use(rateLimit({
+  windowMs: 1000,  // 1 second windows
+  max: 10,         // Smaller windows, more checks
+}));
+```
+
+### 4. Error Handling
+
+```typescript
+import { circuitBreaker } from "azurajs/plugins";
+
+app.use('/api/external', circuitBreaker({
+  failureThreshold: 5,
+  timeout: 60000,
+  onOpen: () => {
+    // Alert monitoring system
+    monitoringService.alert('Circuit breaker opened');
+  }
+}));
+
+// Global error handler
+app.use((error, req, res, next) => {
+  console.error(`[${req.id}] Error:`, error);
+  res.status(500).json({ 
+    error: 'Internal server error',
+    requestId: req.id 
+  });
+});
+```
+
+### 5. Security Checklist
+
+For production deployments, ensure you have:
+
+- ✅ Helmet for security headers
+- ✅ CORS properly configured
+- ✅ Rate limiting on all public endpoints
+- ✅ Body size limits
+- ✅ CSRF protection for state-changing operations
+- ✅ JWT or session authentication
+- ✅ Request timeouts
+- ✅ Health check endpoint
+
+## Performance Impact
+
+### Benchmark Results
+
+- **Compression**: 60-70% bandwidth reduction
+- **ETag**: 90% reduction for cached resources
+- **Request ID**: < 0.5ms overhead
+- **JWT Middleware**: < 2ms overhead
+- **Rate Limit**: < 1ms overhead (in-memory)
+
+### Memory Usage
+
+- **Session Store**: ~50 bytes per session
+- **SSE Manager**: ~1KB per connected client
+- **Rate Limit**: ~100 bytes per tracked IP
+- **Circuit Breaker**: ~100 bytes per instance
+
+## Next Steps 📖
+
+- [Security Best Practices](/docs/en/framework/advanced/security)
+- [Production Deployment](/docs/en/framework/advanced/production)
+- [Performance Optimization](/docs/en/framework/advanced/performance)
+- [Custom Plugin Development](/docs/en/framework/advanced/custom-plugins)
