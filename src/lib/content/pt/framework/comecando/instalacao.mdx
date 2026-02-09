@@ -8,48 +8,34 @@ order: 2
 
 # Instalação 📦
 
-Comece com AzuraJS instalando-o no seu projeto Node.js ou Bun. Este guia vai te levar do zero até uma aplicação funcionando em poucos minutos.
+Comece a usar o AzuraJS instalando-o em seu projeto **Node.js** ou **Bun**. Este guia irá orientá-lo através do processo de configuração.
 
 ## Pré-requisitos ✅
 
-Antes de começar, você vai precisar de:
+Certifique-se de que seu ambiente atende aos seguintes requisitos:
 
-<Callout type="warning" title="Requisitos Mínimos">
-- **Node.js** 18+ ou **Bun** 1.0+
-- **TypeScript** 5.0+ (recomendado para usar decorators)
-- Um gerenciador de pacotes: npm, yarn, pnpm ou bun
+<Callout type="warning" title="Requisitos de Sistema">
+  - **Node.js** 18.0.0+ ou **Bun** 1.0.0+ - **TypeScript** 5.0+ (Obrigatório
+  para suporte a decorators) - Um gerenciador de pacotes: **npm**, **yarn**,
+  **pnpm** ou **bun**
 </Callout>
 
 ## Instalação do Pacote 📥
 
-Escolha seu gerenciador de pacotes favorito e instale o AzuraJS:
+Instale o pacote `azurajs` utilizando seu gerenciador de pacotes preferido:
 
 <Tabs items={["npm", "pnpm", "yarn", "bun"]}>
-  <Tab value="npm">
-```bash
-npm install azurajs
-```
-  </Tab>
-  <Tab value="pnpm">
-```bash
-pnpm add azurajs
-```
-  </Tab>
-  <Tab value="yarn">
-```bash
-yarn add azurajs
-```
-  </Tab>
-  <Tab value="bun">
-```bash
-bun add azurajs
-```
-  </Tab>
+  <Tab value="npm">```bash npm install azurajs ```</Tab>
+  <Tab value="pnpm">```bash pnpm add azurajs ```</Tab>
+  <Tab value="yarn">```bash yarn add azurajs ```</Tab>
+  <Tab value="bun">```bash bun add azurajs ```</Tab>
 </Tabs>
 
-## Configuração TypeScript 🛠️
+## Configuração do TypeScript 🛠️
 
-Como o AzuraJS utiliza decorators, você precisa habilitá-los no seu `tsconfig.json`:
+O AzuraJS utiliza **decorators** para fornecer sua sintaxe expressiva. Você deve habilitá-los no seu arquivo `tsconfig.json`.
+
+Adicione ou atualize as seguintes opções do compilador:
 
 ```json
 {
@@ -68,21 +54,20 @@ Como o AzuraJS utiliza decorators, você precisa habilitá-los no seu `tsconfig.
 
 ## Estrutura Recomendada 📁
 
-Para projetos profissionais, sugerimos a seguinte estrutura:
+Para um código escalável e de fácil manutenção, recomendamos a seguinte estrutura de diretórios:
 
 ```text
 my-azura-api/
 ├── src/
-│   ├── controllers/
-│   │   └── UserController.ts
-│   ├── middlewares/
-│   ├── services/
-│   └── index.ts
-├── azura.config.ts
-├── tsconfig.json
-└── package.json
+│   ├── controllers/      # Controllers de rotas e manipulação de requisições
+│   ├── services/         # Lógica de negócios e acesso a dados
+│   ├── middlewares/      # Funções de middleware personalizadas
+│   └── index.ts          # Ponto de entrada da aplicação
+├── azura.config.ts       # Configuração do framework
+├── tsconfig.json         # Configuração do TypeScript
+└── package.json          # Dependências do projeto
 ```
 
 ## Próximos Passos 🚀
 
-Agora que você tem o AzuraJS instalado, siga para o [Início Rápido](/docs/pt/framework/comecando/inicio-rapido) para criar sua primeira API.
+Com o AzuraJS instalado, você está pronto para construir. Siga para o guia de [Início Rápido](/docs/pt/framework/comecando/inicio-rapido) para criar sua primeira API.

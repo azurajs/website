@@ -8,27 +8,26 @@ order: 4
 
 # CORS (Cross-Origin Resource Sharing) 🌐
 
-CORS is a security mechanism that allows or restricts requests for resources from a different domain than the one where the resource originated. AzuraJS offers a flexible and production-ready CORS plugin, which can be configured globally or per route.
+CORS is a security mechanism that allows or restricts resource requests from external domains. AzuraJS provides a flexible, production-ready CORS plugin that supports both global and per-route configuration.
 
 ## Global Configuration
 
-You can enable and configure CORS in your `azura.config.ts` file:
+Enable and customize CORS via the `plugins` object in `azura.config.ts`.
 
 ```typescript
 // azura.config.ts
 import type { ConfigTypes } from "azurajs/config";
 
 const config: ConfigTypes = {
-  // ...
   plugins: {
     cors: {
-      enabled: true,           // Enable CORS
-      origins: ["http://localhost:3000", "https://yourwebsite.com"], // Allowed origins
-      methods: ["GET", "POST", "PUT", "DELETE", "PATCH"], // Allowed HTTP methods
-      allowedHeaders: ["Content-Type", "Authorization"], // Allowed headers
-      exposedHeaders: ["X-Custom-Header"], // Headers that the browser can access
-      credentials: true,       // Allow sending cookies and authorization headers
-      maxAge: 3600,            // Time in seconds that the preflight response can be cached
+      enabled: true,
+      origins: ["http://localhost:3000", "https://yourwebsite.com"],
+      methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+      allowedHeaders: ["Content-Type", "Authorization"],
+      exposedHeaders: ["X-Custom-Header"],
+      credentials: true,
+      maxAge: 3600,
     },
   },
 };
@@ -38,19 +37,19 @@ export default config;
 
 ### `cors` Options
 
-| Property | Type | Description |
-| :--- | :--- | :--- |
-| `enabled` | `boolean` | Enables or disables the CORS middleware. Default: `false`. |
-| `origins` | `string[]` | Array of allowed origins. Use `["*"]` to allow all (not recommended in production). |
-| `methods` | `string[]` | Allowed HTTP methods. Default: `["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE"]`. |
-| `allowedHeaders` | `string[]` | Allowed request headers. Default: `["Content-Type", "Authorization"]`. |
-| `exposedHeaders` | `string[]` | Response headers that can be exposed to the browser. |
-| `credentials` | `boolean` | Indicates whether the browser should send cookies and authorization headers. Default: `false`. |
-| `maxAge` | `number` | Maximum time in seconds that the response to a preflight request can be cached. Default: `3600`. |
+| Property         | Type       | Description                                                                           |
+| :--------------- | :--------- | :------------------------------------------------------------------------------------ |
+| `enabled`        | `boolean`  | Activates the CORS middleware. Default: `false`.                                      |
+| `origins`        | `string[]` | List of allowed origins. Use `["*"]` to allow all (unsafe for production).            |
+| `methods`        | `string[]` | Allowed HTTP methods. Default includes standard verbs.                                |
+| `allowedHeaders` | `string[]` | Allowed request headers.                                                              |
+| `exposedHeaders` | `string[]` | Response headers accessible to the browser.                                           |
+| `credentials`    | `boolean`  | Permits cookies and authorization headers in cross-origin requests. Default: `false`. |
+| `maxAge`         | `number`   | Preflight cache duration in seconds. Default: `3600`.                                 |
 
 ## Preflight Requests
 
-For "complex" CORS requests (e.g., with methods other than simple GET/POST, or with custom headers), the browser sends an `OPTIONS` (preflight) request to check permissions. The AzuraJS CORS plugin automatically handles these requests, responding with the appropriate headers.
+AzuraJS automatically handles `OPTIONS` preflight requests for complex CORS operations, ensuring seamless interaction with browser security policies without additional route configuration.
 
 ## Next Steps 📖
 

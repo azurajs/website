@@ -8,21 +8,25 @@ order: 2
 
 # Routing 🛣️
 
-O sistema de roteamento do AzuraJS é construído sobre uma **Radix Tree** (Árvore de Prefixos) de alta performance. Isso garante que a velocidade de busca de rotas seja extremamente rápida e constante, independentemente de quantas rotas sua aplicação possua.
+O sistema de roteamento do AzuraJS utiliza uma estrutura de dados **Radix Tree** (Árvore de Prefixos) de alta performance. Isso garante tempos de busca de rota constantes e extremamente rápidos, independentemente do número de rotas registradas na sua aplicação.
 
 ## Padrões de Rota 🧩
 
-As rotas são definidas nos métodos dos controllers usando decorators.
+As rotas são definidas dentro dos métodos dos controllers usando decorators para especificar caminhos e parâmetros.
 
 ### Rotas Estáticas
-Caminhos fixos que não mudam.
+
+Rotas estáticas mapeiam para caminhos fixos.
+
 ```typescript
 @Get("/health")
 check() { return "OK"; }
 ```
 
-### Rotas Dinâmicas (Parâmetros)
-Use o prefixo `:` para definir variáveis na URL.
+### Rotas Dinâmicas
+
+Use o prefixo `:` para denotar parâmetros de rota dinâmicos.
+
 ```typescript
 @Get("/users/:id")
 getUser(@Param("id") id: string) {
@@ -31,7 +35,9 @@ getUser(@Param("id") id: string) {
 ```
 
 ### Múltiplos Parâmetros
-Você pode combinar vários parâmetros em uma única rota.
+
+Rotas podem manipular múltiplos segmentos dinâmicos.
+
 ```typescript
 @Get("/org/:orgId/projects/:projectId")
 getProject(@Param("orgId") org: string, @Param("projectId") project: string) {
@@ -41,7 +47,7 @@ getProject(@Param("orgId") org: string, @Param("projectId") project: string) {
 
 ## Métodos HTTP Suportados 📡
 
-O AzuraJS suporta todos os métodos padrão:
+O AzuraJS fornece decorators para todos os métodos HTTP padrão:
 
 - `@Get(path)`
 - `@Post(path)`
@@ -53,14 +59,15 @@ O AzuraJS suporta todos os métodos padrão:
 
 ## Prioridade de Rota 🔢
 
-O roteador segue uma ordem de precedência lógica:
-1.  **Rotas Estáticas**: `/users/profile` sempre terá prioridade sobre `/users/:id`.
-2.  **Rotas Parametrizadas**: `/users/:id` é verificado se nenhuma rota estática coincidir.
-3.  **Wildcards**: Rotas que capturam tudo (se implementadas).
+O algoritmo de roteamento aplica regras de precedência específicas para determinar qual rota corresponde a uma requisição:
+
+1.  **Rotas Estáticas**: Correspondências exatas como `/users/profile` têm prioridade sobre padrões dinâmicos.
+2.  **Rotas Parametrizadas**: Padrões como `/users/:id` são avaliados se nenhuma correspondência estática for encontrada.
+3.  **Wildcards**: Rotas "catch-all" são verificadas por último (se aplicável).
 
 ## Case Sensitivity 🔠
 
-Por padrão, o roteamento no AzuraJS é **case-sensitive** para o caminho, mas você pode configurar o comportamento global no `azura.config.ts`.
+Por padrão, a correspondência de rotas no AzuraJS é **case-sensitive**. Esse comportamento garante controle preciso sobre as estruturas de URL, embora possa ser ajustado via configuração global (`azura.config.ts`).
 
 ## Próximos Passos 📖
 

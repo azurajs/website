@@ -8,25 +8,24 @@ order: 4
 
 # Rate Limiting 🛡️
 
-AzuraJS offers an integrated Rate Limiting middleware that helps protect your API against brute-force attacks, abuse, and denial-of-service (DDoS) by limiting the number of requests a client can make within a given period.
+AzuraJS includes a built-in Rate Limiting middleware designed to safeguard your API against brute-force attacks, abuse, and Denial-of-Service (DDoS) attempts by restricting the number of requests a client can execute within a specific timeframe.
 
 ## Global Configuration
 
-You can configure Rate Limiting globally through your `azura.config.ts` file:
+Configure global Rate Limiting settings within your `azura.config.ts`.
 
 ```typescript
 // azura.config.ts
 import type { ConfigTypes } from "azurajs/config";
 
 const config: ConfigTypes = {
-  // ...
   plugins: {
     rateLimit: {
-      enabled: true,           // Enable Rate Limiting
-      limit: 100,              // Maximum of 100 requests
-      timeframe: 60000,        // Per minute (60000ms)
-      // message: "Too many requests, please try again later.", // Custom message
-      // trustProxy: true,      // If behind a reverse proxy
+      enabled: true,
+      limit: 100,
+      timeframe: 60000, // 1 minute
+      message: "Too many requests, please try again later.",
+      trustProxy: false,
     },
   },
 };
@@ -36,20 +35,20 @@ export default config;
 
 ### `rateLimit` Options
 
-| Property | Type | Description |
-| :--- | :--- | :--- |
-| `enabled` | `boolean` | Enables or disables the Rate Limiting middleware. Default: `false`. |
-| `limit` | `number` | The maximum number of requests allowed within the `timeframe`. Default: `60`. |
-| `timeframe` | `number` | The time window in milliseconds for which the `limit` applies. Default: `60000` (1 minute). |
-| `message` | `string` | Custom error message to be sent when the limit is exceeded. Default: `"Too many requests, please try again later."`. |
-| `trustProxy` | `boolean` | If `true`, the client IP will be resolved from `X-Forwarded-For` headers. Default: `false`. |
+| Property     | Type      | Description                                                                   |
+| :----------- | :-------- | :---------------------------------------------------------------------------- |
+| `enabled`    | `boolean` | Activates the Rate Limiting middleware. Default: `false`.                     |
+| `limit`      | `number`  | Maximum allowed requests within the timeframe. Default: `60`.                 |
+| `timeframe`  | `number`  | Window duration in milliseconds. Default: `60000` (1 minute).                 |
+| `message`    | `string`  | Custom error response message.                                                |
+| `trustProxy` | `boolean` | Resolves client IP via `X-Forwarded-For` if behind a proxy. Default: `false`. |
 
 ## Per Route/Controller Rate Limiting
 
-To apply Rate Limiting to specific controllers or routes, you can use the `@UseMiddleware` decorator with AzuraJS's `rateLimit` function.
+Apply Rate Limiting selectively to specific controllers or routes using the `@UseMiddleware` decorator in conjunction with the `rateLimit` utility.
 
 ```typescript
-import { Controller, Get, UseMiddleware } from "azurajs/decorators";
+import { Controller, Get, Post, UseMiddleware } from "azurajs/decorators";
 import { rateLimit } from "azurajs/plugins";
 
 const tenRequestsPerMinute = rateLimit(10, 60 * 1000);
@@ -62,7 +61,7 @@ export class AuthController {
     return "Login Page";
   }
 
-  @UseMiddleware(rateLimit(5, 30 * 1000)) // 5 requests every 30 seconds
+  @UseMiddleware(rateLimit(5, 30 * 1000))
   @Post("/register")
   register() {
     return "User Registration";
@@ -72,7 +71,7 @@ export class AuthController {
 
 ## How It Works
 
-The Rate Limiting middleware tracks the number of requests from each IP (or identifier, if `trustProxy` is enabled) within the defined time window. If the limit is exceeded, it returns a `429 Too Many Requests` status.
+The middleware tracks request counts per unique IP (or identifier if `trustProxy` is enabled) during the specified window. Exceeding requests trigger a `429 Too Many Requests` response.
 
 ## Next Steps 📖
 

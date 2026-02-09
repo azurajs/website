@@ -8,13 +8,15 @@ order: 1
 
 # Validação ✅
 
-O AzuraJS possui um sistema de validação integrado e poderoso que permite garantir que os dados recebidos pela sua API estejam no formato correto antes mesmo de chegarem à lógica do seu controller.
+O AzuraJS inclui um sistema de validação robusto e integrado, projetado para garantir a integridade dos dados antes que alcancem sua lógica de negócios. Ele previne o processamento de dados inválidos e fornece inferência de tipos automática para usuários de TypeScript.
 
 ## O Azura Validator 🛡️
 
-Inspirado em bibliotecas como Zod, o validador do AzuraJS oferece uma sintaxe fluida e inferência de tipos automática.
+O validador oferece uma API fluida e encadeável inspirada no Zod, permitindo definições de esquema concisas e verificação rigorosa de dados.
 
-### Exemplo de Schema
+### Definição de Schema
+
+Defina schemas usando o utilitário `v` para criar regras de validação.
 
 ```typescript
 import { v } from "azurajs/validators";
@@ -25,17 +27,19 @@ const CreateUserSchema = v.object({
   age: v.number().int().min(18).optional(),
 });
 
-// Inferência de tipo
 type CreateUserDto = v.infer<typeof CreateUserSchema>;
 ```
 
 ## Validando no Controller 🎯
 
-Você pode usar o schema diretamente dentro do seu método para validar o corpo da requisição:
+Invoque o método `.safeParse()` do schema dentro do seu controller para validar o corpo das requisições recebidas.
 
 ```typescript
+import { Controller, Post, Body, Res } from "azurajs/decorators";
+import type { ResponseServer } from "azurajs/types";
+
 @Post()
-async createUser(@Body() body: any, @Res() res: ResponseServer) {
+async createUser(@Body() body: unknown, @Res() res: ResponseServer) {
   const result = CreateUserSchema.safeParse(body);
 
   if (!result.success) {
@@ -45,25 +49,27 @@ async createUser(@Body() body: any, @Res() res: ResponseServer) {
     });
   }
 
-  const data = result.data; // Agora 'data' está totalmente tipado!
-  // ... lógica de criação
+  const data = result.data;
+  // Prossiga com execução segura e tipada
 }
 ```
 
 ## Tipos de Dados Suportados 📊
 
-- `v.string()`: Com suporte a `.email()`, `.url()`, `.uuid()`, `.min()`, `.max()`.
-- `v.number()`: Com suporte a `.int()`, `.positive()`, `.min()`, `.max()`.
-- `v.boolean()`: Para valores verdadeiro/falso.
-- `v.array(type)`: Para listas de elementos.
-- `v.object(shape)`: Para estruturas aninhadas.
-- `v.enum([values])`: Para valores específicos.
+O validador suporta um conjunto abrangente de tipos de dados e restrições:
 
-## Validação Automática (Decorators) 🏷️
+- `v.string()`: Validação de string com helpers como `.email()`, `.url()`, `.uuid()`, `.min()`, `.max()`.
+- `v.number()`: Validação numérica com helpers como `.int()`, `.positive()`, `.min()`, `.max()`.
+- `v.boolean()`: Checa valores booleanos.
+- `v.array(type)`: Valida arrays de um tipo específico.
+- `v.object(shape)`: Valida estruturas de objeto aninhadas.
+- `v.enum([values])`: Valida contra um conjunto de valores permitidos.
 
-Em versões futuras, o AzuraJS suportará a validação automática via decorators diretamente na assinatura do método. Fique atento às atualizações!
+## Validação Automática 🏷️
+
+Versões futuras do AzuraJS introduzirão validação baseada em decorators para integração ainda mais fluida diretamente nas assinaturas dos métodos.
 
 ## Próximos Passos 📖
 
 - [🍪 **Cookies**](/docs/pt/framework/recursos/cookies): Gerenciamento nativo de cookies.
-- [🚨 **Error Handling**](/docs/pt/framework/recursos/error-handling): Como lidar com falhas de validação.
+- [🚨 **Tratamento de Erros**](/docs/pt/framework/recursos/error-handling): Como lidar com falhas de validação.

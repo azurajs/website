@@ -8,39 +8,47 @@ order: 5
 
 # Request & Response 💬
 
-No AzuraJS, os objetos de requisição (`RequestServer`) e resposta (`ResponseServer`) são a interface principal para interagir com o cliente HTTP. Eles são baseados na especificação padrão do Node.js, mas estendidos com funcionalidades adicionais para facilitar o desenvolvimento de APIs.
+No AzuraJS, os objetos `RequestServer` e `ResponseServer` atuam como a interface principal para interações HTTP. Embora baseados nas especificações padrão do Node.js, eles são aprimorados com métodos e propriedades convenientes para agilizar o desenvolvimento de APIs.
 
 ## Objeto `RequestServer`
 
-O objeto `RequestServer` representa a requisição HTTP recebida do cliente. Ele contém informações sobre a requisição, como cabeçalhos, parâmetros de URL, corpo da requisição e muito mais.
+O objeto `RequestServer` encapsula a requisição HTTP recebida, fornecendo acesso a cabeçalhos, parâmetros de URL, corpo da requisição e informações do cliente.
 
 ### Propriedades Comuns
 
-| Propriedade | Tipo | Descrição |
-| :--- | :--- | :--- |
-| `url` | `string` | A URL completa da requisição. |
-| `method` | `string` | O método HTTP da requisição (GET, POST, etc.). |
-| `headers` | `Record<string, string>` | Um objeto contendo todos os cabeçalhos da requisição. |
-| `params` | `Record<string, string>` | Parâmetros de rota extraídos da URL (ex: `/users/:id`). |
-| `query` | `Record<string, string>` | Parâmetros da query string da URL (ex: `?name=value`). |
-| `body` | `any` | O corpo da requisição, já parseado (JSON, formulário, etc.). |
-| `ip` | `string` | O endereço IP do cliente que fez a requisição. |
-| `cookies` | `Record<string, string>` | Um objeto contendo todos os cookies da requisição. |
+| Propriedade | Tipo                     | Descrição                                               |
+| :---------- | :----------------------- | :------------------------------------------------------ |
+| `url`       | `string`                 | A URL completa da requisição.                           |
+| `method`    | `string`                 | O método HTTP (GET, POST, etc.).                        |
+| `headers`   | `Record<string, string>` | Coleção de cabeçalhos da requisição.                    |
+| `params`    | `Record<string, string>` | Parâmetros de rota extraídos do caminho da URL.         |
+| `query`     | `Record<string, string>` | Parâmetros da query string parseados.                   |
+| `body`      | `any`                    | O corpo da requisição parseado (JSON, form data, etc.). |
+| `ip`        | `string`                 | O endereço IP do cliente.                               |
+| `cookies`   | `Record<string, string>` | Coleção de cookies da requisição.                       |
 
 ### Métodos Comuns
 
-| Método | Descrição |
-| :--- | :--- |
-| `json(): Promise<any>` | Lê e parseia o corpo da requisição como JSON. |
-| `text(): Promise<string>` | Lê o corpo da requisição como texto. |
-| `arrayBuffer(): Promise<ArrayBuffer>` | Lê o corpo da requisição como um ArrayBuffer. |
-| `blob(): Promise<Blob>` | Lê o corpo da requisição como um Blob. |
-| `formData(): Promise<FormData>` | Lê o corpo da requisição como FormData. |
+| Método                                | Descrição                                       |
+| :------------------------------------ | :---------------------------------------------- |
+| `json(): Promise<any>`                | Lê e parseia o corpo como JSON assincronamente. |
+| `text(): Promise<string>`             | Lê o corpo como texto assincronamente.          |
+| `arrayBuffer(): Promise<ArrayBuffer>` | Lê o corpo como um ArrayBuffer.                 |
+| `blob(): Promise<Blob>`               | Lê o corpo como um Blob.                        |
+| `formData(): Promise<FormData>`       | Lê o corpo como FormData.                       |
 
 ### Exemplo de Uso
 
 ```typescript
-import { Controller, Get, Post, Req, Body, Param, Query } from "azurajs/decorators";
+import {
+  Controller,
+  Get,
+  Post,
+  Req,
+  Body,
+  Param,
+  Query,
+} from "azurajs/decorators";
 import type { RequestServer } from "azurajs/types";
 
 @Controller("/data")
@@ -49,17 +57,19 @@ export class DataController {
   getData(
     @Req() req: RequestServer,
     @Param("id") id: string,
-    @Query("filter") filter?: string
+    @Query("filter") filter?: string,
   ) {
-    console.log("Método:", req.method);
-    console.log("URL:", req.url);
-    console.log("Headers:", req.headers);
-    return { id, filter, ip: req.ip };
+    return {
+      id,
+      filter,
+      ip: req.ip,
+      method: req.method,
+      url: req.url,
+    };
   }
 
   @Post()
   async postData(@Body() body: any) {
-    // O decorator @Body já faz o parse, mas você pode usar req.json() em JS puro
     return { received: body };
   }
 }
@@ -67,28 +77,28 @@ export class DataController {
 
 ## Objeto `ResponseServer`
 
-O objeto `ResponseServer` representa a resposta HTTP que será enviada de volta ao cliente. Ele permite definir o status, cabeçalhos e o corpo da resposta.
+O objeto `ResponseServer` facilita o envio da resposta HTTP de volta ao cliente, permitindo definir códigos de status, cabeçalhos, cookies e o corpo da resposta.
 
 ### Propriedades Comuns
 
-| Propriedade | Tipo | Descrição |
-| :--- | :--- | :--- |
-| `statusCode` | `number` | O código de status HTTP da resposta. |
+| Propriedade   | Tipo      | Descrição                                  |
+| :------------ | :-------- | :----------------------------------------- |
+| `statusCode`  | `number`  | O código de status HTTP atual.             |
 | `headersSent` | `boolean` | Indica se os cabeçalhos já foram enviados. |
 
 ### Métodos Comuns
 
-| Método | Descrição |
-| :--- | :--- |
-| `status(code: number): this` | Define o código de status HTTP da resposta. |
-| `json(data: any): void` | Envia uma resposta JSON. |
-| `send(body: string | Buffer | object): void` | Envia uma resposta de texto, buffer ou JSON. |
-| `end(): void` | Finaliza a resposta sem enviar dados. |
-| `setHeader(name: string, value: string): void` | Define um cabeçalho de resposta. |
-| `getHeader(name: string): string | undefined` | Obtém o valor de um cabeçalho de resposta. |
-| `cookie(name: string, value: string, options?: CookieOptions): void` | Define um cookie. |
-| `clearCookie(name: string, options?: CookieOptions): void` | Exclui um cookie. |
-| `redirect(url: string, status?: number): void` | Redireciona o cliente para outra URL. |
+| Método                                                               | Descrição                                   |
+| :------------------------------------------------------------------- | :------------------------------------------ | ---------------------------------------- | ------------------------------------------------- |
+| `status(code: number): this`                                         | Define o código de status HTTP.             |
+| `json(data: any): void`                                              | Envia uma resposta JSON.                    |
+| `send(body: string                                                   | Buffer                                      | object): void`                           | Envia uma resposta do tipo texto, buffer ou JSON. |
+| `end(): void`                                                        | Finaliza a resposta sem enviar dados.       |
+| `setHeader(name: string, value: string): void`                       | Define um cabeçalho de resposta específico. |
+| `getHeader(name: string): string                                     | undefined`                                  | Obtém um cabeçalho de resposta definido. |
+| `cookie(name: string, value: string, options?: CookieOptions): void` | Define um cookie com opções.                |
+| `clearCookie(name: string, options?: CookieOptions): void`           | Remove um cookie específico.                |
+| `redirect(url: string, status?: number): void`                       | Redireciona a requisição para uma nova URL. |
 
 ### Exemplo de Uso
 

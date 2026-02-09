@@ -8,32 +8,43 @@ order: 4
 
 # Middleware 🔌
 
-Middleware are functions that have access to the request (`req`), response (`res`) objects, and the next middleware function in the request-response cycle of an AzuraJS application. They can execute code, make changes to the request and response objects, end the request-response cycle, or call the next middleware.
+Middleware functions are a fundamental part of the request-response cycle in AzuraJS. They have access to the `RequestServer`, `ResponseServer`, and the `next` function, allowing them to execute code, transform data, or terminate the request before it reaches the route handler.
 
 ## How Middleware Works
 
-Each middleware function receives three arguments:
+A middleware function typically performs one of the following tasks:
+
+- Executes arbitrary code.
+- Modifies the request or response objects.
+- Ends the request-response cycle (e.g., sending a response early).
+- Calls `next()` to pass control to the next middleware in the stack.
+
+Each middleware receives three arguments:
 
 1.  `req`: The request object (`RequestServer`).
 2.  `res`: The response object (`ResponseServer`).
-3.  `next`: A function that, when called, executes the next middleware in the stack.
+3.  `next`: The callback to continue execution.
 
 ```typescript
 import type { RequestServer, ResponseServer } from "azurajs/types";
 
-const loggerMiddleware = (req: RequestServer, res: ResponseServer, next: () => Promise<void>) => {
+const loggerMiddleware = (
+  req: RequestServer,
+  res: ResponseServer,
+  next: () => Promise<void>,
+) => {
   console.log(`Request received: ${req.method} ${req.url}`);
-  next(); // Calls the next middleware or the route handler
+  next();
 };
 ```
 
 ## Registering Middleware
 
-You can register middleware globally for all routes or specifically for a controller or route.
+Middleware can be applied at different scopes: globally, per controller, or per route.
 
-### Globally
+### Global Middleware
 
-Use the `app.use()` method to apply middleware to all requests.
+To apply middleware to every request, register it using the `app.use()` method.
 
 ```typescript
 import { AzuraClient } from "azurajs";
@@ -42,19 +53,21 @@ const app = new AzuraClient();
 
 app.use(loggerMiddleware);
 app.use(anotherMiddleware);
-
-// ... register controllers and start the server
 ```
 
-### Per Controller
+### Controller Middleware
 
-You can apply middleware to an entire controller using the `@UseMiddleware` decorator.
+Use the `@UseMiddleware` decorator to apply middleware to all routes within a controller.
 
 ```typescript
 import { Controller, Get, UseMiddleware } from "azurajs/decorators";
 import type { RequestServer, ResponseServer } from "azurajs/types";
 
-const authMiddleware = (req: RequestServer, res: ResponseServer, next: () => Promise<void>) => {
+const authMiddleware = (
+  req: RequestServer,
+  res: ResponseServer,
+  next: () => Promise<void>,
+) => {
   if (!req.headers.authorization) {
     return res.status(401).send("Unauthorized");
   }
@@ -71,14 +84,18 @@ export class AdminController {
 }
 ```
 
-### Per Route
+### Route Middleware
 
-The `@UseMiddleware` decorator can also be applied to specific route methods.
+The `@UseMiddleware` decorator can also target individual methods to apply middleware selectively.
 
 ```typescript
 import { Controller, Get, UseMiddleware } from "azurajs/decorators";
 
-const logTimeMiddleware = (req: RequestServer, res: ResponseServer, next: () => Promise<void>) => {
+const logTimeMiddleware = (
+  req: RequestServer,
+  res: ResponseServer,
+  next: () => Promise<void>,
+) => {
   const start = Date.now();
   res.on("finish", () => {
     console.log(`Request ${req.url} took ${Date.now() - start}ms`);
@@ -91,7 +108,6 @@ export class DataController {
   @UseMiddleware(logTimeMiddleware)
   @Get("/heavy-report")
   getHeavyReport() {
-    // ... logic that might take time
     return "Heavy Report";
   }
 }
@@ -99,7 +115,7 @@ export class DataController {
 
 ## Asynchronous Middleware
 
-Middleware can be asynchronous functions. Make sure to use `await next()` to ensure that the next middleware or route handler is executed and the response is awaited.
+Middleware functions fully support `async/await`. Always await `next()` if you need to perform actions after the subsequent middleware completes, or if consistency is required in the execution order.
 
 ```typescript
 const asyncMiddleware = async (req, res, next) => {

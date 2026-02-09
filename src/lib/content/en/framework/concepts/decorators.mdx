@@ -8,11 +8,11 @@ order: 3
 
 # Decorators 🏷️
 
-Decorators are a powerful TypeScript feature that allows you to add metadata and logic to classes, methods, properties, and parameters. In AzuraJS, they are the foundation for defining routes, injecting dependencies, and configuring your API's behavior in a declarative and elegant way.
+Decorators are a powerful TypeScript feature that allows you to add metadata and logic to classes, methods, properties, and parameters. In AzuraJS, decorators form the foundation for defining routes, injecting dependencies, and configuring API behavior declaratively.
 
 ## Enabling Decorators
 
-To use decorators, you need to enable them in your `tsconfig.json`:
+To use decorators, update your `tsconfig.json` with the following compiler options:
 
 ```json
 {
@@ -23,71 +23,75 @@ To use decorators, you need to enable them in your `tsconfig.json`:
 }
 ```
 
-## Types of Decorators in AzuraJS
+## Types of Decorators
 
 ### 1. Class Decorators
 
-Used to define controllers and apply global configurations.
+These are applied to classes to define their role (e.g., as a Controller) and apply global configurations.
 
-*   `@Controller(prefix?: string)`: Defines a class as a controller and optionally a prefix for all its routes.
+- `@Controller(prefix?: string)`: Marks a class as a controller. Optionally accepts a route prefix.
 
 ```typescript
 import { Controller } from "azurajs/decorators";
 
 @Controller("/api/v1")
-export class MyController {
-  // ... routes
-}
+export class MyController {}
 ```
 
 ### 2. Method Decorators
 
-Used to map class methods to specific HTTP routes.
+These decorators map class methods to specific HTTP verbs and route paths.
 
-*   `@Get(path?: string)`
-*   `@Post(path?: string)`
-*   `@Put(path?: string)`
-*   `@Delete(path?: string)`
-*   `@Patch(path?: string)`
-*   `@Head(path?: string)`
-*   `@Options(path?: string)`
+- `@Get(path?: string)`
+- `@Post(path?: string)`
+- `@Put(path?: string)`
+- `@Delete(path?: string)`
+- `@Patch(path?: string)`
+- `@Head(path?: string)`
+- `@Options(path?: string)`
+
+In the example below, `getUser` maps to `GET /users/:id` and `createUser` maps to `POST /users`:
 
 ```typescript
 import { Controller, Get, Post } from "azurajs/decorators";
 
 @Controller("/users")
 export class UserController {
-  @Get("/:id") // GET /users/:id
-  getUser() { /* ... */ }
+  @Get("/:id")
+  getUser() {
+    /* ... */
+  }
 
-  @Post() // POST /users
-  createUser() { /* ... */ }
+  @Post()
+  createUser() {
+    /* ... */
+  }
 }
 ```
 
 ### 3. Parameter Decorators
 
-Used to inject request data directly into controller method arguments.
+Use these to inject request data directly into your method arguments, avoiding manual parsing.
 
-*   `@Req()`: Request object.
-*   `@Res()`: Response object.
-*   `@Next()`: `next()` function for middlewares.
-*   `@Param(name?: string)`: Route parameter.
-*   `@Query(name?: string)`: Query string parameter.
-*   `@Body(name?: string)`: Request body.
-*   `@Headers(name?: string)`: Request header.
-*   `@Cookies(name?: string)`: Request cookie.
-*   `@Ip()`: Client IP address.
+- `@Req()`: Request object
+- `@Res()`: Response object
+- `@Next()`: Next function (middleware)
+- `@Param(name?: string)`: Route parameters
+- `@Query(name?: string)`: Query parameters
+- `@Body(name?: string)`: Request body
+- `@Headers(name?: string)`: Request headers
+- `@Cookies(name?: string)`: Request cookies
+- `@Ip()`: Client IP
 
 ```typescript
-import { Controller, Get, Param, Query, Body } from "azurajs/decorators";
+import { Controller, Get, Param, Query, Body, Post } from "azurajs/decorators";
 
 @Controller("/products")
 export class ProductController {
   @Get("/:id")
   getProduct(
     @Param("id") productId: string,
-    @Query("version") version?: string
+    @Query("version") version?: string,
   ) {
     return { productId, version };
   }
@@ -99,9 +103,9 @@ export class ProductController {
 }
 ```
 
-## `applyDecorators()`
+## Application Registration
 
-For decorators to be processed and routes registered, you must call `applyDecorators()` in your main file, passing the `AzuraClient` instance and an array of controller classes.
+Decorators are only processed when registered. You must call `applyDecorators()` in your entry file.
 
 ```typescript
 import { AzuraClient } from "azurajs";
@@ -110,7 +114,6 @@ import { UserController } from "./controllers/UserController";
 
 const app = new AzuraClient();
 applyDecorators(app, [UserController]);
-// ...
 ```
 
 ## Next Steps 📖

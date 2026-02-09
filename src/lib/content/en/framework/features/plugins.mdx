@@ -8,17 +8,17 @@ order: 10
 
 # Plugins 🔌
 
-AzuraJS comes with a comprehensive plugin ecosystem featuring **17 built-in plugins** that add powerful functionality to your applications without requiring external dependencies. All plugins are accessible through the `azurajs/plugins` export and follow a consistent, easy-to-use API.
+AzuraJS includes a comprehensive ecosystem of **17 built-in plugins**, providing robust functionality without external dependencies. These plugins are accessible via the `azurajs/plugins` export and adhere to a consistent, intuitive API.
 
 ## Overview
 
-Plugins in AzuraJS are middleware functions that can be applied globally or to specific routes. They are designed to be:
+Plugins in AzuraJS are middleware functions applicable globally or to specific routes. They are designed to be:
 
-- **Zero Dependencies**: Built entirely with Node.js native modules
-- **Type-Safe**: Full TypeScript support with detailed type definitions
-- **Composable**: Combine multiple plugins for complex functionality
-- **Performant**: Optimized for production use
-- **Extensible**: Easy to create custom plugins
+- **Zero Dependencies**: Constructed entirely with Node.js native modules.
+- **Type-Safe**: Complete TypeScript support with detailed definitions.
+- **Composable**: Easily combinable for complex functionality.
+- **Performant**: Optimized for production environments.
+- **Extensible**: Straightforward custom plugin creation.
 
 ## Available Plugins
 
@@ -26,7 +26,7 @@ Plugins in AzuraJS are middleware functions that can be applied globally or to s
 
 #### 🛡️ Helmet
 
-Adds security headers to protect your application from common web vulnerabilities.
+Implements security headers to safeguard against common vulnerabilities.
 
 ```typescript
 import { AzuraClient } from "azurajs";
@@ -56,18 +56,18 @@ app.use(helmet({
 ```
 
 **Options:**
-- `contentSecurityPolicy`: Configure CSP directives
-- `hsts`: HTTP Strict Transport Security settings
-- `frameguard`: X-Frame-Options configuration
-- `noSniff`: Enable X-Content-Type-Options: nosniff
-- `xssFilter`: Enable X-XSS-Protection
-- `hidePoweredBy`: Remove X-Powered-By header
-- `dnsPrefetchControl`: Control DNS prefetching
-- `referrerPolicy`: Set Referrer-Policy
+- `contentSecurityPolicy`: various CSP directives.
+- `hsts`: HTTP Strict Transport Security settings.
+- `frameguard`: X-Frame-Options configuration.
+- `noSniff`: Enables X-Content-Type-Options: nosniff.
+- `xssFilter`: Enables X-XSS-Protection.
+- `hidePoweredBy`: Removes the X-Powered-By header.
+- `dnsPrefetchControl`: Controls DNS prefetching.
+- `referrerPolicy`: Sets the Referrer-Policy.
 
 #### 🌐 CORS
 
-Enable Cross-Origin Resource Sharing for your API.
+Enables Cross-Origin Resource Sharing.
 
 ```typescript
 import { cors } from "azurajs/plugins";
@@ -83,16 +83,16 @@ app.use(cors({
 ```
 
 **Options:**
-- `origins`: Array of allowed origins (use `["*"]` for all)
-- `methods`: Allowed HTTP methods
-- `allowedHeaders`: Allowed request headers
-- `exposedHeaders`: Headers exposed to the browser
-- `credentials`: Allow cookies and authorization headers
-- `maxAge`: Preflight cache duration (seconds)
+- `origins`: Array of allowed origins (`["*"]` for all).
+- `methods`: Allowed HTTP methods.
+- `allowedHeaders`: Permitted request headers.
+- `exposedHeaders`: Headers exposed to the browser.
+- `credentials`: Supports cookies and authorization headers.
+- `maxAge`: Preflight cache duration in seconds.
 
 #### 🔒 CSRF
 
-Protect against Cross-Site Request Forgery attacks.
+Protects against Cross-Site Request Forgery attacks.
 
 ```typescript
 import { csrf } from "azurajs/plugins";
@@ -107,7 +107,7 @@ app.use(csrf({
   ignoreMethods: ['GET', 'HEAD', 'OPTIONS']
 }));
 
-// Use in your routes
+// Usage in routes
 app.get('/form', (req, res) => {
   res.send(`
     <form method="POST" action="/submit">
@@ -119,31 +119,31 @@ app.get('/form', (req, res) => {
 ```
 
 **Features:**
-- Automatic token generation
-- Cookie-based or session-based storage
-- Configurable ignored methods
-- Token validation
+- Automatic token generation.
+- Cookie-based or session-based storage.
+- Configurable ignored methods.
+- Token validation.
 
 #### 🔐 JWT Authentication
 
-Complete JWT authentication system with signing, verification, and middleware.
+A complete JWT system including signing, verification, and middleware.
 
 ```typescript
 import { jwtMiddleware, createJWT, verifyJWT } from "azurajs/plugins";
 
-// Create a JWT token
+// Token Creation
 const token = createJWT(
   { userId: 123, role: 'admin' },
   { 
     secret: process.env.JWT_SECRET,
-    expiresIn: 3600,      // 1 hour
+    expiresIn: 3600,
     algorithm: 'HS256',
     issuer: 'myapp',
     audience: 'myapp-users'
   }
 );
 
-// Protect routes
+// Route Protection
 app.use('/api/protected', jwtMiddleware({
   secret: process.env.JWT_SECRET,
   credentialsRequired: true,
@@ -157,13 +157,13 @@ app.use('/api/protected', jwtMiddleware({
   }
 }));
 
-// Access decoded token
+// Accessing Payload
 app.get('/api/protected/profile', (req, res) => {
-  const user = req.user; // JWT payload
+  const user = req.user;
   res.json({ user });
 });
 
-// Manually verify a token
+// Manual Verification
 try {
   const payload = verifyJWT(token, { 
     secret: process.env.JWT_SECRET 
@@ -175,71 +175,68 @@ try {
 ```
 
 **Features:**
-- Supports HS256, HS384, and HS512 algorithms
-- Standard JWT claims (exp, iat, nbf, iss, aud)
-- Custom token extraction
-- Type-safe payload access
-- Zero external dependencies
+- Supports HS256, HS384, and HS512 algorithms.
+- Standard JWT claims (exp, iat, nbf, iss, aud).
+- Custom token extraction.
+- Type-safe payload access.
 
 ### Performance Plugins
 
 #### 🗜️ Compression
 
-Automatically compress responses with gzip, deflate, or Brotli.
+Automatically compresses responses using gzip, deflate, or Brotli.
 
 ```typescript
 import { compression } from "azurajs/plugins";
 
 app.use(compression({
-  threshold: 1024,      // Only compress responses > 1KB
-  level: 6,             // Compression level (0-9, default: 6)
+  threshold: 1024,
+  level: 6,
   filter: (contentType) => {
-    // Compress text-based content
     return /json|text|javascript|css|xml|svg/.test(contentType);
   }
 }));
 ```
 
 **Options:**
-- `threshold`: Minimum response size to compress (bytes)
-- `level`: Compression level (0-9, higher = better compression but slower)
-- `filter`: Function to determine which content types to compress
+- `threshold`: Minimum response size in bytes.
+- `level`: Compression level (0-9).
+- `filter`: Content type filter function.
 
 **Benefits:**
-- Reduces bandwidth by up to 70%
-- Automatic encoding negotiation (accepts: gzip, deflate, br)
-- Smart content-type filtering
+- Up to 70% bandwidth reduction.
+- Automatic encoding negotiation.
+- Smart content-type filtering.
 
 #### 🏷️ ETag
 
-Enable HTTP caching with ETag generation and validation.
+Enables HTTP caching via ETag generation and validation.
 
 ```typescript
 import { etag } from "azurajs/plugins";
 
 app.use(etag({
-  algorithm: 'sha1',  // Hash algorithm
-  weak: true          // Use weak ETags (W/"...")
+  algorithm: 'sha1',
+  weak: true
 }));
 ```
 
 **Features:**
-- Automatic ETag generation
-- Returns 304 Not Modified when appropriate
-- Supports both strong and weak ETags
-- Reduces data transfer for unchanged resources
+- Automatic generation.
+- Returns 304 Not Modified when appropriate.
+- Supports strong and weak ETags.
 
 #### 🗂️ Static Files
 
-Serve static files with caching and security features.
+Serves static files with caching and security headers.
 
 ```typescript
 import { serveStatic } from "azurajs/plugins";
 
 app.use('/public', serveStatic('./public', {
-  maxAge: 86400000,        // 1 day cache
-  index: 'index.html',     // Default file
-  dotfiles: 'ignore',      // Ignore dotfiles
+  maxAge: 86400000,
+  index: 'index.html',
+  dotfiles: 'ignore',
   etag: true,
   lastModified: true,
   extensions: ['html', 'htm']
@@ -247,18 +244,18 @@ app.use('/public', serveStatic('./public', {
 ```
 
 **Options:**
-- `maxAge`: Cache duration in milliseconds
-- `index`: Default index file
-- `dotfiles`: How to handle dotfiles ('allow', 'ignore', 'deny')
-- `etag`: Enable ETag generation
-- `lastModified`: Send Last-Modified header
-- `extensions`: File extensions to try
+- `maxAge`: Cache duration in ms.
+- `index`: Default index file.
+- `dotfiles`: Handling strategy ('allow', 'ignore', 'deny').
+- `etag`: Toggle ETag generation.
+- `lastModified`: Toggle Last-Modified header.
+- `extensions`: File extensions to try.
 
 ### Data Handling Plugins
 
 #### 📦 Session
 
-Manage user sessions with memory or custom store.
+Manages user sessions via memory or custom stores.
 
 ```typescript
 import { session } from "azurajs/plugins";
@@ -267,17 +264,16 @@ app.use(session({
   secret: process.env.SESSION_SECRET,
   name: 'sessionId',
   cookie: {
-    maxAge: 86400000,    // 24 hours
+    maxAge: 86400000,
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict'
   },
-  rolling: true,         // Extend session on activity
+  rolling: true,
   resave: false,
   saveUninitialized: false
 }));
 
-// Use sessions
 app.post('/login', (req, res) => {
   req.session.userId = user.id;
   req.session.role = user.role;
@@ -294,7 +290,6 @@ app.get('/profile', (req, res) => {
   });
 });
 
-// Destroy session
 app.post('/logout', (req, res) => {
   req.session.destroy();
   res.json({ success: true });
@@ -304,7 +299,6 @@ app.post('/logout', (req, res) => {
 **Custom Store Example:**
 
 ```typescript
-// Redis store implementation
 class RedisStore {
   constructor(private redis: RedisClient) {}
 
@@ -330,15 +324,15 @@ app.use(session({
 
 #### 📤 Multipart
 
-Handle file uploads with multipart/form-data.
+Handles `multipart/form-data` file uploads.
 
 ```typescript
 import { multipart } from "azurajs/plugins";
 
 app.post('/upload', multipart({
   limits: { 
-    fileSize: 10 * 1024 * 1024,  // 10MB
-    files: 5                       // Max 5 files
+    fileSize: 10 * 1024 * 1024,
+    files: 5
   },
   allowedTypes: ['image/jpeg', 'image/png', 'application/pdf'],
   uploadDir: './uploads'
@@ -359,20 +353,20 @@ app.post('/upload', multipart({
 ```
 
 **Options:**
-- `limits`: Size and count limits
-- `allowedTypes`: Array of allowed MIME types
-- `uploadDir`: Directory to save uploaded files
-- `keepExtensions`: Keep original file extensions
+- `limits`: Size and count constraints.
+- `allowedTypes`: Permitted MIME types.
+- `uploadDir`: Destination directory.
+- `keepExtensions`: Preserve file extensions.
 
 #### 📏 Body Limit
 
-Limit request body size to prevent abuse.
+Restricts request body size.
 
 ```typescript
 import { bodyLimit } from "azurajs/plugins";
 
 app.use(bodyLimit({
-  limit: '10mb',  // String or number (bytes)
+  limit: '10mb',
   onLimit: (req, res) => {
     res.status(413).json({ 
       error: 'Payload too large',
@@ -386,27 +380,26 @@ app.use(bodyLimit({
 
 #### ⚡ Rate Limiting
 
-Prevent API abuse with request rate limiting.
+Mitigates API abuse by limiting request rates.
 
 ```typescript
 import { rateLimit } from "azurajs/plugins";
 
 app.use('/api', rateLimit({
-  windowMs: 60000,         // 1 minute
-  max: 100,                // Max 100 requests per window
+  windowMs: 60000,
+  max: 100,
   message: 'Too many requests, please try again later',
   statusCode: 429,
   skipSuccessfulRequests: false,
   skipFailedRequests: false,
-  keyGenerator: (req) => req.ip  // Use IP as key
+  keyGenerator: (req) => req.ip
 }));
 ```
 
 **Features:**
-- Configurable time windows
-- Per-IP or custom key tracking
-- Custom error responses
-- Skip successful/failed requests option
+- Configurable windows.
+- IP or custom key tracking.
+- Custom error responses.
 
 #### 🔄 Proxy
 
@@ -435,15 +428,15 @@ app.use('/api/users', proxyPlugin('http://users-service:4001', {
 
 #### ⚡ Circuit Breaker
 
-Implement fault tolerance pattern for resilient applications.
+Implements fault tolerance patterns.
 
 ```typescript
 import { circuitBreaker, CircuitBreaker } from "azurajs/plugins";
 
-// As middleware
+// Middleware Usage
 app.use('/api/external', circuitBreaker({
-  failureThreshold: 5,    // Open after 5 failures
-  timeout: 60000,         // Reset after 1 minute
+  failureThreshold: 5,
+  timeout: 60000,
   onOpen: () => {
     console.log('Circuit opened - stopping requests');
   },
@@ -452,7 +445,7 @@ app.use('/api/external', circuitBreaker({
   }
 }));
 
-// As utility class
+// Utility Class Usage
 const dbBreaker = new CircuitBreaker({
   failureThreshold: 3,
   timeout: 30000
@@ -476,25 +469,25 @@ app.get('/users', async (req, res) => {
 ```
 
 **States:**
-- **Closed**: Normal operation, requests pass through
-- **Open**: Too many failures, requests are blocked
-- **Half-Open**: Testing if service recovered
+- **Closed**: Normal operation.
+- **Open**: Failures exceeded threshold; requests blocked.
+- **Half-Open**: Probationary period testing service recovery.
 
 ### Real-time & Monitoring
 
 #### 📊 Server-Sent Events (SSE)
 
-Enable real-time server push with SSE.
+Enables real-time server push capabilities.
 
 ```typescript
 import { SSEManager, createSSEHandler } from "azurajs/plugins";
 
 const sse = new SSEManager();
 
-// SSE endpoint
+// Endpoint
 app.get('/events', createSSEHandler(sse));
 
-// Broadcast to all clients
+// Broadcast
 app.post('/notify', (req, res) => {
   sse.broadcast({
     event: 'notification',
@@ -503,7 +496,7 @@ app.post('/notify', (req, res) => {
   res.json({ sent: true });
 });
 
-// Send to specific client
+// Targeted Message
 app.post('/notify/:clientId', (req, res) => {
   sse.send(req.params.clientId, {
     event: 'private-message',
@@ -512,7 +505,7 @@ app.post('/notify/:clientId', (req, res) => {
   res.json({ sent: true });
 });
 
-// Real-time metrics
+// Periodic Updates
 setInterval(() => {
   sse.broadcast({
     event: 'metrics',
@@ -543,7 +536,7 @@ eventSource.addEventListener('metrics', (event) => {
 
 #### 🩺 Health Check
 
-Monitor application health and dependencies.
+Monitors application and dependency health.
 
 ```typescript
 import { healthCheck } from "azurajs/plugins";
@@ -586,8 +579,8 @@ app.use('/health', healthCheck({
       }
     }
   },
-  timeout: 5000,  // 5 second timeout for checks
-  cache: 10000    // Cache results for 10 seconds
+  timeout: 5000,
+  cache: 10000
 }));
 ```
 
@@ -617,7 +610,7 @@ app.use('/health', healthCheck({
 
 #### 🔢 Request ID
 
-Add unique identifiers to requests for tracing.
+Assigns unique identifiers to requests for tracing.
 
 ```typescript
 import { requestId } from "azurajs/plugins";
@@ -636,13 +629,13 @@ app.use((req, res, next) => {
 
 #### ⏱️ Timeout
 
-Prevent hanging requests with automatic timeouts.
+Prevents hanging requests.
 
 ```typescript
 import { timeout } from "azurajs/plugins";
 
 app.use(timeout({
-  duration: 30000,  // 30 seconds
+  duration: 30000,
   onTimeout: (req, res) => {
     console.error(`Request timeout: ${req.method} ${req.url}`);
     res.status(408).json({ 
@@ -655,7 +648,7 @@ app.use(timeout({
 
 ## Plugin Composition
 
-Combine multiple plugins for powerful functionality:
+Combining plugins enables robust application architectures.
 
 ### Production-Ready Setup
 
@@ -674,7 +667,7 @@ import {
 
 const app = new AzuraClient();
 
-// Security layer
+// Security
 app.use(helmet());
 app.use(cors({ 
   origins: [process.env.FRONTEND_URL],
@@ -682,11 +675,11 @@ app.use(cors({
 }));
 app.use(bodyLimit({ limit: '10mb' }));
 
-// Performance layer
+// Performance
 app.use(compression({ threshold: 1024 }));
 app.use(timeout({ duration: 30000 }));
 
-// Monitoring layer
+// Monitoring
 app.use(requestId());
 app.use('/health', healthCheck({
   checks: {
@@ -700,7 +693,6 @@ app.use('/api', rateLimit({
   max: 100
 }));
 
-// Your routes...
 app.get('/api/users', (req, res) => {
   res.json({ users: [] });
 });
@@ -727,13 +719,11 @@ app.use(helmet());
 app.use(cors({ origins: [process.env.FRONTEND_URL], credentials: true }));
 app.use(bodyLimit({ limit: '1mb' }));
 
-// Rate limit auth endpoints
 app.use('/auth', rateLimit({
-  windowMs: 900000,  // 15 minutes
-  max: 5             // 5 attempts
+  windowMs: 900000,
+  max: 5
 }));
 
-// Login endpoint
 app.post('/auth/login', async (req, res) => {
   const { email, password } = req.body;
   
@@ -746,14 +736,13 @@ app.post('/auth/login', async (req, res) => {
     { userId: user.id, role: user.role },
     { 
       secret: process.env.JWT_SECRET,
-      expiresIn: 3600  // 1 hour
+      expiresIn: 3600
     }
   );
   
   res.json({ token, user: { id: user.id, email: user.email } });
 });
 
-// Protected routes
 app.use('/api', jwtMiddleware({
   secret: process.env.JWT_SECRET,
   credentialsRequired: true
@@ -792,8 +781,6 @@ app.post('/upload',
   }),
   async (req, res) => {
     const files = req.files;
-    
-    // Process and save files
     const savedFiles = await Promise.all(
       files.map(file => saveToStorage(file))
     );
@@ -826,7 +813,6 @@ gateway.use(cors({ origins: ['*'] }));
 gateway.use(requestId());
 gateway.use(rateLimit({ max: 1000, windowMs: 60000 }));
 
-// Health check for gateway
 gateway.use('/health', healthCheck({
   checks: {
     usersService: async () => {
@@ -848,7 +834,6 @@ gateway.use('/health', healthCheck({
   }
 }));
 
-// Proxy to services with circuit breaker
 gateway.use('/users', 
   circuitBreaker({ failureThreshold: 5, timeout: 60000 }),
   proxyPlugin('http://users-service:4001', {
@@ -868,7 +853,7 @@ gateway.listen(3000);
 
 ## Creating Custom Plugins
 
-You can create your own plugins following the same pattern:
+Create bespoke plugins by following the standard middleware pattern:
 
 ```typescript
 import type { RequestHandler } from "azurajs";
@@ -886,11 +871,9 @@ export function customPlugin(options: CustomPluginOptions = {}): RequestHandler 
       return next();
     }
     
-    // Your plugin logic
     req.customData = `${prefix}-${Date.now()}`;
     
     res.on('finish', () => {
-      // Cleanup or logging
       console.log(`Request finished: ${req.customData}`);
     });
     
@@ -899,13 +882,12 @@ export function customPlugin(options: CustomPluginOptions = {}): RequestHandler 
 }
 ```
 
-**Advanced plugin with async operations:**
+**Advanced Async Plugin:**
 
 ```typescript
 export function asyncPlugin(options: Options): RequestHandler {
   return async (req, res, next) => {
     try {
-      // Async operations
       const data = await fetchSomeData();
       req.pluginData = data;
       next();
@@ -920,20 +902,21 @@ export function asyncPlugin(options: Options): RequestHandler {
 
 ### 1. Order Matters
 
-Apply plugins in the right order for optimal functionality:
+Layer plugins correctly for optimal functionality.
 
 ```typescript
 // ✅ Correct order
-app.use(helmet());           // 1. Security first
-app.use(cors());             // 2. CORS
-app.use(bodyLimit());        // 3. Body parsing limits
-app.use(compression());      // 4. Compression
-app.use(requestId());        // 5. Request tracking
-app.use('/api', rateLimit()); // 6. Rate limiting
-// ... your routes
+app.use(helmet());            // 1. Security
+app.use(cors());              // 2. CORS
+app.use(bodyLimit());         // 3. Size Limits
+app.use(compression());       // 4. Compression
+app.use(requestId());         // 5. Tracing
+app.use('/api', rateLimit()); // 6. Rate Limiting
 ```
 
 ### 2. Environment-Specific Configuration
+
+Adapt settings based on the deployment environment.
 
 ```typescript
 const isProduction = process.env.NODE_ENV === 'production';
@@ -952,26 +935,27 @@ app.use(session({
 
 ### 3. Performance Tuning
 
+Tune plugins for efficiency.
+
 ```typescript
-// Only compress large responses
 app.use(compression({ 
-  threshold: 2048  // 2KB minimum
+  threshold: 2048
 }));
 
-// Cache health checks
 app.use('/health', healthCheck({
   checks: { /* ... */ },
-  cache: 30000  // Cache for 30 seconds
+  cache: 30000
 }));
 
-// Optimize rate limiting for high traffic
 app.use(rateLimit({
-  windowMs: 1000,  // 1 second windows
-  max: 10,         // Smaller windows, more checks
+  windowMs: 1000,
+  max: 10,
 }));
 ```
 
 ### 4. Error Handling
+
+Implement robust error management strategies.
 
 ```typescript
 import { circuitBreaker } from "azurajs/plugins";
@@ -980,12 +964,10 @@ app.use('/api/external', circuitBreaker({
   failureThreshold: 5,
   timeout: 60000,
   onOpen: () => {
-    // Alert monitoring system
     monitoringService.alert('Circuit breaker opened');
   }
 }));
 
-// Global error handler
 app.use((error, req, res, next) => {
   console.error(`[${req.id}] Error:`, error);
   res.status(500).json({ 
@@ -997,16 +979,16 @@ app.use((error, req, res, next) => {
 
 ### 5. Security Checklist
 
-For production deployments, ensure you have:
+Ensure the following for production deployments:
 
 - ✅ Helmet for security headers
-- ✅ CORS properly configured
-- ✅ Rate limiting on all public endpoints
-- ✅ Body size limits
-- ✅ CSRF protection for state-changing operations
-- ✅ JWT or session authentication
+- ✅ CORS configured strictly
+- ✅ Rate limiting on public endpoints
+- ✅ Body size limits enforced
+- ✅ CSRF protection for mutations
+- ✅ Secure Authentication (JWT/Session)
 - ✅ Request timeouts
-- ✅ Health check endpoint
+- ✅ Health check monitoring
 
 ## Performance Impact
 
@@ -1016,11 +998,11 @@ For production deployments, ensure you have:
 - **ETag**: 90% reduction for cached resources
 - **Request ID**: &lt; 0.5ms overhead
 - **JWT Middleware**: &lt; 2ms overhead
-- **Rate Limit**: &lt; 1ms overhead (in-memory)
+- **Rate Limit**: &lt; 1ms overhead
 
 ### Memory Usage
 
 - **Session Store**: ~50 bytes per session
-- **SSE Manager**: ~1KB per connected client
-- **Rate Limit**: ~100 bytes per tracked IP
+- **SSE Manager**: ~1KB per client
+- **Rate Limit**: ~100 bytes per IP
 - **Circuit Breaker**: ~100 bytes per instance

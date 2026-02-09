@@ -8,11 +8,11 @@ order: 2
 
 # Cookies 🍪
 
-AzuraJS offers simple and efficient cookie management, allowing you to set, read, and delete cookies natively, without the need for external libraries. The `RequestServer` and `ResponseServer` objects are extended to facilitate this interaction.
+AzuraJS provides straightforward and efficient cookie management, enabling you to set, read, and delete cookies natively without external dependencies. The `RequestServer` and `ResponseServer` objects are extended to facilitate these interactions.
 
 ## Reading Cookies
 
-You can access cookies sent by the client via the `req.cookies` property or by using the `@Cookies()` decorator.
+Cookies sent by the client can be accessed via the `req.cookies` property or injectively using the `@Cookies()` decorator.
 
 ### Via `req.cookies`
 
@@ -25,11 +25,12 @@ export class AuthController {
   @Get("/check-session")
   checkSession(@Req() req: RequestServer, @Res() res: ResponseServer) {
     const sessionId = req.cookies.sessionId;
+
     if (sessionId) {
       return res.json({ authenticated: true, sessionId });
-    } else {
-      return res.status(401).json({ authenticated: false });
     }
+
+    return res.status(401).json({ authenticated: false });
   }
 }
 ```
@@ -45,16 +46,16 @@ export class AuthController {
   checkSession(@Cookies("sessionId") sessionId?: string) {
     if (sessionId) {
       return { authenticated: true, sessionId };
-    } else {
-      return { authenticated: false };
     }
+
+    return { authenticated: false };
   }
 }
 ```
 
 ## Setting Cookies
 
-Use the `res.cookie()` method to set a cookie in the response. It accepts the name, value, and an options object to configure the cookie.
+Use the `res.cookie()` method to set a cookie in the outgoing response.
 
 ```typescript
 import { Controller, Post, Res } from "azurajs/decorators";
@@ -64,14 +65,16 @@ import type { ResponseServer } from "azurajs/types";
 export class AuthController {
   @Post("/login")
   login(@Res() res: ResponseServer) {
-    const newSessionId = "some-unique-session-id";
+    const newSessionId = "unique-session-id";
+
     res.cookie("sessionId", newSessionId, {
-      httpOnly: true, // Not accessible via JavaScript in the browser
-      secure: process.env.NODE_ENV === "production", // Send only over HTTPS
-      maxAge: 1000 * 60 * 60 * 24 * 7, // Expires in 7 days
-      path: "/", // Available for the entire domain
-      sameSite: "lax", // CSRF protection
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: "/",
+      sameSite: "lax",
     });
+
     return res.json({ message: "Login successful" });
   }
 }
@@ -79,19 +82,19 @@ export class AuthController {
 
 ### Cookie Options
 
-| Option | Type | Description |
-| :--- | :--- | :--- |
-| `maxAge` | `number` | Cookie lifespan in milliseconds. |
-| `expires` | `Date` | Cookie expiration date. |
-| `httpOnly` | `boolean` | If `true`, the cookie cannot be accessed via JavaScript. |
-| `secure` | `boolean` | If `true`, the cookie is only sent over HTTPS requests. |
-| `path` | `string` | URL path for which the cookie is valid. Default: `/`. |
-| `domain` | `string` | Domain for which the cookie is valid. |
-| `sameSite` | `"lax" \| "strict" \| "none"` | CSRF protection. |
+| Option     | Type                          | Description                                                    |
+| :--------- | :---------------------------- | :------------------------------------------------------------- |
+| `maxAge`   | `number`                      | Cookie lifespan in milliseconds.                               |
+| `expires`  | `Date`                        | Absolute expiration date.                                      |
+| `httpOnly` | `boolean`                     | Prevents client-side script access (recommended for security). |
+| `secure`   | `boolean`                     | Sends cookie only over encrypted (HTTPS) connections.          |
+| `path`     | `string`                      | URL path scope. Default is `/`.                                |
+| `domain`   | `string`                      | Domain scope.                                                  |
+| `sameSite` | `"lax" \| "strict" \| "none"` | Controls cross-site attribute for CSRF protection.             |
 
 ## Deleting Cookies
 
-To delete a cookie, use `res.clearCookie()`, passing the cookie name. Options should be the same as those used to set the cookie, except for `maxAge` and `expires`.
+To remove a cookie, use `res.clearCookie()`. You must pass the same path and domain options used when setting the cookie to ensure successful deletion.
 
 ```typescript
 import { Controller, Post, Res } from "azurajs/decorators";

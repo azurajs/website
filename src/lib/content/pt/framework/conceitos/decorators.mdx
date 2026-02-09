@@ -8,11 +8,11 @@ order: 3
 
 # Decorators 🏷️
 
-Os decorators são uma característica poderosa do TypeScript que permite adicionar metadados e lógica a classes, métodos, propriedades e parâmetros. No AzuraJS, eles são a base para definir rotas, injetar dependências e configurar o comportamento da sua API de forma declarativa e elegante.
+Decorators são uma funcionalidade poderosa do TypeScript que permite adicionar metadados e lógica a classes, métodos, propriedades e parâmetros. No AzuraJS, eles formam a base para definir rotas, injetar dependências e configurar o comportamento da API de forma declarativa.
 
 ## Habilitando Decorators
 
-Para usar decorators, você precisa habilitá-los no seu `tsconfig.json`:
+Para utilizar decorators, atualize seu `tsconfig.json` com as seguintes opções de compilador:
 
 ```json
 {
@@ -23,71 +23,75 @@ Para usar decorators, você precisa habilitá-los no seu `tsconfig.json`:
 }
 ```
 
-## Tipos de Decorators no AzuraJS
+## Tipos de Decorators
 
 ### 1. Decorators de Classe
 
-Usados para definir controllers e aplicar configurações globais.
+Aplicados a classes para definir seu papel (ex: como um Controller) e aplicar configurações globais.
 
-*   `@Controller(prefix?: string)`: Define uma classe como um controller e opcionalmente um prefixo para todas as suas rotas.
+- `@Controller(prefix?: string)`: Marca uma classe como um controller. Aceita opcionalmente um prefixo de rota.
 
 ```typescript
 import { Controller } from "azurajs/decorators";
 
 @Controller("/api/v1")
-export class MyController {
-  // ... rotas
-}
+export class MyController {}
 ```
 
 ### 2. Decorators de Método
 
-Usados para mapear métodos de classe a rotas HTTP específicas.
+Estes decorators mapeiam métodos da classe para verbos HTTP e caminhos de rota específicos.
 
-*   `@Get(path?: string)`
-*   `@Post(path?: string)`
-*   `@Put(path?: string)`
-*   `@Delete(path?: string)`
-*   `@Patch(path?: string)`
-*   `@Head(path?: string)`
-*   `@Options(path?: string)`
+- `@Get(path?: string)`
+- `@Post(path?: string)`
+- `@Put(path?: string)`
+- `@Delete(path?: string)`
+- `@Patch(path?: string)`
+- `@Head(path?: string)`
+- `@Options(path?: string)`
+
+No exemplo abaixo, `getUser` mapeia para `GET /users/:id` e `createUser` mapeia para `POST /users`:
 
 ```typescript
 import { Controller, Get, Post } from "azurajs/decorators";
 
 @Controller("/users")
 export class UserController {
-  @Get("/:id") // GET /users/:id
-  getUser() { /* ... */ }
+  @Get("/:id")
+  getUser() {
+    /* ... */
+  }
 
-  @Post() // POST /users
-  createUser() { /* ... */ }
+  @Post()
+  createUser() {
+    /* ... */
+  }
 }
 ```
 
 ### 3. Decorators de Parâmetro
 
-Usados para injetar dados da requisição diretamente nos argumentos dos métodos do controller.
+Utilize estes decorators para injetar dados da requisição diretamente nos argumentos dos seus métodos, evitando a análise manual.
 
-*   `@Req()`: Objeto de requisição.
-*   `@Res()`: Objeto de resposta.
-*   `@Next()`: Função `next()` para middlewares.
-*   `@Param(name?: string)`: Parâmetro de rota.
-*   `@Query(name?: string)`: Parâmetro de query string.
-*   `@Body(name?: string)`: Corpo da requisição.
-*   `@Headers(name?: string)`: Cabeçalho da requisição.
-*   `@Cookies(name?: string)`: Cookie da requisição.
-*   `@Ip()`: Endereço IP do cliente.
+- `@Req()`: Objeto de requisição
+- `@Res()`: Objeto de resposta
+- `@Next()`: Função Next (middleware)
+- `@Param(name?: string)`: Parâmetros de rota
+- `@Query(name?: string)`: Parâmetros de query
+- `@Body(name?: string)`: Corpo da requisição
+- `@Headers(name?: string)`: Cabeçalhos da requisição
+- `@Cookies(name?: string)`: Cookies da requisição
+- `@Ip()`: IP do cliente
 
 ```typescript
-import { Controller, Get, Param, Query, Body } from "azurajs/decorators";
+import { Controller, Get, Param, Query, Body, Post } from "azurajs/decorators";
 
 @Controller("/products")
 export class ProductController {
   @Get("/:id")
   getProduct(
     @Param("id") productId: string,
-    @Query("version") version?: string
+    @Query("version") version?: string,
   ) {
     return { productId, version };
   }
@@ -99,9 +103,9 @@ export class ProductController {
 }
 ```
 
-## `applyDecorators()`
+## Registro na Aplicação
 
-Para que os decorators sejam processados e as rotas registradas, você deve chamar `applyDecorators()` no seu arquivo principal, passando a instância do `AzuraClient` e um array de classes de controllers.
+Os decorators só são processados quando registrados. Você deve chamar `applyDecorators()` no seu arquivo de entrada.
 
 ```typescript
 import { AzuraClient } from "azurajs";
@@ -110,7 +114,6 @@ import { UserController } from "./controllers/UserController";
 
 const app = new AzuraClient();
 applyDecorators(app, [UserController]);
-// ...
 ```
 
 ## Próximos Passos 📖

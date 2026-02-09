@@ -8,55 +8,36 @@ order: 9
 
 # AzuraJS CDN ☁️
 
-The `@azurajs/cdn` is a complementary package to AzuraJS that offers functionalities for integrating and managing content delivery networks (CDN). It simplifies tasks such as generating signed URLs for secure access to private resources and purging cache to ensure that the latest content is always delivered.
+The `@azurajs/cdn` package seamlessly integrates Content Delivery Network (CDN) capabilities into your application. It streamlines operations such as generating secure signed URLs for private resources and programmatically purging caches to ensure content freshness.
 
 ## Installation
 
-Install the `@azurajs/cdn` package in your project:
+Add the package to your project:
 
 <Tabs items={["npm", "pnpm", "yarn", "bun"]}>
-  <Tab value="npm">
-```bash
-npm install @azurajs/cdn
-```
-  </Tab>
-  <Tab value="pnpm">
-```bash
-pnpm add @azurajs/cdn
-```
-  </Tab>
-  <Tab value="yarn">
-```bash
-yarn add @azurajs/cdn
-```
-  </Tab>
-  <Tab value="bun">
-```bash
-bun add @azurajs/cdn
-```
-  </Tab>
+  <Tab value="npm">```bash npm install @azurajs/cdn ```</Tab>
+  <Tab value="pnpm">```bash pnpm add @azurajs/cdn ```</Tab>
+  <Tab value="yarn">```bash yarn add @azurajs/cdn ```</Tab>
+  <Tab value="bun">```bash bun add @azurajs/cdn ```</Tab>
 </Tabs>
 
 ## Configuration
 
-You can configure the CDN in your `azura.config.ts`:
+Configure your CDN provider settings in `azura.config.ts`.
 
 ```typescript
 // azura.config.ts
 import type { ConfigTypes } from "azurajs/config";
 
 const config: ConfigTypes = {
-  // ...
   cdn: {
-    provider: "cloudflare", // or "aws-s3", "azure-blob", etc.
-    apiKey: process.env.CDN_API_KEY, // API key for your CDN provider
-    domain: "cdn.yourwebsite.com", // Your CDN domain
-    // Provider-specific configurations
+    provider: "cloudflare",
+    apiKey: process.env.CDN_API_KEY,
+    domain: "cdn.yourwebsite.com",
     cloudflare: {
       zoneId: process.env.CLOUDFLARE_ZONE_ID,
       email: process.env.CLOUDFLARE_EMAIL,
     },
-    // ...
   },
 };
 
@@ -65,7 +46,7 @@ export default config;
 
 ## Generating Signed URLs
 
-Signed URLs allow you to grant temporary and secure access to private resources stored in your CDN, without exposing the bucket or access key. The `@azurajs/cdn` offers a service to generate these URLs.
+Securely grant temporary access to private assets without exposing underlying storage credentials using signed URLs.
 
 ```typescript
 import { Controller, Get, Query } from "azurajs/decorators";
@@ -76,7 +57,7 @@ export class FileController {
   private cdnService: AzuraCDN;
 
   constructor() {
-    this.cdnService = new AzuraCDN(); // Initializes with azura.config.ts configuration
+    this.cdnService = new AzuraCDN();
   }
 
   @Get("/download")
@@ -84,7 +65,9 @@ export class FileController {
     if (!filePath) {
       return { error: "File path is required" };
     }
-    const signedUrl = await this.cdnService.getSignedUrl(filePath, { expiresIn: 3600 }); // Expires in 1 hour
+    const signedUrl = await this.cdnService.getSignedUrl(filePath, {
+      expiresIn: 3600,
+    });
     return { signedUrl };
   }
 }
@@ -92,14 +75,14 @@ export class FileController {
 
 ### `getSignedUrl` Options
 
-| Option | Type | Description |
-| :--- | :--- | :--- |
-| `expiresIn` | `number` | URL expiration time in seconds. Default: `3600` (1 hour). |
-| `contentType` | `string` | File content type (e.g., `image/jpeg`). |
+| Option        | Type     | Description                                        |
+| :------------ | :------- | :------------------------------------------------- |
+| `expiresIn`   | `number` | URL validity duration in seconds. Default: `3600`. |
+| `contentType` | `string` | MIME type of the file.                             |
 
 ## Cache Purging
 
-When you update a resource on your origin server, the CDN may continue serving the old cached version. Cache purging forces the CDN to fetch the latest version. The `@azurajs/cdn` makes it easy to purge specific files or the entire cache.
+Ensure users receive the most recent content by invalidating cached resources via the API.
 
 ```typescript
 import { Controller, Post, Body } from "azurajs/decorators";

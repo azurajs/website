@@ -8,17 +8,15 @@ order: 4
 
 # Usage with JavaScript ☕
 
-While AzuraJS is built with TypeScript in mind and leverages its typing and decorator features, it can be perfectly used in pure JavaScript projects. The main difference is that you won't use decorators, but rather the functional API of `AzuraClient`.
+AzuraJS is designed with a TypeScript-first approach, leveraging decorators for an expressive API. However, it is fully compatible with **pure JavaScript** environments. In JavaScript, you will utilize the functional API provided by the `AzuraClient` instance instead of decorators.
 
 ## Project Configuration
 
-For a JavaScript project, you don't need to enable `experimentalDecorators` in `tsconfig.json`. A basic `package.json` and an `azura.config.js` configuration file are sufficient.
+JavaScript projects utilize `azura.config.js` for configuration. The setup is straightforward as no TypeScript compilation step is required.
 
-### `azura.config.js`
+**azura.config.js**
 
 ```javascript
-// azura.config.js
-
 const config = {
   environment: "development",
   server: {
@@ -34,11 +32,11 @@ export default config;
 
 ## Creating Functional Routes
 
-Instead of classes with decorators, you define routes directly on the `AzuraClient` instance.
+When using JavaScript, routes are defined directly on the `app` instance using method handlers like `.get()`, `.post()`, `.put()`, and `.delete()`.
+
+**src/index.js**
 
 ```javascript
-// src/index.js
-
 import { AzuraClient } from "azurajs";
 
 const app = new AzuraClient();
@@ -48,7 +46,7 @@ app.get("/", (req, res) => {
 });
 
 app.post("/data", async (req, res) => {
-  const body = await req.json(); // To read the JSON body
+  const body = await req.json();
   res.json({ received: body, status: "success" });
 });
 
@@ -59,13 +57,13 @@ app.listen().then(() => {
 
 ## Accessing Request Data
 
-The `req` (RequestServer) and `res` (ResponseServer) objects still provide a rich API for interacting with the request and response.
+Route handlers receive `req` and `res` objects, which correspond to `RequestServer` and `ResponseServer`. These objects provide direct access to request data such as parameters, query strings, and headers.
 
 ```javascript
 app.get("/users/:id", (req, res) => {
-  const userId = req.params.id; // Route parameters
-  const queryParam = req.query.search; // Query parameters
-  const userAgent = req.headers["user-agent"]; // Headers
+  const userId = req.params.id;
+  const queryParam = req.query.search;
+  const userAgent = req.headers["user-agent"];
 
   res.json({
     id: userId,
@@ -78,4 +76,4 @@ app.get("/users/:id", (req, res) => {
 ## Next Steps 📖
 
 - [⚙️ **Configuration**](/docs/en/framework/getting-started/configuration): Understand all AzuraJS configuration options.
-- [🛣️ **Routing**](/docs/en/framework/concepts/routing): Explore routing capabilities, even without decorators.
+- [🛣️ **Routing**](/docs/en/framework/concepts/routing): Explore routing capabilities in depth.

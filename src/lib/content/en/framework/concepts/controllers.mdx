@@ -8,15 +8,17 @@ order: 1
 
 # Controllers 🎯
 
-Controllers are the heart of AzuraJS applications. They provide a clean, object-oriented way to organize your API endpoints into logical and maintainable classes using TypeScript decorators.
+Controllers serve as the architectural core of AzuraJS applications. They utilize the Model-View-Controller (MVC) pattern to organize API endpoints into logical, maintainable, and type-safe classes using TypeScript decorators.
 
-<Callout type="info" title="Why Use Controllers?">
-Controllers follow the MVC (Model-View-Controller) pattern, promoting separation of concerns. They keep your routing logic organized and reduce code duplication.
+<Callout type="info" title="Separation of Concerns">
+  Controllers promote clean architecture by separating routing logic from
+  business logic. This organization reduces code duplication and improves
+  maintainability.
 </Callout>
 
 ## What is a Controller? 📚
 
-A controller is a TypeScript class decorated with `@Controller` that groups related route handlers (endpoints). Each method in the controller represents a specific route and is decorated with HTTP method decorators like `@Get`, `@Post`, `@Put`, or `@Delete`.
+A controller is a TypeScript class decorated with `@Controller`. It groups related route handlers. Each method within the class represents a specific endpoint and is decorated with HTTP method decorators such as `@Get`, `@Post`, `@Put`, or `@Delete`.
 
 ```typescript
 import { Controller, Get, Post } from "azurajs/decorators";
@@ -37,33 +39,33 @@ export class ProductController {
 
 ## Controller Decorator 🏷️
 
-The `@Controller(prefix?)` decorator accepts an optional prefix that will be applied to all routes within the class.
+The `@Controller(prefix?)` decorator defines the base route for all methods within the class.
 
-- **Basic Usage**: `@Controller("/users")` -> All routes will start with `/users`.
-- **No Prefix**: `@Controller()` -> Routes will use only their own paths.
-- **Nested Paths**: `@Controller("/api/v1/admin")` -> Long prefix for all routes.
+- **Basic Usage**: `@Controller("/users")` prepends `/users` to all nested routes.
+- **No Prefix**: `@Controller()` means routes will be defined solely by their method decorators.
+- **Nested Paths**: `@Controller("/api/v1/admin")` allows for deep path nesting.
 
 ## Parameter Injection 💉
 
-AzuraJS makes it easy to access request data through parameter decorators:
+AzuraJS provides a suite of decorators to inject request data directly into your controller methods.
 
-| Decorator | Description |
-| :--- | :--- |
-| `@Req()` | Injects the full request object. |
-| `@Res()` | Injects the full response object. |
-| `@Body()` | Injects the request body (parsed JSON). |
-| `@Param(name)` | Injects a URL parameter (e.g., `:id`). |
-| `@Query(name)` | Injects a query string parameter. |
-| `@Headers(name)` | Injects a specific header or all headers. |
-| `@Cookies(name)` | Injects a specific cookie or all cookies. |
-| `@Ip()` | Injects the client's IP address. |
+| Decorator        | Description                                     |
+| :--------------- | :---------------------------------------------- |
+| `@Req()`         | Injects the full `RequestServer` object.        |
+| `@Res()`         | Injects the full `ResponseServer` object.       |
+| `@Body()`        | Injects the parsed request body.                |
+| `@Param(name)`   | Injects a specific URL parameter (e.g., `:id`). |
+| `@Query(name)`   | Injects a specific query string parameter.      |
+| `@Headers(name)` | Injects a specific header value.                |
+| `@Cookies(name)` | Injects a specific cookie value.                |
+| `@Ip()`          | Injects the client's IP address.                |
 
 ## Best Practices ✨
 
-1.  **Single Responsibility**: Each controller should handle a single resource or domain (e.g., `UserController`, `OrderController`).
-2.  **Use Services**: Keep heavy business logic in service classes, leaving the controller only to handle HTTP.
-3.  **Consistent Responses**: Try to maintain a standard JSON response pattern across all methods.
-4.  **Error Handling**: Use the `HttpError` class to throw errors with specific status codes.
+1.  **Single Responsibility**: Dedicate each controller to a single resource or domain (e.g., `UserController`, `OrderController`).
+2.  **Service Layer**: Delegate complex business logic to service classes; keep controllers focused on HTTP handling.
+3.  **Consistent Responses**: Adhere to a standardized JSON response structure across your API.
+4.  **Error Handling**: Leverage the `HttpError` class for consistent error reporting with appropriate status codes.
 
 ## Next Steps 📖
 

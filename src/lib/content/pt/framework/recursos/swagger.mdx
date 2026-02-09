@@ -8,11 +8,11 @@ order: 7
 
 # Swagger / OpenAPI 📖
 
-Documentar sua API é essencial para a colaboração entre desenvolvedores. O AzuraJS facilita esse processo com uma integração nativa que gera especificações OpenAPI 3.0 e uma interface visual interativa (Swagger UI).
+Uma documentação de API eficaz é essencial para a colaboração entre desenvolvedores. O AzuraJS simplifica isso com ferramentas nativas que geram automaticamente especificações OpenAPI 3.0 e servem uma interface visual interativa (Swagger UI).
 
 ## Configuração Rápida ⚡
 
-Para habilitar o Swagger, use a função utilitária `setupSwaggerWithControllers` no seu arquivo principal:
+Habilite o Swagger invocando `setupSwaggerWithControllers` no arquivo principal da sua aplicação.
 
 ```typescript
 import { AzuraClient, setupSwaggerWithControllers } from "azurajs";
@@ -20,24 +20,30 @@ import { UserController } from "./controllers/UserController";
 
 const app = new AzuraClient();
 
-setupSwaggerWithControllers(app, {
-  title: "Minha API Azura",
-  version: "1.0.0",
-  description: "Documentação automática das rotas",
-  path: "/docs" // Caminho para acessar a UI
-}, [UserController]);
+setupSwaggerWithControllers(
+  app,
+  {
+    title: "Minha API Azura",
+    version: "1.0.0",
+    description: "Documentação automática das rotas",
+    path: "/docs",
+  },
+  [UserController],
+);
 
 await app.listen(3000);
 ```
 
-Agora, ao acessar `http://localhost:3000/docs`, você verá a interface do Swagger pronta para uso!
+Acesse a documentação em `http://localhost:3000/docs`.
 
 ## Decorators do Swagger 🏷️
 
-Você pode enriquecer a documentação usando decorators específicos nos seus controllers e métodos:
+Enriqueça os detalhes da documentação usando decorators em controllers e métodos.
 
 ### `@ApiTags(...tags)`
-Agrupa endpoints por categorias na interface.
+
+Organiza endpoints em categorias.
+
 ```typescript
 @ApiTags("Usuários")
 @Controller("/users")
@@ -45,18 +51,22 @@ class UserController { ... }
 ```
 
 ### `@Swagger(config)`
-Define o sumário e a descrição detalhada de um endpoint.
+
+Define sumários e descrições detalhadas para endpoints.
+
 ```typescript
 @Swagger({
   summary: "Obter perfil",
-  description: "Retorna os dados privados do usuário autenticado"
+  description: "Retorna dados privados do usuário autenticado"
 })
 @Get("/profile")
 getProfile() { ... }
 ```
 
 ### `@ApiResponse(status, description, options?)`
-Documenta os possíveis retornos da rota.
+
+Documenta possíveis retornos e schemas.
+
 ```typescript
 @ApiResponse(200, "Sucesso", { type: UserSchema })
 @ApiResponse(401, "Não autorizado")
@@ -66,7 +76,7 @@ list() { ... }
 
 ## Especificação JSON 📄
 
-O AzuraJS também expõe automaticamente o arquivo JSON da especificação no caminho `/api-spec.json`. Isso permite que você importe sua API em ferramentas como Postman, Insomnia ou gere clientes automaticamente.
+O AzuraJS disponibiliza automaticamente o arquivo JSON bruto da especificação OpenAPI em `/api-spec.json`. Este endpoint pode ser usado para importar sua definição de API em ferramentas como Postman ou Insomnia, ou para geração de clientes.
 
 ## Próximos Passos 📖
 

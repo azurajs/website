@@ -8,17 +8,15 @@ order: 4
 
 # Uso com JavaScript ☕
 
-Embora o AzuraJS seja construído com TypeScript em mente e aproveite seus recursos de tipagem e decorators, ele pode ser usado perfeitamente em projetos JavaScript puro. A principal diferença é que você não usará os decorators, mas sim a API funcional do `AzuraClient`.
+O AzuraJS foi projetado com uma abordagem **TypeScript-first**, aproveitando decorators para uma API expressiva. No entanto, ele é totalmente compatível com ambientes **JavaScript puro**. No JavaScript, você utilizará a API funcional fornecida pela instância `AzuraClient` em vez de decorators.
 
 ## Configuração do Projeto
 
-Para um projeto JavaScript, você não precisa habilitar `experimentalDecorators` no `tsconfig.json`. Um `package.json` básico e um arquivo de configuração `azura.config.js` são suficientes.
+Projetos JavaScript utilizam o `azura.config.js` para configuração. A configuração é direta, pois não requer etapas de compilação TypeScript.
 
-### `azura.config.js`
+**azura.config.js**
 
 ```javascript
-// azura.config.js
-
 const config = {
   environment: "development",
   server: {
@@ -34,11 +32,11 @@ export default config;
 
 ## Criando Rotas Funcionais
 
-Em vez de classes com decorators, você define as rotas diretamente na instância do `AzuraClient`.
+Ao usar JavaScript, as rotas são definidas diretamente na instância `app` usando métodos como `.get()`, `.post()`, `.put()` e `.delete()`.
+
+**src/index.js**
 
 ```javascript
-// src/index.js
-
 import { AzuraClient } from "azurajs";
 
 const app = new AzuraClient();
@@ -48,7 +46,7 @@ app.get("/", (req, res) => {
 });
 
 app.post("/data", async (req, res) => {
-  const body = await req.json(); // Para ler o corpo JSON
+  const body = await req.json();
   res.json({ received: body, status: "success" });
 });
 
@@ -59,13 +57,13 @@ app.listen().then(() => {
 
 ## Acessando Dados da Requisição
 
-Os objetos `req` (RequestServer) e `res` (ResponseServer) ainda fornecem uma API rica para interagir com a requisição e a resposta.
+Os manipuladores de rota recebem os objetos `req` e `res`, que correspondem a `RequestServer` e `ResponseServer`. Estes objetos fornecem acesso direto aos dados da requisição, como parâmetros, query strings e headers.
 
 ```javascript
 app.get("/users/:id", (req, res) => {
-  const userId = req.params.id; // Parâmetros de rota
-  const queryParam = req.query.search; // Parâmetros de query
-  const userAgent = req.headers["user-agent"]; // Headers
+  const userId = req.params.id;
+  const queryParam = req.query.search;
+  const userAgent = req.headers["user-agent"];
 
   res.json({
     id: userId,
@@ -78,4 +76,4 @@ app.get("/users/:id", (req, res) => {
 ## Próximos Passos 📖
 
 - [⚙️ **Configuração**](/docs/pt/framework/comecando/configuracao): Entenda todas as opções de configuração do AzuraJS.
-- [🛣️ **Routing**](/docs/pt/framework/conceitos/routing): Explore as capacidades de roteamento, mesmo sem decorators.
+- [🛣️ **Routing**](/docs/pt/framework/conceitos/routing): Explore as capacidades de roteamento detalhadamente.

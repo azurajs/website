@@ -8,28 +8,27 @@ order: 6
 
 # Cluster Mode ⚡
 
-O AzuraJS oferece suporte nativo ao modo cluster, permitindo que sua aplicação utilize todos os núcleos disponíveis da CPU. Isso é crucial para escalar aplicações Node.js e Bun, distribuindo a carga de trabalho entre múltiplos processos e melhorando significativamente a performance e a resiliência.
+O AzuraJS suporta nativamente o modo cluster, permitindo que as aplicações utilizem integralmente os núcleos de CPU disponíveis. Essa arquitetura é vital para escalar aplicações Node.js, distribuindo cargas de trabalho entre múltiplos processos e aprimorando o desempenho e a resiliência do sistema.
 
 ## Como Funciona
 
-Quando o modo cluster é ativado, o AzuraJS cria um processo *master* e vários processos *worker*. O processo master é responsável por gerenciar os workers, reiniciá-los em caso de falha e distribuir as requisições de entrada entre eles. Cada worker é uma instância independente da sua aplicação.
+No modo cluster, o AzuraJS inicia um processo _master_ junto com múltiplos processos _worker_. O processo master gerencia o ciclo de vida dos workers, reiniciando-os em caso de falha e balanceando as requisições recebidas. Cada worker opera como uma instância independente da aplicação.
 
 ## Configuração
 
-Para habilitar o modo cluster, basta definir `cluster: true` no seu arquivo `azura.config.ts`:
+Habilite o modo cluster definindo `cluster: true` no seu arquivo `azura.config.ts`.
 
 ```typescript
 // azura.config.ts
 import type { ConfigTypes } from "azurajs/config";
 
 const config: ConfigTypes = {
-  environment: "production", // Cluster mode é mais comum em produção
+  environment: "production",
   server: {
     port: 3000,
-    cluster: true,           // Habilita o modo cluster
-    // workers: 4,            // Opcional: número específico de workers (padrão: número de CPUs)
+    cluster: true,
+    // workers: 4, // Opcional: padrão é a contagem de núcleos da CPU
   },
-  // ...
 };
 
 export default config;
@@ -37,22 +36,22 @@ export default config;
 
 ### Opções de `cluster`
 
-| Propriedade | Tipo | Descrição |
-| :--- | :--- | :--- |
-| `cluster` | `boolean` | Se `true`, o AzuraJS iniciará em modo cluster. Padrão: `false`. |
-| `workers` | `number` | Opcional. Número de processos worker a serem criados. Se não especificado, usará o número de núcleos da CPU. |
+| Propriedade | Tipo      | Descrição                                                          |
+| :---------- | :-------- | :----------------------------------------------------------------- |
+| `cluster`   | `boolean` | Ativa o modo cluster. Padrão: `false`.                             |
+| `workers`   | `number`  | Número de processos worker. Padrão é a contagem de núcleos da CPU. |
 
 ## Benefícios do Cluster Mode
 
-*   **Performance Aprimorada**: Distribui a carga entre os núcleos da CPU, processando mais requisições simultaneamente.
-*   **Alta Disponibilidade**: Se um processo worker falhar, o master pode reiniciá-lo sem derrubar toda a aplicação.
-*   **Utilização Eficiente de Recursos**: Maximiza o uso do hardware do servidor.
+- **Performance Aprimorada**: Processamento paralelo de requisições em todos os núcleos da CPU.
+- **Alta Disponibilidade**: Tolerância a falhas através de reinicializações automáticas de workers gerenciadas pelo processo master.
+- **Utilização Eficiente de Recursos**: Uso otimizado das capacidades de hardware do servidor.
 
 ## Considerações Importantes
 
-*   **Estado Compartilhado**: Evite armazenar estado na memória dos processos worker, pois cada um é isolado. Use bancos de dados, Redis ou outras soluções de cache distribuído para estado compartilhado.
-*   **Sessões**: Se você usa sessões, elas devem ser armazenadas em um local centralizado (ex: Redis) para que todos os workers possam acessá-las.
-*   **Logging**: Certifique-se de que seu sistema de logging seja capaz de lidar com logs de múltiplos processos worker (ex: enviando para um serviço centralizado como ELK Stack ou Grafana Loki).
+- **Estado Compartilhado**: Workers são isolados; evite estado em memória. Use armazenamentos externos como Redis para dados compartilhados.
+- **Sessões**: Armazene dados de sessão em um local centralizado (ex: Redis) para garantir acessibilidade entre todos os workers.
+- **Logging**: Implemente soluções centralizadas de log (ex: ELK Stack) para agregar logs de múltiplos processos.
 
 ## Próximos Passos 📖
 

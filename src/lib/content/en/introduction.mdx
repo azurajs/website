@@ -10,43 +10,51 @@ order: 1
 
 # Welcome to AzuraJS ⚡
 
-AzuraJS is a modern, high-performance web framework for **Node.js** and **Bun** that brings the power of TypeScript **decorators** to backend development. Build elegant and type-safe APIs with a clean and intuitive syntax.
+AzuraJS is a modern, high-performance web framework designed for **Node.js** and **Bun** environments. It leverages the power of **TypeScript decorators** to provide a clean, intuitive, and robust development experience for building scalable backend applications.
 
-<Callout type="info" title="Who is AzuraJS for?">
-Ideal for developers who want to create fast and robust REST APIs with TypeScript, without the complexity of larger frameworks.
+<Callout type="info" title="Ideal for Modern API Development">
+  AzuraJS is built for developers who demand speed, type safety, and simplicity
+  without the overhead of complex, heavyweight frameworks.
 </Callout>
 
 ## ✨ Why Choose AzuraJS?
 
-| Feature | Description |
-| :--- | :--- |
-| **TypeScript Decorators** | Organize your code with modern decorators - an elegant syntax that makes your APIs more readable. |
-| **Exceptional Performance** | Designed from the ground up for maximum speed, with minimal overhead and zero unnecessary external dependencies. |
-| **Zero Dependencies** | Lightweight and efficient - only 1 core dependency. No weight from thousands of packages in node_modules. |
-| **TypeScript First** | Developed with TypeScript in mind from the start, with full types and perfect IntelliSense. |
-| **Express Compatible** | Use middlewares and plugins from the Express ecosystem - leverage thousands of ready-made solutions. |
-| **Flexible Configuration** | Configure via TypeScript, JSON, or YAML file - choose the format you prefer. |
+| Feature                   | Description                                                                                                         |
+| :------------------------ | :------------------------------------------------------------------------------------------------------------------ |
+| **TypeScript Native**     | Built with TypeScript from the ground up, offering seamless type safety and superior IntelliSense support.          |
+| **Decorator-Driven**      | Use modern decorators to define routes, middleware, and validation, resulting in clean and readable code structure. |
+| **High Performance**      | Optimized for speed with minimal overhead and zero unnecessary external dependencies.                               |
+| **Lightweight**           | A minimal core with only essential dependencies, preventing `node_modules` bloat.                                   |
+| **Express Compatibility** | Fully compatible with the vast ecosystem of Express middleware and plugins.                                         |
+| **Flexible Config**       | Support for configuration via TypeScript, JSON, or YAML to suit your workflow preferences.                          |
 
-## 🎨 Main Features
+## 🎨 Key Features
 
-AzuraJS comes with everything you need to build professional APIs:
+AzuraJS provides a comprehensive suite of tools for professional API development:
 
-*   **💉 Smart Parameter Injection**: Powerful decorators like `@Body`, `@Query`, `@Param`, `@Req`, `@Res`, `@Headers`, `@Cookies`.
-*   **✅ Built-in Validation**: Full DTO and schema validation system with type safety.
-*   **🍪 Cookie Management**: Native cookie parser and serializer - work with cookies simply.
-*   **🌐 Configurable CORS**: Production-ready CORS plugin with flexible configuration.
-*   **🛡️ Integrated Rate Limiting**: Protect your application against abuse and DDoS with a per-route configurable system.
-*   **⚡ Cluster Mode**: Take advantage of all CPU cores with native cluster support.
-*   **📊 Contextual Logging**: Smart logging system that adapts to the environment.
-*   **🚨 Robust Error Handling**: `HttpError` class and error middleware for structured handling.
+- **Smart Parameter Injection**: Utilize decorators like `@Body`, `@Query`, `@Param`, `@Req`, `@Res` for explicit data access.
+- **Built-in Validation**: strong DTO and schema validation system with full type inference.
+- **Cookie Management**: Native support for safe cookie parsing and serialization.
+- **Production-Ready CORS**: Configurable CORS plugin designed for security and flexibility.
+- **Rate Limiting**: Integrated protection against abuse and DDoS attacks with per-route configuration.
+- **Cluster & Proxy**: Native cluster support for multi-core performance and trusted proxy management.
+- **Contextual Logging**: Adaptive logging system for effective monitoring and debugging.
+- **Structured Error Handling**: Centralized error management with `HttpError` and dedicated middleware.
 
-## 🚀 See How Simple It Is
+## 🚀 Simple & Powerful
 
-Here is a complete CRUD API example in less than 30 lines:
+Create a fully functional CRUD API with minimal boilerplate. The following example demonstrates a complete controller implementation:
 
 ```typescript
 import { AzuraClient } from "azurajs";
-import { applyDecorators, Controller, Get, Post, Body, Param } from "azurajs/decorators";
+import {
+  applyDecorators,
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+} from "azurajs/decorators";
 
 @Controller("/api/users")
 class UserController {
@@ -61,7 +69,7 @@ class UserController {
   }
 
   @Post()
-  createUser(@Body() data: any) {
+  createUser(@Body() data: unknown) {
     return { id: Date.now(), ...data };
   }
 }
@@ -71,11 +79,11 @@ applyDecorators(app, [UserController]);
 await app.listen();
 ```
 
-## 📚 Next Steps
+## 📚 Get Started
 
-Start your journey with AzuraJS following these guides:
+Begin your journey with the following resources:
 
-*   [📦 **Installation**](/docs/en/framework/getting-started/installation): Install AzuraJS and configure your environment.
-*   [🚀 **Quick Start**](/docs/en/framework/getting-started/quick-start): Create your first complete REST API.
-*   [⚙️ **Configuration**](/docs/en/framework/getting-started/configuration): Explore all configuration options.
-*   [🎯 **Controllers**](/docs/en/framework/concepts/controllers): Master the controller pattern.
+- [📦 **Installation**](/docs/en/framework/getting-started/installation): Set up your environment and install AzuraJS.
+- [🚀 **Quick Start**](/docs/en/framework/getting-started/quick-start): Build your first REST API in minutes.
+- [⚙️ **Configuration**](/docs/en/framework/getting-started/configuration): Learn about server configuration options.
+- [🎯 **Controllers**](/docs/en/framework/concepts/controllers): Understand how to structure your application logic.
