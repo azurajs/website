@@ -5,6 +5,7 @@
   import eduLogo from "$lib/assets/partners/edu-dev.png";
   import mnnLogo from "$lib/assets/partners/mnn.png";
   import devCenterLogo from "$lib/assets/partners/devcenter.png";
+  import astralLogo from "$lib/assets/partners/astral-ia.png";
 
   const partners = [
     {
@@ -36,6 +37,11 @@
       name: "Dev. Center",
       logo: devCenterLogo,
       url: "https://discord.gg/YgZZHkymME",
+    },
+    {
+      name: "Astral AI",
+      logo: astralLogo,
+      url: "https://astralai.pro/",
     },
   ];
 </script>
