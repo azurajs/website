@@ -8,99 +8,125 @@ order: 5
 
 # Configuração ⚙️
 
-O AzuraJS é altamente configurável através do arquivo `azura.config.ts` (ou `.js`, `.json`, `.yaml`). Este arquivo é automaticamente carregado na inicialização do `AzuraClient` e permite personalizar o comportamento do servidor, plugins e ambiente.
+O AzuraJS é altamente configurável através do arquivo `azura.config.ts` (também suporta `.js`, `.json`, `.yaml`). Este arquivo é carregado automaticamente na inicialização do `AzuraClient`, permitindo personalizar o comportamento do servidor, plugins e variáveis de ambiente.
 
 ## Estrutura do Arquivo de Configuração
 
+O exemplo abaixo demonstra uma configuração padrão sem comentários inline. Consulte as tabelas a seguir para explicações detalhadas de cada propriedade.
+
 ```typescript
-// azura.config.ts
 import type { ConfigTypes } from "azurajs/config";
 
 const config: ConfigTypes = {
-  // Ambiente da aplicação (development, production, test)
   environment: "development",
-
-  // Configurações do servidor HTTP
   server: {
-    port: 3000,              // Porta para o servidor escutar
-    ipHost: true,            // Tentar resolver o IP do host automaticamente
-    https: false,            // Habilitar HTTPS (requer certificados)
-    cluster: false,          // Habilitar modo cluster para múltiplos núcleos
-    trustProxy: false,       // Configuração para proxies reversos (ex: Nginx, Cloudflare)
+    port: 3000,
+    ipHost: true,
+    https: false,
+    cluster: false,
+    trustProxy: false,
   },
-
-  // Configurações de logging
   logging: {
-    enabled: true,           // Ativar/desativar logs
-    showDetails: true,       // Mostrar detalhes da requisição nos logs
+    enabled: true,
+    showDetails: true,
   },
-
-  // Configurações de plugins
   plugins: {
     cors: {
-      enabled: false,        // Habilitar Cross-Origin Resource Sharing
-      origins: ["*"],        // Origens permitidas (ex: ["http://localhost:8080"])
-      methods: ["GET", "POST", "PUT", "DELETE", "PATCH"], // Métodos permitidos
-      allowedHeaders: ["Content-Type", "Authorization"], // Headers permitidos
+      enabled: true,
+      origins: ["*"],
+      methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+      allowedHeaders: ["Content-Type", "Authorization"],
     },
     rateLimit: {
-      enabled: false,        // Habilitar Rate Limiting
-      limit: 100,            // Número máximo de requisições
-      timeframe: 60000,      // Período em milissegundos (ex: 60000ms = 1 minuto)
+      enabled: false,
+      limit: 100,
+      timeframe: 60000,
     },
-    // Outros plugins como proxy, etc.
-  },
-
-  // Variáveis de ambiente (opcional, pode ser carregado de .env)
-  env: {
-    DATABASE_URL: "mongodb://localhost:27017/azura_db",
   },
 };
 
 export default config;
 ```
 
-## Opções de Configuração Detalhadas
+## Opções Detalhadas de Configuração
 
-### `environment: string`
-Define o ambiente de execução da aplicação. Valores comuns são `"development"`, `"production"`, `"test"`. Afeta o comportamento de logs e plugins.
+### Ambiente (Environment)
 
-### `server: ServerConfig`
+A propriedade `environment` define o modo de execução da aplicação, afetando logs e otimizações.
 
-| Propriedade | Tipo | Descrição |
-| :--- | :--- | :--- |
-| `port` | `number` | Porta HTTP/HTTPS para o servidor. Padrão: `3000`. |
-| `ipHost` | `boolean` | Se `true`, tenta resolver o IP do host. Padrão: `true`. |
-| `https` | `boolean` | Habilita HTTPS. Requer `key` e `cert`. Padrão: `false`. |
-| `key` | `string` | Caminho para o arquivo da chave privada SSL. |
-| `cert` | `string` | Caminho para o arquivo do certificado SSL. |
-| `cluster` | `boolean` | Habilita o modo cluster para usar múltiplos núcleos da CPU. Padrão: `false`. |
-| `trustProxy` | `boolean \| number \| string \| string[]` | Configura o reconhecimento de IPs de proxies reversos. Padrão: `false`. |
+| Valor           | Descrição                                                |
+| :-------------- | :------------------------------------------------------- |
+| `"development"` | Habilita logs detalhados e recursos de depuração.        |
+| `"production"`  | Otimiza para performance e reduz a verbosidade dos logs. |
+| `"test"`        | Configura o ambiente para testes automatizados.          |
 
-### `logging: LoggingConfig`
+### Configuração do Servidor
 
-| Propriedade | Tipo | Descrição |
-| :--- | :--- | :--- |
-| `enabled` | `boolean` | Ativa ou desativa o logging de requisições. Padrão: `true`. |
-| `showDetails` | `boolean` | Mostra detalhes como query, params e body nos logs. Padrão: `true` em `development`. |
+Estas configurações controlam o comportamento do servidor HTTP/HTTPS.
 
-### `plugins: PluginsConfig`
+| Propriedade  | Tipo                            | Padrão  | Descrição                                                                                                       |
+| :----------- | :------------------------------ | :------ | :-------------------------------------------------------------------------------------------------------------- |
+| `port`       | `number`                        | `3000`  | A porta onde o servidor irá escutar.                                                                            |
+| `ipHost`     | `boolean`                       | `true`  | Tenta resolver o IP do host automaticamente.                                                                    |
+| `https`      | `boolean`                       | `false` | Habilita suporte a HTTPS. Requer `key` e `cert`.                                                                |
+| `key`        | `string`                        | -       | Caminho para o arquivo da chave privada SSL.                                                                    |
+| `cert`       | `string`                        | -       | Caminho para o arquivo do certificado SSL.                                                                      |
+| `cluster`    | `boolean`                       | `false` | Habilita o modo cluster experimental para utilizar múltiplos núcleos da CPU.                                    |
+| `trustProxy` | `boolean \| string \| string[]` | `false` | Configura confiança em proxies reversos (ex: Nginx, Cloudflare) para identificar corretamente IPs dos clientes. |
 
-Contém configurações para plugins integrados como CORS e Rate Limiting.
+### Configuração de Logging
 
-## Carregamento de Variáveis de Ambiente
+Controla o sistema interno de logs.
 
-O AzuraJS pode carregar variáveis de ambiente de um arquivo `.env` automaticamente. Basta criar um arquivo `.env` na raiz do projeto:
+| Propriedade   | Tipo      | Padrão       | Descrição                                                                                     |
+| :------------ | :-------- | :----------- | :-------------------------------------------------------------------------------------------- |
+| `enabled`     | `boolean` | `true`       | Ativa ou desativa o sistema de logs.                                                          |
+| `showDetails` | `boolean` | `true` (dev) | Se verdadeiro, logs incluem detalhes como parâmetros de query, corpo da requisição e headers. |
+
+### Plugins
+
+Configure plugins integrados como CORS e Rate Limiting diretamente no arquivo de configuração.
+
+#### CORS
+
+| Propriedade      | Tipo       | Descrição                                                                            |
+| :--------------- | :--------- | :----------------------------------------------------------------------------------- |
+| `enabled`        | `boolean`  | Ativa o suporte a CORS.                                                              |
+| `origins`        | `string[]` | Lista de origens permitidas (ex: `["http://localhost:3000"]`) ou `["*"]` para todas. |
+| `methods`        | `string[]` | Lista de métodos HTTP permitidos.                                                    |
+| `allowedHeaders` | `string[]` | Lista de headers HTTP permitidos.                                                    |
+
+#### Rate Limit
+
+| Propriedade | Tipo      | Descrição                                                     |
+| :---------- | :-------- | :------------------------------------------------------------ |
+| `enabled`   | `boolean` | Ativa o Rate Limiting.                                        |
+| `limit`     | `number`  | Número máximo de requisições permitidas no período.           |
+| `timeframe` | `number`  | Janela de tempo em milissegundos (ex: `60000` para 1 minuto). |
+
+## Variáveis de Ambiente
+
+O AzuraJS suporta o carregamento automático de variáveis de ambiente a partir de um arquivo `.env` na raiz do projeto.
+
+**Exemplo de arquivo `.env`:**
 
 ```text
-# .env
 PORT=8080
 DATABASE_URL=postgres://user:pass@host:port/db
 ```
 
-E acessá-las via `process.env` ou através da seção `env` do `azura.config.ts`.
+Estas variáveis são acessíveis via `process.env`. Você pode referenciá-las no seu `azura.config.ts`:
+
+```typescript
+const config: ConfigTypes = {
+  server: {
+    port: Number(process.env.PORT) || 3000,
+  },
+  // ...
+};
+```
 
 ## Próximos Passos 📖
 
-- [🎯 **Controllers**](/docs/pt/framework/conceitos/controllers): Entenda como os controllers usam a configuração.
-- [🔌 **Middleware**](/docs/pt/framework/conceitos/middleware): Veja como os plugins são implementados como middlewares.
+- [🎯 **Controllers**](/docs/pt/framework/conceitos/controllers): Aprenda a construir rotas.
+- [🔌 **Middleware**](/docs/pt/framework/conceitos/middleware): Explore a implementação de middlewares.

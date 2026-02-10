@@ -8,32 +8,43 @@ order: 4
 
 # Middleware 🔌
 
-Middleware são funções que têm acesso aos objetos de requisição (`req`), resposta (`res`) e à próxima função de middleware no ciclo de requisição-resposta de uma aplicação AzuraJS. Eles podem executar código, fazer alterações nos objetos de requisição e resposta, finalizar o ciclo de requisição-resposta ou chamar o próximo middleware.
+As funções de middleware são parte fundamental do ciclo de requisição-resposta no AzuraJS. Elas têm acesso ao `RequestServer`, `ResponseServer` e à função `next`, permitindo executar código, transformar dados ou encerrar a requisição antes que ela chegue ao manipulador da rota.
 
 ## Como Funciona o Middleware
 
-Cada função de middleware recebe três argumentos:
+Uma função de middleware tipicamente executa uma das seguintes tarefas:
+
+- Executa código arbitrário.
+- Modifica os objetos de requisição ou resposta.
+- Encerra o ciclo de requisição-resposta (ex: enviando uma resposta antecipada).
+- Chama `next()` para passar o controle para o próximo middleware na pilha.
+
+Cada middleware recebe três argumentos:
 
 1.  `req`: O objeto de requisição (`RequestServer`).
 2.  `res`: O objeto de resposta (`ResponseServer`).
-3.  `next`: Uma função que, quando chamada, executa o próximo middleware na pilha.
+3.  `next`: O callback para continuar a execução.
 
 ```typescript
 import type { RequestServer, ResponseServer } from "azurajs/types";
 
-const loggerMiddleware = (req: RequestServer, res: ResponseServer, next: () => Promise<void>) => {
+const loggerMiddleware = (
+  req: RequestServer,
+  res: ResponseServer,
+  next: () => Promise<void>,
+) => {
   console.log(`Requisição recebida: ${req.method} ${req.url}`);
-  next(); // Chama o próximo middleware ou o handler da rota
+  next();
 };
 ```
 
 ## Registrando Middleware
 
-Você pode registrar middleware globalmente para todas as rotas ou especificamente para um controller ou rota.
+Middleware pode ser aplicado em diferentes escopos: globalmente, por controller ou por rota.
 
-### Globalmente
+### Middleware Global
 
-Use o método `app.use()` para aplicar middleware a todas as requisições.
+Para aplicar middleware a todas as requisições, registre-o usando o método `app.use()`.
 
 ```typescript
 import { AzuraClient } from "azurajs";
@@ -42,19 +53,21 @@ const app = new AzuraClient();
 
 app.use(loggerMiddleware);
 app.use(anotherMiddleware);
-
-// ... registre controllers e inicie o servidor
 ```
 
-### Por Controller
+### Middleware de Controller
 
-Você pode aplicar middleware a um controller inteiro usando o decorator `@UseMiddleware`.
+Use o decorator `@UseMiddleware` para aplicar middleware a todas as rotas dentro de um controller.
 
 ```typescript
 import { Controller, Get, UseMiddleware } from "azurajs/decorators";
 import type { RequestServer, ResponseServer } from "azurajs/types";
 
-const authMiddleware = (req: RequestServer, res: ResponseServer, next: () => Promise<void>) => {
+const authMiddleware = (
+  req: RequestServer,
+  res: ResponseServer,
+  next: () => Promise<void>,
+) => {
   if (!req.headers.authorization) {
     return res.status(401).send("Não autorizado");
   }
@@ -71,14 +84,18 @@ export class AdminController {
 }
 ```
 
-### Por Rota
+### Middleware de Rota
 
-O decorator `@UseMiddleware` também pode ser aplicado a métodos de rota específicos.
+O decorator `@UseMiddleware` também pode direcionar métodos individuais para aplicar middleware seletivamente.
 
 ```typescript
 import { Controller, Get, UseMiddleware } from "azurajs/decorators";
 
-const logTimeMiddleware = (req: RequestServer, res: ResponseServer, next: () => Promise<void>) => {
+const logTimeMiddleware = (
+  req: RequestServer,
+  res: ResponseServer,
+  next: () => Promise<void>,
+) => {
   const start = Date.now();
   res.on("finish", () => {
     console.log(`Requisição ${req.url} levou ${Date.now() - start}ms`);
@@ -91,7 +108,6 @@ export class DataController {
   @UseMiddleware(logTimeMiddleware)
   @Get("/heavy-report")
   getHeavyReport() {
-    // ... lógica que pode demorar
     return "Relatório pesado";
   }
 }
@@ -99,7 +115,7 @@ export class DataController {
 
 ## Middleware Assíncrono
 
-Middleware podem ser funções assíncronas. Certifique-se de usar `await next()` para garantir que o próximo middleware ou handler de rota seja executado e que a resposta seja aguardada.
+Funções de middleware suportam totalmente `async/await`. Sempre aguarde `next()` se precisar executar ações após a conclusão do middleware subsequente ou se a ordem de execução for crítica.
 
 ```typescript
 const asyncMiddleware = async (req, res, next) => {

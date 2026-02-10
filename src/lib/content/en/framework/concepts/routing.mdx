@@ -8,21 +8,25 @@ order: 2
 
 # Routing 🛣️
 
-The AzuraJS routing system is built on a high-performance **Radix Tree** (Prefix Tree). This ensures that route lookup speed is extremely fast and constant, regardless of how many routes your application has.
+The AzuraJS routing system utilizes a high-performance **Radix Tree** structure. This guarantees constant and ultra-fast lookup times, regardless of the number of registered routes in your application.
 
 ## Route Patterns 🧩
 
-Routes are defined in controller methods using decorators.
+Routes are defined within controller methods using decorators to specify paths and parameters.
 
 ### Static Routes
-Fixed paths that do not change.
+
+Static routes map to fixed paths.
+
 ```typescript
 @Get("/health")
 check() { return "OK"; }
 ```
 
-### Dynamic Routes (Parameters)
-Use the `:` prefix to define variables in the URL.
+### Dynamic Routes
+
+Use the `:` prefix to denote dynamic route parameters.
+
 ```typescript
 @Get("/users/:id")
 getUser(@Param("id") id: string) {
@@ -31,7 +35,9 @@ getUser(@Param("id") id: string) {
 ```
 
 ### Multiple Parameters
-You can combine multiple parameters in a single route.
+
+Routes can handle multiple dynamic segments.
+
 ```typescript
 @Get("/org/:orgId/projects/:projectId")
 getProject(@Param("orgId") org: string, @Param("projectId") project: string) {
@@ -41,7 +47,7 @@ getProject(@Param("orgId") org: string, @Param("projectId") project: string) {
 
 ## Supported HTTP Methods 📡
 
-AzuraJS supports all standard methods:
+AzuraJS provides decorators for all standard HTTP methods:
 
 - `@Get(path)`
 - `@Post(path)`
@@ -53,14 +59,15 @@ AzuraJS supports all standard methods:
 
 ## Route Priority 🔢
 
-The router follows a logical precedence order:
-1.  **Static Routes**: `/users/profile` will always have priority over `/users/:id`.
-2.  **Parameterized Routes**: `/users/:id` is checked if no static route matches.
-3.  **Wildcards**: Routes that catch everything (if implemented).
+The routing algorithm applies specific precedence rules to determine which route matches a request:
+
+1.  **Static Routes**: Exact matches like `/users/profile` take precedence over dynamic patterns.
+2.  **Parameterized Routes**: Patterns like `/users/:id` are evaluated if no static match is found.
+3.  **Wildcards**: Catch-all routes are checked last (if applicable).
 
 ## Case Sensitivity 🔠
 
-By default, routing in AzuraJS is **case-sensitive** for the path, but you can configure global behavior in `azura.config.ts`.
+By default, route matching in AzuraJS is **case-sensitive**. This behavior ensures precise control over URL structures, though it can be adjusted via global configuration (`azura.config.ts`).
 
 ## Next Steps 📖
 

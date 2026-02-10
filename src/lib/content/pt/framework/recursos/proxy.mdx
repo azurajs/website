@@ -8,11 +8,11 @@ order: 5
 
 # Proxy 🌐
 
-O AzuraJS oferece um middleware de proxy reverso que permite encaminhar requisições para outros servidores. Isso é útil para unificar APIs, contornar políticas de CORS ou balancear carga entre diferentes serviços. O plugin de proxy é altamente configurável e pode ser usado tanto no `azurajs` quanto no `@azurajs/cdn`.
+O middleware de proxy reverso do AzuraJS permite o encaminhamento ágil de requisições para servidores externos. É uma ferramenta essencial para unificar endpoints de API, contornar restrições de CORS ou balancear carga entre microsserviços.
 
 ## Configuração Básica
 
-Você pode usar o middleware `proxyPlugin` diretamente em seu `AzuraClient`:
+Integre o middleware `proxyPlugin` diretamente em sua instância `AzuraClient` para começar a encaminhar requisições.
 
 ```typescript
 import { AzuraClient } from "azurajs";
@@ -20,7 +20,7 @@ import { proxyPlugin } from "azurajs/plugins";
 
 const app = new AzuraClient();
 
-// Encaminha todas as requisições para /api para um servidor de backend
+// Encaminha todas as requisições de /api para o servidor backend
 app.use("/api", proxyPlugin("http://localhost:8080"));
 
 await app.listen(3000);
@@ -28,7 +28,7 @@ await app.listen(3000);
 
 ## Opções de Proxy
 
-O `proxyPlugin` aceita um objeto de opções para um controle mais granular:
+O `proxyPlugin` aceita um objeto de configuração para controle preciso sobre o tratamento das requisições.
 
 ```typescript
 import { AzuraClient } from "azurajs";
@@ -36,48 +36,48 @@ import { proxyPlugin } from "azurajs/plugins";
 
 const app = new AzuraClient();
 
-app.use("/api", proxyPlugin("http://localhost:8080", {
-  pathRewrite: {
-    "^/api": "/"
-  }, // Reescreve o caminho da URL
-  headers: {
-    "X-Custom-Header": "AzuraJS-Proxy"
-  }, // Adiciona cabeçalhos personalizados
-  timeout: 5000, // Tempo limite da requisição em ms
-  followRedirects: false, // Não seguir redirecionamentos
-  preserveHost: true, // Preservar o cabeçalho Host original
-  logLevel: "debug", // Nível de log do proxy (info, warn, error, debug, none)
-  onProxyReq: (proxyReq, req) => {
-    // Modificar a requisição antes de enviar ao target
-    proxyReq.setHeader("X-Real-IP", req.ip);
-  },
-  onProxyRes: (proxyRes, req, res) => {
-    // Modificar a resposta do target antes de enviar ao cliente
-    proxyRes.headers["x-proxied-by"] = "AzuraJS";
-  },
-  onError: (err, req, res) => {
-    // Lidar com erros de proxy
-    res.status(500).json({ error: "Proxy Error", details: err.message });
-  }
-}));
+app.use(
+  "/api",
+  proxyPlugin("http://localhost:8080", {
+    pathRewrite: {
+      "^/api": "/",
+    },
+    headers: {
+      "X-Custom-Header": "AzuraJS-Proxy",
+    },
+    timeout: 5000,
+    followRedirects: false,
+    preserveHost: true,
+    logLevel: "debug",
+    onProxyReq: (proxyReq, req) => {
+      proxyReq.setHeader("X-Real-IP", req.ip);
+    },
+    onProxyRes: (proxyRes, req, res) => {
+      proxyRes.headers["x-proxied-by"] = "AzuraJS";
+    },
+    onError: (err, req, res) => {
+      res.status(500).json({ error: "Erro de Proxy", details: err.message });
+    },
+  }),
+);
 
 await app.listen(3000);
 ```
 
 ### Detalhes das Opções
 
-| Opção | Tipo | Descrição |
-| :--- | :--- | :--- |
-| `target` | `string` | **Obrigatório**. A URL base do servidor de destino. |
-| `pathRewrite` | `Record<string, string>` | Um objeto para reescrever o caminho da URL antes de encaminhar. As chaves são regex e os valores são strings de substituição. |
-| `headers` | `Record<string, string>` | Cabeçalhos adicionais a serem enviados para o servidor de destino. |
-| `timeout` | `number` | Tempo limite em milissegundos para a requisição proxy. Padrão: `30000` (30 segundos). |
-| `followRedirects` | `boolean` | Se `true`, o proxy seguirá redirecionamentos do servidor de destino. Padrão: `false`. |
-| `preserveHost` | `boolean` | Se `true`, o cabeçalho `Host` original da requisição do cliente será enviado ao destino. Padrão: `false`. |
-| `logLevel` | `"info" \| "warn" \| "error" \| "debug" \| "none"` | Nível de detalhe dos logs do proxy. Padrão: `"info"`. |
-| `onProxyReq` | `(proxyReq, req) => void` | Função de callback chamada antes de enviar a requisição ao destino. Permite modificar `proxyReq`. |
-| `onProxyRes` | `(proxyRes, req, res) => void` | Função de callback chamada após receber a resposta do destino. Permite modificar `proxyRes` ou `res`. |
-| `onError` | `(err, req, res) => void` | Função de callback para lidar com erros que ocorrem durante a requisição proxy. |
+| Opção             | Tipo                                               | Descrição                                                       |
+| :---------------- | :------------------------------------------------- | :-------------------------------------------------------------- |
+| `target`          | `string`                                           | **Obrigatório**. URL base do servidor de destino.               |
+| `pathRewrite`     | `Record<string, string>`                           | Regras de reescrita de caminho baseadas em Regex.               |
+| `headers`         | `Record<string, string>`                           | Cabeçalhos personalizados anexados às requisições encaminhadas. |
+| `timeout`         | `number`                                           | Duração do timeout da requisição em ms. Padrão: `30000`.        |
+| `followRedirects` | `boolean`                                          | Se deve seguir redirecionamentos do destino. Padrão: `false`.   |
+| `preserveHost`    | `boolean`                                          | Preserva o cabeçalho `Host` original. Padrão: `false`.          |
+| `logLevel`        | `"info" \| "warn" \| "error" \| "debug" \| "none"` | Nível de verbosidade dos logs do proxy. Padrão: `"info"`.       |
+| `onProxyReq`      | `Function`                                         | Callback para modificar a requisição antes do encaminhamento.   |
+| `onProxyRes`      | `Function`                                         | Callback para inspecionar/modificar a resposta do destino.      |
+| `onError`         | `Function`                                         | Callback para lidar com falhas na requisição do proxy.          |
 
 ## Próximos Passos 📖
 

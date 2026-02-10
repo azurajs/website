@@ -8,39 +8,47 @@ order: 5
 
 # Request & Response 💬
 
-In AzuraJS, the request (`RequestServer`) and response (`ResponseServer`) objects are the primary interface for interacting with the HTTP client. They are based on the standard Node.js specification but extended with additional functionalities to facilitate API development.
+In AzuraJS, the `RequestServer` and `ResponseServer` objects act as the primary interface for HTTP interactions. While based on standard Node.js specifications, they are enhanced with convenient methods and properties to streamline API development.
 
 ## `RequestServer` Object
 
-The `RequestServer` object represents the HTTP request received from the client. It contains information about the request, such as headers, URL parameters, request body, and much more.
+The `RequestServer` object encapsulates the incoming HTTP request, providing access to headers, URL parameters, the request body, and client information.
 
 ### Common Properties
 
-| Property | Type | Description |
-| :--- | :--- | :--- |
-| `url` | `string` | The full URL of the request. |
-| `method` | `string` | The HTTP method of the request (GET, POST, etc.). |
-| `headers` | `Record<string, string>` | An object containing all request headers. |
-| `params` | `Record<string, string>` | Route parameters extracted from the URL (e.g., `/users/:id`). |
-| `query` | `Record<string, string>` | Query string parameters from the URL (e.g., `?name=value`). |
-| `body` | `any` | The request body, already parsed (JSON, form, etc.). |
-| `ip` | `string` | The IP address of the client that made the request. |
-| `cookies` | `Record<string, string>` | An object containing all request cookies. |
+| Property  | Type                     | Description                                      |
+| :-------- | :----------------------- | :----------------------------------------------- |
+| `url`     | `string`                 | The full request URL.                            |
+| `method`  | `string`                 | The HTTP method (GET, POST, etc.).               |
+| `headers` | `Record<string, string>` | Collection of request headers.                   |
+| `params`  | `Record<string, string>` | Route parameters extracted from the URL path.    |
+| `query`   | `Record<string, string>` | Parsed query string parameters.                  |
+| `body`    | `any`                    | The parsed request body (JSON, form data, etc.). |
+| `ip`      | `string`                 | The client's IP address.                         |
+| `cookies` | `Record<string, string>` | Collection of request cookies.                   |
 
 ### Common Methods
 
-| Method | Description |
-| :--- | :--- |
-| `json(): Promise<any>` | Reads and parses the request body as JSON. |
-| `text(): Promise<string>` | Reads the request body as text. |
-| `arrayBuffer(): Promise<ArrayBuffer>` | Reads the request body as an ArrayBuffer. |
-| `blob(): Promise<Blob>` | Reads the request body as a Blob. |
-| `formData(): Promise<FormData>` | Reads the request body as FormData. |
+| Method                                | Description                             |
+| :------------------------------------ | :-------------------------------------- |
+| `json(): Promise<any>`                | Asynchronously parses the body as JSON. |
+| `text(): Promise<string>`             | Asynchronously reads the body as text.  |
+| `arrayBuffer(): Promise<ArrayBuffer>` | Reads the body as an ArrayBuffer.       |
+| `blob(): Promise<Blob>`               | Reads the body as a Blob.               |
+| `formData(): Promise<FormData>`       | Reads the body as FormData.             |
 
 ### Usage Example
 
 ```typescript
-import { Controller, Get, Post, Req, Body, Param, Query } from "azurajs/decorators";
+import {
+  Controller,
+  Get,
+  Post,
+  Req,
+  Body,
+  Param,
+  Query,
+} from "azurajs/decorators";
 import type { RequestServer } from "azurajs/types";
 
 @Controller("/data")
@@ -49,17 +57,19 @@ export class DataController {
   getData(
     @Req() req: RequestServer,
     @Param("id") id: string,
-    @Query("filter") filter?: string
+    @Query("filter") filter?: string,
   ) {
-    console.log("Method:", req.method);
-    console.log("URL:", req.url);
-    console.log("Headers:", req.headers);
-    return { id, filter, ip: req.ip };
+    return {
+      id,
+      filter,
+      ip: req.ip,
+      method: req.method,
+      url: req.url,
+    };
   }
 
   @Post()
   async postData(@Body() body: any) {
-    // The @Body decorator already parses, but you can use req.json() in pure JS
     return { received: body };
   }
 }
@@ -67,28 +77,28 @@ export class DataController {
 
 ## `ResponseServer` Object
 
-The `ResponseServer` object represents the HTTP response that will be sent back to the client. It allows you to define the status, headers, and body of the response.
+The `ResponseServer` object facilitates sending the HTTP response back to the client, allowing you to set status codes, headers, cookies, and the response body.
 
 ### Common Properties
 
-| Property | Type | Description |
-| :--- | :--- | :--- |
-| `statusCode` | `number` | The HTTP status code of the response. |
-| `headersSent` | `boolean` | Indicates whether headers have already been sent. |
+| Property      | Type      | Description                                   |
+| :------------ | :-------- | :-------------------------------------------- |
+| `statusCode`  | `number`  | The current HTTP status code.                 |
+| `headersSent` | `boolean` | Boolean indicating if headers have been sent. |
 
 ### Common Methods
 
-| Method | Description |
-| :--- | :--- |
-| `status(code: number): this` | Sets the HTTP status code of the response. |
-| `json(data: any): void` | Sends a JSON response. |
-| `send(body: string | Buffer | object): void` | Sends a text, buffer, or JSON response. |
-| `end(): void` | Ends the response without sending data. |
-| `setHeader(name: string, value: string): void` | Sets a response header. |
-| `getHeader(name: string): string | undefined` | Gets the value of a response header. |
-| `cookie(name: string, value: string, options?: CookieOptions): void` | Sets a cookie. |
-| `clearCookie(name: string, options?: CookieOptions): void` | Deletes a cookie. |
-| `redirect(url: string, status?: number): void` | Redirects the client to another URL. |
+| Method                                                               | Description                             |
+| :------------------------------------------------------------------- | :-------------------------------------- | -------------------------------- | ----------------------------------------------- |
+| `status(code: number): this`                                         | Sets the HTTP status code.              |
+| `json(data: any): void`                                              | Sends a JSON response.                  |
+| `send(body: string                                                   | Buffer                                  | object): void`                   | Sends a response of type text, buffer, or JSON. |
+| `end(): void`                                                        | Ends the response without sending data. |
+| `setHeader(name: string, value: string): void`                       | Sets a specific response header.        |
+| `getHeader(name: string): string                                     | undefined`                              | Retrieves a set response header. |
+| `cookie(name: string, value: string, options?: CookieOptions): void` | Sets a cookie with options.             |
+| `clearCookie(name: string, options?: CookieOptions): void`           | Clears a specific cookie.               |
+| `redirect(url: string, status?: number): void`                       | Redirects the request to a new URL.     |
 
 ### Usage Example
 

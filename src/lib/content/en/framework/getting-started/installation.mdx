@@ -8,48 +8,34 @@ order: 2
 
 # Installation 📦
 
-Start with AzuraJS by installing it in your Node.js or Bun project. This guide will take you from zero to a working application in just a few minutes.
+Get started with AzuraJS by installing it into your **Node.js** or **Bun** project. This guide will walk you through the setup process.
 
 ## Prerequisites ✅
 
-Before you begin, you will need:
+Ensure your environment meets the following requirements:
 
-<Callout type="warning" title="Minimum Requirements">
-- **Node.js** 18+ or **Bun** 1.0+
-- **TypeScript** 5.0+ (recommended for using decorators)
-- A package manager: npm, yarn, pnpm, or bun
+<Callout type="warning" title="System Requirements">
+  - **Node.js** 18.0.0+ or **Bun** 1.0.0+ - **TypeScript** 5.0+ (Required for
+  decorator support) - A package manager: **npm**, **yarn**, **pnpm**, or
+  **bun**
 </Callout>
 
 ## Package Installation 📥
 
-Choose your favorite package manager and install AzuraJS:
+Install the `azurajs` core package using your preferred package manager:
 
 <Tabs items={["npm", "pnpm", "yarn", "bun"]}>
-  <Tab value="npm">
-```bash
-npm install azurajs
-```
-  </Tab>
-  <Tab value="pnpm">
-```bash
-pnpm add azurajs
-```
-  </Tab>
-  <Tab value="yarn">
-```bash
-yarn add azurajs
-```
-  </Tab>
-  <Tab value="bun">
-```bash
-bun add azurajs
-```
-  </Tab>
+  <Tab value="npm">```bash npm install azurajs ```</Tab>
+  <Tab value="pnpm">```bash pnpm add azurajs ```</Tab>
+  <Tab value="yarn">```bash yarn add azurajs ```</Tab>
+  <Tab value="bun">```bash bun add azurajs ```</Tab>
 </Tabs>
 
 ## TypeScript Configuration 🛠️
 
-Since AzuraJS uses decorators, you need to enable them in your `tsconfig.json`:
+AzuraJS relies on **decorators** to provide its expressive syntax. You must enable them in your `tsconfig.json` file.
+
+Add or update the following compiler options:
 
 ```json
 {
@@ -68,21 +54,20 @@ Since AzuraJS uses decorators, you need to enable them in your `tsconfig.json`:
 
 ## Recommended Structure 📁
 
-For professional projects, we suggest the following structure:
+For a scalable and maintainable codebase, we recommend the following directory structure:
 
 ```text
 my-azura-api/
 ├── src/
-│   ├── controllers/
-│   │   └── UserController.ts
-│   ├── middlewares/
-│   ├── services/
-│   └── index.ts
-├── azura.config.ts
-├── tsconfig.json
-└── package.json
+│   ├── controllers/      # Route controllers and request handling
+│   ├── services/         # Business logic and data access
+│   ├── middlewares/      # Custom middleware functions
+│   └── index.ts          # Application entry point
+├── azura.config.ts       # Framework configuration
+├── tsconfig.json         # TypeScript configuration
+└── package.json          # Project dependencies
 ```
 
 ## Next Steps 🚀
 
-Now that you have AzuraJS installed, head over to the [Quick Start](/docs/en/framework/getting-started/quick-start) to create your first API.
+With AzuraJS installed, you are ready to build. Proceed to the [Quick Start](/docs/en/framework/getting-started/quick-start) guide to create your first API.

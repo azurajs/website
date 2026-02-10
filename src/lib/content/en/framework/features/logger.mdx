@@ -8,11 +8,11 @@ order: 3
 
 # Logger 📊
 
-AzuraJS integrates a contextual logging system that adapts to the execution environment, providing useful information during development and concise logs in production. It is configurable via `azura.config.ts`.
+AzuraJS integrates a contextual logging system that adapts to the execution environment. It provides detailed debugging information during development while offering concise, performance-focused logs in production.
 
 ## Logger Configuration
 
-You can control the logger's behavior in the `logging` section of your configuration file:
+The logger's behavior is controlled via the `logging` object in your `azura.config.ts` configuration file.
 
 ```typescript
 // azura.config.ts
@@ -21,10 +21,9 @@ import type { ConfigTypes } from "azurajs/config";
 const config: ConfigTypes = {
   environment: "development",
   logging: {
-    enabled: true,           // Enable or disable logging
-    showDetails: true,       // Show details like query, params, and body
+    enabled: true,
+    showDetails: true,
   },
-  // ... other configurations
 };
 
 export default config;
@@ -32,14 +31,14 @@ export default config;
 
 ### `logging` Options
 
-| Property | Type | Description |
-| :--- | :--- | :--- |
-| `enabled` | `boolean` | If `true`, the logging middleware will be activated. Default: `true`. |
-| `showDetails` | `boolean` | If `true`, development logs will include request details (query, params, body). Default: `true` in `development`, `false` in `production`. |
+| Property      | Type      | Default      | Description                                                              |
+| :------------ | :-------- | :----------- | :----------------------------------------------------------------------- |
+| `enabled`     | `boolean` | `true`       | Activates or deactivates the logging middleware.                         |
+| `showDetails` | `boolean` | `true` (dev) | If enabled, includes request details like query params and body content. |
 
 ## Request Logs
 
-When logging is enabled, AzuraJS automatically records information about each received request and sent response. This includes the HTTP method, URL, response time, and HTTP status.
+When active, the system automatically records incoming requests and outgoing responses, capturing HTTP methods, URLs, response times, and status codes.
 
 ### Example Output (Development)
 
@@ -59,12 +58,12 @@ When logging is enabled, AzuraJS automatically records information about each re
 
 ## Using the Internal Logger
 
-For custom logs within your application, you can import and use the `logger` function from AzuraJS. It integrates with the configured logging system.
+You can utilize the core `logger` function to create custom log entries within your application logic. These logs integrate directly with the framework's logging system.
 
 ```typescript
 import { logger } from "azurajs/utils/logger";
 
-// ... inside a service or controller
+// Standard usage
 logger("info", "User successfully logged in!");
 logger("warn", "Unauthorized access attempt.");
 logger("error", "Error processing user data.", { userId: 123 });
@@ -72,10 +71,10 @@ logger("error", "Error processing user data.", { userId: 123 });
 
 ### Supported Log Levels
 
-*   `"info"`
-*   `"warn"`
-*   `"error"`
-*   `"debug"`
+- `"info"`
+- `"warn"`
+- `"error"`
+- `"debug"`
 
 ## Next Steps 📖
 

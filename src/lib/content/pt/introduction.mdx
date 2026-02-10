@@ -1,7 +1,7 @@
 ---
 title: Bem-vindo ao AzuraJS
-description: Um framework web moderno, rápido e TypeScript-first para Node.js e Bun
-category: Getting Started
+description: Um framework web moderno, rápido e focado em TypeScript para Node.js e Bun
+category: Começando
 icon: lucide:sparkles
 status: new
 date: 2026-02-01
@@ -10,43 +10,51 @@ order: 1
 
 # Bem-vindo ao AzuraJS ⚡
 
-AzuraJS é um framework web moderno e de alta performance para **Node.js** e **Bun** que traz o poder dos **decorators** do TypeScript para o desenvolvimento backend. Construa APIs elegantes e type-safe com uma sintaxe limpa e intuitiva.
+AzuraJS é um framework web moderno e de alta performance, projetado para ambientes **Node.js** e **Bun**. Ele utiliza o poder dos **decorators do TypeScript** para oferecer uma experiência de desenvolvimento limpa, intuitiva e robusta na construção de aplicações backend escaláveis.
 
-<Callout type="info" title="Para Quem é o AzuraJS?">
-Ideal para desenvolvedores que querem criar APIs REST rápidas e robustas com TypeScript, sem a complexidade de frameworks maiores.
+<Callout type="info" title="Ideal para Desenvolvimento Moderno">
+  AzuraJS é construído para desenvolvedores que exigem velocidade, segurança de
+  tipos e simplicidade, sem a sobrecarga de frameworks complexos e pesados.
 </Callout>
 
 ## ✨ Por que Escolher AzuraJS?
 
-| Recurso | Descrição |
-| :--- | :--- |
-| **Decorators TypeScript** | Organize seu código com decorators modernos - uma sintaxe elegante que torna suas APIs mais legíveis. |
-| **Performance Excepcional** | Projetado do zero para máxima velocidade, com overhead mínimo e zero dependências externas. |
-| **Zero Dependências** | Leve e eficiente - apenas 1 dependência core. Sem o peso de milhares de pacotes no node_modules. |
-| **TypeScript First** | Desenvolvido pensando em TypeScript desde o início, com tipos completos e IntelliSense perfeito. |
-| **Compatível com Express** | Use middlewares e plugins do ecossistema Express - aproveite milhares de soluções prontas. |
-| **Configuração Flexível** | Configure via arquivo TypeScript, JSON ou YAML - escolha o formato que preferir. |
+| Recurso                     | Descrição                                                                                                                        |
+| :-------------------------- | :------------------------------------------------------------------------------------------------------------------------------- |
+| **Nativo em TypeScript**    | Desenvolvido com TypeScript desde o início, oferecendo segurança de tipos impecável e suporte superior ao IntelliSense.          |
+| **Baseado em Decorators**   | Utilize decorators modernos para definir rotas, middlewares e validações, resultando em uma estrutura de código limpa e legível. |
+| **Alta Performance**        | Otimizado para velocidade máxima com overhead mínimo e zero dependências externas desnecessárias.                                |
+| **Leve**                    | Um núcleo minimalista com apenas as dependências essenciais, evitando o inchaço do `node_modules`.                               |
+| **Compatibilidade Express** | Totalmente compatível com o vasto ecossistema de middlewares e plugins do Express.                                               |
+| **Configuração Flexível**   | Suporte para configuração via TypeScript, JSON ou YAML, adaptando-se ao seu fluxo de trabalho.                                   |
 
 ## 🎨 Recursos Principais
 
-AzuraJS vem com tudo que você precisa para construir APIs profissionais:
+AzuraJS fornece um conjunto abrangente de ferramentas para o desenvolvimento profissional de APIs:
 
-*   **💉 Injeção de Parâmetros Inteligente**: Decorators poderosos como `@Body`, `@Query`, `@Param`, `@Req`, `@Res`, `@Headers`, `@Cookies`.
-*   **✅ Validação Built-in**: Sistema completo de validação de DTOs e schemas com segurança de tipos.
-*   **🍪 Gerenciamento de Cookies**: Parser e serializador de cookies nativos - trabalhe com cookies de forma simples.
-*   **🌐 CORS Configurável**: Plugin CORS pronto para produção com configuração flexível.
-*   **🛡️ Rate Limiting Integrado**: Proteja sua aplicação contra abuso e DDoS com sistema configurável por rota.
-*   **⚡ Modo Cluster**: Aproveite todos os núcleos do processador com suporte cluster nativo.
-*   **📊 Logging Contextual**: Sistema de logging inteligente que se adapta ao ambiente.
-*   **🚨 Tratamento de Erros Robusto**: Classe `HttpError` e middleware de erro para tratamento estruturado.
+- **Injeção de Parâmetros Inteligente**: Utilize decorators como `@Body`, `@Query`, `@Param`, `@Req`, `@Res` para acesso explícito aos dados.
+- **Validação Integrada**: Sistema robusto de validação de DTOs e esquemas com total inferência de tipos.
+- **Gerenciamento de Cookies**: Suporte nativo para análise e serialização segura de cookies.
+- **CORS Pronto para Produção**: Plugin CORS configurável, projetado para segurança e flexibilidade.
+- **Rate Limiting**: Proteção integrada contra abusos e ataques DDoS com configuração por rota.
+- **Cluster & Proxy**: Suporte nativo a cluster para performance multi-core e gerenciamento de proxies confiáveis.
+- **Logging Contextual**: Sistema de logging adaptável para monitoramento e depuração eficazes.
+- **Tratamento de Erros Estruturado**: Gerenciamento centralizado de erros com `HttpError` e middleware dedicado.
 
-## 🚀 Veja Como é Simples
+## 🚀 Simples e Poderoso
 
-Aqui está um exemplo completo de uma API CRUD em menos de 30 linhas:
+Crie uma API CRUD totalmente funcional com o mínimo de código boilerplate. O exemplo a seguir demonstra a implementação completa de um controller:
 
 ```typescript
 import { AzuraClient } from "azurajs";
-import { applyDecorators, Controller, Get, Post, Body, Param } from "azurajs/decorators";
+import {
+  applyDecorators,
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+} from "azurajs/decorators";
 
 @Controller("/api/users")
 class UserController {
@@ -61,7 +69,7 @@ class UserController {
   }
 
   @Post()
-  createUser(@Body() data: any) {
+  createUser(@Body() data: unknown) {
     return { id: Date.now(), ...data };
   }
 }
@@ -71,11 +79,11 @@ applyDecorators(app, [UserController]);
 await app.listen();
 ```
 
-## 📚 Próximos Passos
+## 📚 Comece Agora
 
-Comece sua jornada com AzuraJS seguindo estes guias:
+Inicie sua jornada com os seguintes recursos:
 
-*   [📦 **Instalação**](/docs/pt/framework/comecando/instalacao): Instale o AzuraJS e configure seu ambiente.
-*   [🚀 **Início Rápido**](/docs/pt/framework/comecando/inicio-rapido): Crie sua primeira API REST completa.
-*   [⚙️ **Configuração**](/docs/pt/framework/comecando/configuracao): Explore todas as opções de configuração.
-*   [🎯 **Controllers**](/docs/pt/framework/conceitos/controllers): Domine o padrão de controllers.
+- [📦 **Instalação**](/docs/pt/framework/comecando/instalacao): Configure seu ambiente e instale o AzuraJS.
+- [🚀 **Início Rápido**](/docs/pt/framework/comecando/inicio-rapido): Crie sua primeira API REST em minutos.
+- [⚙️ **Configuração**](/docs/pt/framework/comecando/configuracao): Aprenda sobre as opções de configuração do servidor.
+- [🎯 **Controllers**](/docs/pt/framework/conceitos/controllers): Entenda como estruturar a lógica da sua aplicação.

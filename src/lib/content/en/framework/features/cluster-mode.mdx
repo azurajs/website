@@ -8,28 +8,27 @@ order: 6
 
 # Cluster Mode ⚡
 
-AzuraJS offers native support for cluster mode, allowing your application to utilize all available CPU cores. This is crucial for scaling Node.js and Bun applications, distributing the workload across multiple processes, and significantly improving performance and resilience.
+AzuraJS supports native cluster mode, enabling applications to fully utilize available CPU cores. This architecture is vital for scaling Node.js applications, distributing workloads across multiple processes, and enhancing overall system performance and resilience.
 
 ## How It Works
 
-When cluster mode is enabled, AzuraJS creates a *master* process and several *worker* processes. The master process is responsible for managing the workers, restarting them in case of failure, and distributing incoming requests among them. Each worker is an independent instance of your application.
+In cluster mode, AzuraJS spawns a _master_ process alongside multiple _worker_ processes. The master process manages worker lifecycles, handling restarts upon failure and balancing incoming request loads among them. Each worker operates as an independent application instance.
 
 ## Configuration
 
-To enable cluster mode, simply set `cluster: true` in your `azura.config.ts` file:
+Enable cluster mode by setting `cluster: true` in your `azura.config.ts`.
 
 ```typescript
 // azura.config.ts
 import type { ConfigTypes } from "azurajs/config";
 
 const config: ConfigTypes = {
-  environment: "production", // Cluster mode is more common in production
+  environment: "production",
   server: {
     port: 3000,
-    cluster: true,           // Enables cluster mode
-    // workers: 4,            // Optional: specific number of workers (default: number of CPUs)
+    cluster: true,
+    // workers: 4, // Optional: default is CPU core count
   },
-  // ...
 };
 
 export default config;
@@ -37,22 +36,22 @@ export default config;
 
 ### `cluster` Options
 
-| Property | Type | Description |
-| :--- | :--- | :--- |
-| `cluster` | `boolean` | If `true`, AzuraJS will start in cluster mode. Default: `false`. |
-| `workers` | `number` | Optional. Number of worker processes to create. If not specified, it will use the number of CPU cores. |
+| Property  | Type      | Description                                                  |
+| :-------- | :-------- | :----------------------------------------------------------- |
+| `cluster` | `boolean` | Activates cluster mode. Default: `false`.                    |
+| `workers` | `number`  | Number of worker processes. Defaults to available CPU cores. |
 
 ## Benefits of Cluster Mode
 
-*   **Improved Performance**: Distributes the load across CPU cores, processing more requests simultaneously.
-*   **High Availability**: If a worker process fails, the master can restart it without bringing down the entire application.
-*   **Efficient Resource Utilization**: Maximizes the use of server hardware.
+- **Improved Performance**: Parallel request processing across all CPU cores.
+- **High Availability**: Fault tolerance via automatic worker restarts managed by the master process.
+- **Efficient Resource Utilization**: Optimal usage of server hardware capabilities.
 
 ## Important Considerations
 
-*   **Shared State**: Avoid storing state in worker process memory, as each is isolated. Use databases, Redis, or other distributed caching solutions for shared state.
-*   **Sessions**: If you use sessions, they should be stored in a centralized location (e.g., Redis) so that all workers can access them.
-*   **Logging**: Ensure your logging system can handle logs from multiple worker processes (e.g., by sending them to a centralized service like ELK Stack or Grafana Loki).
+- **Shared State**: Workers are isolated; avoid in-memory state. Use external stores like Redis for shared data.
+- **Sessions**: Store session data in a centralized store (e.g., Redis) to ensure accessibility across all workers.
+- **Logging**: Implement centralized logging solutions (e.g., ELK Stack) to aggregate logs from multiple processes.
 
 ## Next Steps 📖
 

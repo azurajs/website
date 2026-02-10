@@ -8,27 +8,26 @@ order: 4
 
 # CORS (Cross-Origin Resource Sharing) 🌐
 
-O CORS é um mecanismo de segurança que permite ou restringe requisições de recursos de um domínio diferente daquele onde o recurso foi originado. O AzuraJS oferece um plugin de CORS flexível e pronto para produção, que pode ser configurado globalmente ou por rota.
+O CORS é um mecanismo de segurança que permite ou restringe requisições de recursos vindas de domínios externos. O AzuraJS oferece um plugin de CORS flexível e pronto para produção, suportando configuração global e por rota.
 
 ## Configuração Global
 
-Você pode habilitar e configurar o CORS no seu arquivo `azura.config.ts`:
+Habilite e customize o CORS através do objeto `plugins` no `azura.config.ts`.
 
 ```typescript
 // azura.config.ts
 import type { ConfigTypes } from "azurajs/config";
 
 const config: ConfigTypes = {
-  // ...
   plugins: {
     cors: {
-      enabled: true,           // Habilitar CORS
-      origins: ["http://localhost:3000", "https://seusite.com"], // Origens permitidas
-      methods: ["GET", "POST", "PUT", "DELETE", "PATCH"], // Métodos HTTP permitidos
-      allowedHeaders: ["Content-Type", "Authorization"], // Cabeçalhos permitidos
-      exposedHeaders: ["X-Custom-Header"], // Cabeçalhos que o navegador pode acessar
-      credentials: true,       // Permitir envio de cookies e cabeçalhos de autorização
-      maxAge: 3600,            // Tempo em segundos que a resposta preflight pode ser cacheada
+      enabled: true,
+      origins: ["http://localhost:3000", "https://seusite.com"],
+      methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+      allowedHeaders: ["Content-Type", "Authorization"],
+      exposedHeaders: ["X-Custom-Header"],
+      credentials: true,
+      maxAge: 3600,
     },
   },
 };
@@ -38,19 +37,19 @@ export default config;
 
 ### Opções de `cors`
 
-| Propriedade | Tipo | Descrição |
-| :--- | :--- | :--- |
-| `enabled` | `boolean` | Ativa ou desativa o middleware de CORS. Padrão: `false`. |
-| `origins` | `string[]` | Array de origens permitidas. Use `["*"]` para permitir todas (não recomendado em produção). |
-| `methods` | `string[]` | Métodos HTTP permitidos. Padrão: `["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE"]`. |
-| `allowedHeaders` | `string[]` | Cabeçalhos de requisição permitidos. Padrão: `["Content-Type", "Authorization"]`. |
-| `exposedHeaders` | `string[]` | Cabeçalhos de resposta que podem ser expostos ao navegador. |
-| `credentials` | `boolean` | Indica se o navegador deve enviar cookies e cabeçalhos de autorização. Padrão: `false`. |
-| `maxAge` | `number` | Tempo máximo em segundos que a resposta de uma requisição preflight pode ser cacheada. Padrão: `3600`. |
+| Propriedade      | Tipo       | Descrição                                                                              |
+| :--------------- | :--------- | :------------------------------------------------------------------------------------- |
+| `enabled`        | `boolean`  | Ativa o middleware de CORS. Padrão: `false`.                                           |
+| `origins`        | `string[]` | Lista de origens permitidas. Use `["*"]` para permitir todas (não seguro em produção). |
+| `methods`        | `string[]` | Métodos HTTP permitidos. Padrão inclui verbos comuns.                                  |
+| `allowedHeaders` | `string[]` | Cabeçalhos de requisição permitidos.                                                   |
+| `exposedHeaders` | `string[]` | Cabeçalhos de resposta acessíveis ao navegador.                                        |
+| `credentials`    | `boolean`  | Permite envio de cookies e headers de autorização entre origens. Padrão: `false`.      |
+| `maxAge`         | `number`   | Duração do cache de preflight em segundos. Padrão: `3600`.                             |
 
 ## Requisições Preflight
 
-Para requisições CORS "complexas" (ex: com métodos diferentes de GET/POST simples, ou com cabeçalhos personalizados), o navegador envia uma requisição `OPTIONS` (preflight) para verificar as permissões. O plugin CORS do AzuraJS lida automaticamente com essas requisições, respondendo com os cabeçalhos apropriados.
+O AzuraJS gerencia automaticamente requisições `OPTIONS` de preflight para operações CORS complexas, garantindo interação fluida com as políticas de segurança do navegador sem configuração de rota adicional.
 
 ## Próximos Passos 📖
 

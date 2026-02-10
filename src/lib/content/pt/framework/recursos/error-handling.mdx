@@ -8,11 +8,11 @@ order: 8
 
 # Tratamento de Erros 🚨
 
-Um tratamento de erros eficaz é fundamental para a robustez de qualquer API. O AzuraJS oferece mecanismos para lidar com exceções de forma centralizada e consistente, garantindo que sua API retorne respostas significativas e evite vazamento de informações sensíveis.
+Um tratamento de erros eficaz é vital para a confiabilidade e segurança de qualquer API. O AzuraJS fornece mecanismos estruturados para gerenciar exceções centralmente, garantindo respostas consistentes e evitando vazamento de dados sensíveis.
 
 ## HttpError
 
-A classe `HttpError` é a maneira recomendada de lançar erros com códigos de status HTTP específicos dentro dos seus controllers e serviços. Ela estende a classe `Error` nativa do JavaScript.
+A classe `HttpError` é a utilidade padrão para lançar exceções com códigos de status HTTP específicos. Ela se integra perfeitamente ao pipeline de gerenciamento de erros do framework.
 
 ```typescript
 import { HttpError } from "azurajs/errors";
@@ -27,7 +27,9 @@ export class UserController {
       throw new HttpError(400, "ID de usuário inválido");
     }
     if (id === "notfound") {
-      throw new HttpError(404, "Usuário não encontrado", { code: "USER_NOT_FOUND" });
+      throw new HttpError(404, "Usuário não encontrado", {
+        code: "USER_NOT_FOUND",
+      });
     }
     return { id, name: `Usuário ${id}` };
   }
@@ -36,19 +38,21 @@ export class UserController {
 
 ### Construtor de `HttpError`
 
+O construtor aceita um código de status, uma mensagem e dados opcionais de payload.
+
 ```typescript
 new HttpError(status: number, message?: string, payload?: any)
 ```
 
-*   `status`: O código de status HTTP (ex: 400, 401, 404, 500).
-*   `message`: Uma mensagem descritiva do erro. Se omitida, será gerada com base no status.
-*   `payload`: Um objeto opcional com dados adicionais sobre o erro (ex: códigos de erro internos, detalhes de validação).
+- `status`: Código de status HTTP (ex: 400, 404, 500).
+- `message`: Descrição legível do erro. Omitir gerará a mensagem padrão do HTTP.
+- `payload`: Objeto opcional contendo metadados ou detalhes estruturados do erro.
 
 ## Middleware de Erro Global
 
-O AzuraJS possui um middleware de erro padrão que captura todas as exceções lançadas e as formata em uma resposta JSON consistente. Você pode personalizar esse comportamento criando seu próprio middleware de erro.
+O AzuraJS intercepta exceções não tratadas através de um middleware de erro padrão. Você pode sobrescrever isso para facilitar a formatação de respostas ou logs personalizados.
 
-Um middleware de erro tem a assinatura `(err: Error, req: RequestServer, res: ResponseServer, next: Function)`.
+Um middleware de erro personalizado deve aceitar quatro argumentos: `(err, req, res, next)`.
 
 ```typescript
 import { AzuraClient } from "azurajs";
@@ -57,31 +61,29 @@ import type { RequestServer, ResponseServer } from "azurajs/types";
 
 const app = new AzuraClient();
 
-// Seu middleware de erro personalizado
-app.use((err: Error, req: RequestServer, res: ResponseServer, next: Function) => {
-  if (err instanceof HttpError) {
-    return res.status(err.status).json({
-      statusCode: err.status,
-      message: err.message,
-      error: err.payload || null,
-    });
-  } else {
-    // Erros não tratados (500 Internal Server Error)
-    console.error(err); // Logar o erro para depuração
-    return res.status(500).json({
-      statusCode: 500,
-      message: "Erro interno do servidor",
-      error: process.env.NODE_ENV === "development" ? err.message : "",
-    });
-  }
-});
-
-// ... registre controllers e inicie o servidor
+app.use(
+  (err: Error, req: RequestServer, res: ResponseServer, next: Function) => {
+    if (err instanceof HttpError) {
+      return res.status(err.status).json({
+        statusCode: err.status,
+        message: err.message,
+        error: err.payload || null,
+      });
+    } else {
+      console.error(err);
+      return res.status(500).json({
+        statusCode: 500,
+        message: "Erro interno do servidor",
+        error: process.env.NODE_ENV === "development" ? err.message : "",
+      });
+    }
+  },
+);
 ```
 
 ## Tratamento de Erros Assíncronos
 
-O AzuraJS lida automaticamente com erros em funções assíncronas (promessas rejeitadas) dentro dos controllers e middlewares. Você não precisa de blocos `try/catch` em cada `async` função, a menos que queira tratar o erro localmente.
+O AzuraJS captura automaticamente rejeições de promessas dentro de métodos de controller assíncronos e middlewares. Blocos `try/catch` explícitos só são necessários quando você precisa tratar erros específicos localmente antes que eles propaguem para o manipulador global.
 
 ## Próximos Passos 📖
 

@@ -8,52 +8,40 @@ order: 5
 
 # Configuration ⚙️
 
-AzuraJS is highly configurable through the `azura.config.ts` (or `.js`, `.json`, `.yaml`) file. This file is automatically loaded upon `AzuraClient` initialization and allows you to customize server behavior, plugins, and environment.
+AzuraJS is highly configurable via the `azura.config.ts` file (also supports `.js`, `.json`, `.yaml`). This file is automatically loaded upon `AzuraClient` initialization, allowing you to tailor the server's behavior, plugins, and environment settings.
 
 ## Configuration File Structure
 
+The following example demonstrates a standard configuration without inline comments. Refer to the tables below for detailed explanations of each property.
+
 ```typescript
-// azura.config.ts
 import type { ConfigTypes } from "azurajs/config";
 
 const config: ConfigTypes = {
-  // Application environment (development, production, test)
   environment: "development",
-
-  // HTTP server settings
   server: {
-    port: 3000,              // Port for the server to listen on
-    ipHost: true,            // Try to resolve host IP automatically
-    https: false,            // Enable HTTPS (requires certificates)
-    cluster: false,          // Enable cluster mode for multiple cores
-    trustProxy: false,       // Configuration for reverse proxies (e.g., Nginx, Cloudflare)
+    port: 3000,
+    ipHost: true,
+    https: false,
+    cluster: false,
+    trustProxy: false,
   },
-
-  // Logging settings
   logging: {
-    enabled: true,           // Enable/disable logs
-    showDetails: true,       // Show request details in logs
+    enabled: true,
+    showDetails: true,
   },
-
-  // Plugin settings
   plugins: {
     cors: {
-      enabled: false,        // Enable Cross-Origin Resource Sharing
-      origins: ["*"],        // Allowed origins (e.g., ["http://localhost:8080"])
-      methods: ["GET", "POST", "PUT", "DELETE", "PATCH"], // Allowed methods
-      allowedHeaders: ["Content-Type", "Authorization"], // Allowed headers
+      enabled: true,
+      origins: ["*"],
+      methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+      allowedHeaders: ["Content-Type", "Authorization"],
     },
     rateLimit: {
-      enabled: false,        // Enable Rate Limiting
-      limit: 100,            // Maximum number of requests
-      timeframe: 60000,      // Period in milliseconds (e.g., 60000ms = 1 minute)
+      enabled: false,
+      limit: 100,
+      timeframe: 60000,
     },
-    // Other plugins like proxy, etc.
-  },
-
-  // Environment variables (optional, can be loaded from .env)
-  env: {
-    DATABASE_URL: "mongodb://localhost:27017/azura_db",
   },
 };
 
@@ -62,45 +50,83 @@ export default config;
 
 ## Detailed Configuration Options
 
-### `environment: string`
-Defines the application's execution environment. Common values are `"development"`, `"production"`, `"test"`. Affects logging and plugin behavior.
+### Environment
 
-### `server: ServerConfig`
+The `environment` property defines the execution mode of the application. It affects default logging behaviors and performance optimizations.
 
-| Property | Type | Description |
-| :--- | :--- | :--- |
-| `port` | `number` | HTTP/HTTPS port for the server. Default: `3000`. |
-| `ipHost` | `boolean` | If `true`, attempts to resolve the host IP. Default: `true`. |
-| `https` | `boolean` | Enables HTTPS. Requires `key` and `cert`. Default: `false`. |
-| `key` | `string` | Path to the SSL private key file. |
-| `cert` | `string` | Path to the SSL certificate file. |
-| `cluster` | `boolean` | Enables cluster mode to use multiple CPU cores. Default: `false`. |
-| `trustProxy` | `boolean \| number \| string \| string[]` | Configures recognition of IPs from reverse proxies. Default: `false`. |
+| Value           | Description                                          |
+| :-------------- | :--------------------------------------------------- |
+| `"development"` | Enables detailed logging and debug features.         |
+| `"production"`  | Optimizes for performance and reduces log verbosity. |
+| `"test"`        | Configures the environment for automated testing.    |
 
-### `logging: LoggingConfig`
+### Server Configuration
 
-| Property | Type | Description |
-| :--- | :--- | :--- |
-| `enabled` | `boolean` | Enables or disables request logging. Default: `true`. |
-| `showDetails` | `boolean` | Shows request details like query, params, and body in logs. Default: `true` in `development`. |
+These settings control the core HTTP/HTTPS server behavior.
 
-### `plugins: PluginsConfig`
+| Property     | Type                            | Default | Description                                                                                      |
+| :----------- | :------------------------------ | :------ | :----------------------------------------------------------------------------------------------- |
+| `port`       | `number`                        | `3000`  | The port the server will listen on.                                                              |
+| `ipHost`     | `boolean`                       | `true`  | Attempts to resolve the host IP automatically.                                                   |
+| `https`      | `boolean`                       | `false` | Enables HTTPS support. Requires `key` and `cert`.                                                |
+| `key`        | `string`                        | -       | Path to the SSL private key file.                                                                |
+| `cert`       | `string`                        | -       | Path to the SSL certificate file.                                                                |
+| `cluster`    | `boolean`                       | `false` | Enables experimental cluster mode to utilize multiple CPU cores.                                 |
+| `trustProxy` | `boolean \| string \| string[]` | `false` | Configures trust for reverse proxies (e.g., Nginx, Cloudflare) to correctly identify client IPs. |
 
-Contains configurations for integrated plugins like CORS and Rate Limiting.
+### Logging Configuration
 
-## Loading Environment Variables
+Controls the internal logging system.
 
-AzuraJS can automatically load environment variables from a `.env` file. Simply create a `.env` file in the project root:
+| Property      | Type      | Default      | Description                                                                                    |
+| :------------ | :-------- | :----------- | :--------------------------------------------------------------------------------------------- |
+| `enabled`     | `boolean` | `true`       | Toggles the logging system on or off.                                                          |
+| `showDetails` | `boolean` | `true` (dev) | If true, logs include detailed information like query parameters, request bodies, and headers. |
+
+### Plugins
+
+Configure built-in plugins such as CORS and Rate Limiting directly in the config file.
+
+#### CORS
+
+| Property         | Type       | Description                                                                     |
+| :--------------- | :--------- | :------------------------------------------------------------------------------ |
+| `enabled`        | `boolean`  | Toggles CORS support.                                                           |
+| `origins`        | `string[]` | List of allowed origins (e.g., `["http://localhost:3000"]`) or `["*"]` for all. |
+| `methods`        | `string[]` | List of allowed HTTP methods.                                                   |
+| `allowedHeaders` | `string[]` | List of allowed HTTP headers.                                                   |
+
+#### Rate Limit
+
+| Property    | Type      | Description                                               |
+| :---------- | :-------- | :-------------------------------------------------------- |
+| `enabled`   | `boolean` | Toggles Rate Limiting.                                    |
+| `limit`     | `number`  | Maximum number of requests allowed within the timeframe.  |
+| `timeframe` | `number`  | Time window in milliseconds (e.g., `60000` for 1 minute). |
+
+## Environment Variables
+
+AzuraJS supports automatic loading of environment variables from a `.env` file located in the project root.
+
+**Example `.env` file:**
 
 ```text
-# .env
 PORT=8080
 DATABASE_URL=postgres://user:pass@host:port/db
 ```
 
-And access them via `process.env` or through the `env` section of `azura.config.ts`.
+These variables are accessible via `process.env`. You can reference them within your `azura.config.ts`:
+
+```typescript
+const config: ConfigTypes = {
+  server: {
+    port: Number(process.env.PORT) || 3000,
+  },
+  // ...
+};
+```
 
 ## Next Steps 📖
 
-- [🎯 **Controllers**](/docs/en/framework/concepts/controllers): Understand how controllers use the configuration.
-- [🔌 **Middleware**](/docs/en/framework/concepts/middleware): See how plugins are implemented as middlewares.
+- [🎯 **Controllers**](/docs/en/framework/concepts/controllers): Learn how to build routes.
+- [🔌 **Middleware**](/docs/en/framework/concepts/middleware): Explore middleware implementation.

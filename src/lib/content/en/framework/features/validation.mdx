@@ -8,13 +8,15 @@ order: 1
 
 # Validation ✅
 
-AzuraJS features a powerful built-in validation system that allows you to ensure that data received by your API is in the correct format before it even reaches your controller logic.
+AzuraJS includes a robust, built-in validation system designed to ensure data integrity before it reaches your business logic. It prevents invalid data processing and provides automatic type inference for TypeScript users.
 
 ## The Azura Validator 🛡️
 
-Inspired by libraries like Zod, the AzuraJS validator offers a fluent syntax and automatic type inference.
+The validator offers a fluent, chainable API inspired by Zod, allowing for concise schema definitions and rigorous data checking.
 
-### Schema Example
+### Schema Definition
+
+Define schemas using the `v` utility to create validation rules.
 
 ```typescript
 import { v } from "azurajs/validators";
@@ -25,17 +27,19 @@ const CreateUserSchema = v.object({
   age: v.number().int().min(18).optional(),
 });
 
-// Type inference
 type CreateUserDto = v.infer<typeof CreateUserSchema>;
 ```
 
 ## Validating in Controller 🎯
 
-You can use the schema directly within your method to validate the request body:
+Invoke the schema's `.safeParse()` method within your controller to validate incoming request bodies.
 
 ```typescript
+import { Controller, Post, Body, Res } from "azurajs/decorators";
+import type { ResponseServer } from "azurajs/types";
+
 @Post()
-async createUser(@Body() body: any, @Res() res: ResponseServer) {
+async createUser(@Body() body: unknown, @Res() res: ResponseServer) {
   const result = CreateUserSchema.safeParse(body);
 
   if (!result.success) {
@@ -45,23 +49,25 @@ async createUser(@Body() body: any, @Res() res: ResponseServer) {
     });
   }
 
-  const data = result.data; // Now 'data' is fully typed!
-  // ... creation logic
+  const data = result.data;
+  // Proceed with safe, typed execution
 }
 ```
 
 ## Supported Data Types 📊
 
-- `v.string()`: Supports `.email()`, `.url()`, `.uuid()`, `.min()`, `.max()`.
-- `v.number()`: Supports `.int()`, `.positive()`, `.min()`, `.max()`.
-- `v.boolean()`: For true/false values.
-- `v.array(type)`: For lists of elements.
-- `v.object(shape)`: For nested structures.
-- `v.enum([values])`: For specific values.
+The validator supports a comprehensive set of data types and constraints:
 
-## Automatic Validation (Decorators) 🏷️
+- `v.string()`: String validation with helpers like `.email()`, `.url()`, `.uuid()`, `.min()`, `.max()`.
+- `v.number()`: Numeric validation with helpers like `.int()`, `.positive()`, `.min()`, `.max()`.
+- `v.boolean()`: Validates boolean values.
+- `v.array(type)`: Validates arrays of a specific type.
+- `v.object(shape)`: Validates nested object structures.
+- `v.enum([values])`: Validates against a set of allowed values.
 
-In future versions, AzuraJS will support automatic validation via decorators directly in the method signature. Stay tuned for updates!
+## Automatic Validation 🏷️
+
+Future releases of AzuraJS will introduce decorator-based validation for even seamless integration directly within method signatures.
 
 ## Next Steps 📖
 

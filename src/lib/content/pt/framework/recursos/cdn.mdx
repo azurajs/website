@@ -8,55 +8,36 @@ order: 9
 
 # AzuraJS CDN ☁️
 
-O `@azurajs/cdn` é um pacote complementar ao AzuraJS que oferece funcionalidades para integração e gerenciamento de redes de entrega de conteúdo (CDN). Ele simplifica tarefas como a geração de URLs assinadas para acesso seguro a recursos privados e a purga de cache para garantir que o conteúdo mais recente seja sempre entregue.
+O pacote `@azurajs/cdn` integra perfeitamente funcionalidades de Redes de Entrega de Conteúdo (CDN) à sua aplicação. Ele simplifica operações como a geração de URLs assinadas para acesso seguro a recursos privados e a purga programática de cache para garantir a atualização do conteúdo.
 
 ## Instalação
 
-Instale o pacote `@azurajs/cdn` no seu projeto:
+Adicione o pacote ao seu projeto:
 
 <Tabs items={["npm", "pnpm", "yarn", "bun"]}>
-  <Tab value="npm">
-```bash
-npm install @azurajs/cdn
-```
-  </Tab>
-  <Tab value="pnpm">
-```bash
-pnpm add @azurajs/cdn
-```
-  </Tab>
-  <Tab value="yarn">
-```bash
-yarn add @azurajs/cdn
-```
-  </Tab>
-  <Tab value="bun">
-```bash
-bun add @azurajs/cdn
-```
-  </Tab>
+  <Tab value="npm">```bash npm install @azurajs/cdn ```</Tab>
+  <Tab value="pnpm">```bash pnpm add @azurajs/cdn ```</Tab>
+  <Tab value="yarn">```bash yarn add @azurajs/cdn ```</Tab>
+  <Tab value="bun">```bash bun add @azurajs/cdn ```</Tab>
 </Tabs>
 
 ## Configuração
 
-Você pode configurar o CDN no seu `azura.config.ts`:
+Configure as definições do seu provedor CDN no `azura.config.ts`.
 
 ```typescript
 // azura.config.ts
 import type { ConfigTypes } from "azurajs/config";
 
 const config: ConfigTypes = {
-  // ...
   cdn: {
-    provider: "cloudflare", // ou "aws-s3", "azure-blob", etc.
-    apiKey: process.env.CDN_API_KEY, // Chave da API do seu provedor CDN
-    domain: "cdn.seusite.com", // Domínio do seu CDN
-    // Configurações específicas do provedor
+    provider: "cloudflare",
+    apiKey: process.env.CDN_API_KEY,
+    domain: "cdn.seusite.com",
     cloudflare: {
       zoneId: process.env.CLOUDFLARE_ZONE_ID,
       email: process.env.CLOUDFLARE_EMAIL,
     },
-    // ...
   },
 };
 
@@ -65,7 +46,7 @@ export default config;
 
 ## Geração de URLs Assinadas
 
-URLs assinadas permitem que você conceda acesso temporário e seguro a recursos privados armazenados no seu CDN, sem expor o bucket ou a chave de acesso. O `@azurajs/cdn` oferece um serviço para gerar essas URLs.
+Conceda acesso temporário e seguro a recursos privados sem expor as credenciais de armazenamento subjacentes usando URLs assinadas.
 
 ```typescript
 import { Controller, Get, Query } from "azurajs/decorators";
@@ -76,7 +57,7 @@ export class FileController {
   private cdnService: AzuraCDN;
 
   constructor() {
-    this.cdnService = new AzuraCDN(); // Inicializa com a configuração do azura.config.ts
+    this.cdnService = new AzuraCDN();
   }
 
   @Get("/download")
@@ -84,7 +65,9 @@ export class FileController {
     if (!filePath) {
       return { error: "Caminho do arquivo é obrigatório" };
     }
-    const signedUrl = await this.cdnService.getSignedUrl(filePath, { expiresIn: 3600 }); // Expira em 1 hora
+    const signedUrl = await this.cdnService.getSignedUrl(filePath, {
+      expiresIn: 3600,
+    });
     return { signedUrl };
   }
 }
@@ -92,14 +75,14 @@ export class FileController {
 
 ### Opções de `getSignedUrl`
 
-| Opção | Tipo | Descrição |
-| :--- | :--- | :--- |
-| `expiresIn` | `number` | Tempo de expiração da URL em segundos. Padrão: `3600` (1 hora). |
-| `contentType` | `string` | Tipo de conteúdo do arquivo (ex: `image/jpeg`). |
+| Opção         | Tipo     | Descrição                                             |
+| :------------ | :------- | :---------------------------------------------------- |
+| `expiresIn`   | `number` | Validade da URL em segundos. Padrão: `3600` (1 hora). |
+| `contentType` | `string` | Tipo MIME do arquivo.                                 |
 
 ## Purga de Cache
 
-Quando você atualiza um recurso no seu servidor de origem, o CDN pode continuar servindo a versão antiga do cache. A purga de cache força o CDN a buscar a versão mais recente. O `@azurajs/cdn` facilita a purga de arquivos específicos ou de todo o cache.
+Garanta que os usuários recebam o conteúdo mais recente invalidando recursos em cache via API.
 
 ```typescript
 import { Controller, Post, Body } from "azurajs/decorators";

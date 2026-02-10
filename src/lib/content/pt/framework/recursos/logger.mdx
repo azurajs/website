@@ -8,11 +8,11 @@ order: 3
 
 # Logger 📊
 
-O AzuraJS integra um sistema de logging contextual que se adapta ao ambiente de execução, fornecendo informações úteis durante o desenvolvimento e logs concisos em produção. Ele é configurável através do `azura.config.ts`.
+O AzuraJS integra um sistema de logging contextual que se adapta ao ambiente de execução. Ele fornece informações detalhadas de debug durante o desenvolvimento e logs concisos e focados em performance em produção.
 
 ## Configuração do Logger
 
-Você pode controlar o comportamento do logger na seção `logging` do seu arquivo de configuração:
+O comportamento do logger é controlado através do objeto `logging` no seu arquivo `azura.config.ts`.
 
 ```typescript
 // azura.config.ts
@@ -21,10 +21,9 @@ import type { ConfigTypes } from "azurajs/config";
 const config: ConfigTypes = {
   environment: "development",
   logging: {
-    enabled: true,           // Ativa ou desativa o logging
-    showDetails: true,       // Mostra detalhes como query, params e body
+    enabled: true,
+    showDetails: true,
   },
-  // ... outras configurações
 };
 
 export default config;
@@ -32,14 +31,14 @@ export default config;
 
 ### Opções de `logging`
 
-| Propriedade | Tipo | Descrição |
-| :--- | :--- | :--- |
-| `enabled` | `boolean` | Se `true`, o middleware de logging será ativado. Padrão: `true`. |
-| `showDetails` | `boolean` | Se `true`, logs de desenvolvimento incluirão detalhes da requisição (query, params, body). Padrão: `true` em `development`, `false` em `production`. |
+| Propriedade   | Tipo      | Padrão       | Descrição                                                                   |
+| :------------ | :-------- | :----------- | :-------------------------------------------------------------------------- |
+| `enabled`     | `boolean` | `true`       | Ativa ou desativa o middleware de logging.                                  |
+| `showDetails` | `boolean` | `true` (dev) | Se ativado, inclui detalhes da requisição como parâmetros de query e corpo. |
 
 ## Logs de Requisição
 
-Quando o logging está ativado, o AzuraJS automaticamente registra informações sobre cada requisição recebida e a resposta enviada. Isso inclui o método HTTP, URL, tempo de resposta e status HTTP.
+Quando ativo, o sistema registra automaticamente requisições recebidas e respostas enviadas, capturando métodos HTTP, URLs, tempos de resposta e códigos de status.
 
 ### Exemplo de Saída (Desenvolvimento)
 
@@ -59,12 +58,12 @@ Quando o logging está ativado, o AzuraJS automaticamente registra informações
 
 ## Usando o Logger Interno
 
-Para logs personalizados dentro da sua aplicação, você pode importar e usar a função `logger` do AzuraJS. Ela se integra ao sistema de logging configurado.
+Você pode utilizar a função `logger` nativa para criar entradas de log personalizadas dentro da lógica da sua aplicação. Estes logs integram-se diretamente ao sistema de logging do framework.
 
 ```typescript
 import { logger } from "azurajs/utils/logger";
 
-// ... dentro de um serviço ou controller
+// Uso padrão
 logger("info", "Usuário logado com sucesso!");
 logger("warn", "Tentativa de acesso não autorizado.");
 logger("error", "Erro ao processar dados do usuário.", { userId: 123 });
@@ -72,10 +71,10 @@ logger("error", "Erro ao processar dados do usuário.", { userId: 123 });
 
 ### Níveis de Log Suportados
 
-*   `"info"`
-*   `"warn"`
-*   `"error"`
-*   `"debug"`
+- `"info"`
+- `"warn"`
+- `"error"`
+- `"debug"`
 
 ## Próximos Passos 📖
 

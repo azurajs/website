@@ -8,11 +8,11 @@ order: 8
 
 # Error Handling 🚨
 
-Effective error handling is fundamental to the robustness of any API. AzuraJS offers mechanisms to handle exceptions in a centralized and consistent manner, ensuring that your API returns meaningful responses and prevents leakage of sensitive information.
+Effective error handling is critical for API reliability and security. AzuraJS provides a structured mechanism to manage exceptions centrally, ensuring consistent responses and preventing sensitive data leakage.
 
 ## HttpError
 
-The `HttpError` class is the recommended way to throw errors with specific HTTP status codes within your controllers and services. It extends JavaScript's native `Error` class.
+The `HttpError` class is the standard utility for throwing exceptions with specific HTTP status codes. It integrates seamlessly with the framework's error management pipeline.
 
 ```typescript
 import { HttpError } from "azurajs/errors";
@@ -36,19 +36,21 @@ export class UserController {
 
 ### `HttpError` Constructor
 
+The constructor accepts a status code, a message, and optional payload data.
+
 ```typescript
 new HttpError(status: number, message?: string, payload?: any)
 ```
 
-*   `status`: The HTTP status code (e.g., 400, 401, 404, 500).
-*   `message`: A descriptive error message. If omitted, it will be generated based on the status.
-*   `payload`: An optional object with additional error data (e.g., internal error codes, validation details).
+- `status`: HTTP status code (e.g., 400, 404, 500).
+- `message`: Human-readable error description. Defaults to the standard HTTP message if omitted.
+- `payload`: Optional object containing metadata or structured error details.
 
 ## Global Error Middleware
 
-AzuraJS has a default error middleware that catches all thrown exceptions and formats them into a consistent JSON response. You can customize this behavior by creating your own error middleware.
+AzuraJS intercepts unhandled exceptions via a default error middleware. You can override this to facilitate custom logging or response formatting.
 
-An error middleware has the signature `(err: Error, req: RequestServer, res: ResponseServer, next: Function)`.
+A custom error middleware must accept four arguments: `(err, req, res, next)`.
 
 ```typescript
 import { AzuraClient } from "azurajs";
@@ -57,31 +59,29 @@ import type { RequestServer, ResponseServer } from "azurajs/types";
 
 const app = new AzuraClient();
 
-// Your custom error middleware
-app.use((err: Error, req: RequestServer, res: ResponseServer, next: Function) => {
-  if (err instanceof HttpError) {
-    return res.status(err.status).json({
-      statusCode: err.status,
-      message: err.message,
-      error: err.payload || null,
-    });
-  } else {
-    // Unhandled errors (500 Internal Server Error)
-    console.error(err); // Log the error for debugging
-    return res.status(500).json({
-      statusCode: 500,
-      message: "Internal server error",
-      error: process.env.NODE_ENV === "development" ? err.message : "",
-    });
-  }
-});
-
-// ... register controllers and start the server
+app.use(
+  (err: Error, req: RequestServer, res: ResponseServer, next: Function) => {
+    if (err instanceof HttpError) {
+      return res.status(err.status).json({
+        statusCode: err.status,
+        message: err.message,
+        error: err.payload || null,
+      });
+    } else {
+      console.error(err);
+      return res.status(500).json({
+        statusCode: 500,
+        message: "Internal server error",
+        error: process.env.NODE_ENV === "development" ? err.message : "",
+      });
+    }
+  },
+);
 ```
 
 ## Async Error Handling
 
-AzuraJS automatically handles errors in async functions (rejected promises) within controllers and middlewares. You don't need `try/catch` blocks in every `async` function unless you want to handle the error locally.
+AzuraJS automatically captures promise rejections within async controller methods and middleware. Explicit `try/catch` blocks are only necessary when you need to handle specific errors locally before they propagate to the global handler.
 
 ## Next Steps 📖
 

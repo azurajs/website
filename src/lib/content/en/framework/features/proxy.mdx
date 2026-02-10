@@ -8,11 +8,11 @@ order: 5
 
 # Proxy 🌐
 
-AzuraJS offers a reverse proxy middleware that allows you to forward requests to other servers. This is useful for unifying APIs, bypassing CORS policies, or load balancing between different services. The proxy plugin is highly configurable and can be used in both `azurajs` and `@azurajs/cdn`.
+The AzuraJS reverse proxy middleware enables swift request forwarding to external servers. It is an essential tool for unifying API endpoints, bypassing CORS restrictions, or load balancing across microservices.
 
 ## Basic Configuration
 
-You can use the `proxyPlugin` middleware directly in your `AzuraClient`:
+Integrate the `proxyPlugin` middleware directly into your `AzuraClient` instance to start forwarding requests.
 
 ```typescript
 import { AzuraClient } from "azurajs";
@@ -20,7 +20,7 @@ import { proxyPlugin } from "azurajs/plugins";
 
 const app = new AzuraClient();
 
-// Forwards all requests to /api to a backend server
+// Forward all requests from /api to the backend server
 app.use("/api", proxyPlugin("http://localhost:8080"));
 
 await app.listen(3000);
@@ -28,7 +28,7 @@ await app.listen(3000);
 
 ## Proxy Options
 
-The `proxyPlugin` accepts an options object for more granular control:
+The `proxyPlugin` accepts a configuration object for precise control over request handling.
 
 ```typescript
 import { AzuraClient } from "azurajs";
@@ -36,48 +36,48 @@ import { proxyPlugin } from "azurajs/plugins";
 
 const app = new AzuraClient();
 
-app.use("/api", proxyPlugin("http://localhost:8080", {
-  pathRewrite: {
-    "^/api": "/"
-  }, // Rewrites the URL path
-  headers: {
-    "X-Custom-Header": "AzuraJS-Proxy"
-  }, // Adds custom headers
-  timeout: 5000, // Request timeout in ms
-  followRedirects: false, // Do not follow redirects
-  preserveHost: true, // Preserve the original Host header
-  logLevel: "debug", // Proxy log level (info, warn, error, debug, none)
-  onProxyReq: (proxyReq, req) => {
-    // Modify the request before sending to the target
-    proxyReq.setHeader("X-Real-IP", req.ip);
-  },
-  onProxyRes: (proxyRes, req, res) => {
-    // Modify the target's response before sending to the client
-    proxyRes.headers["x-proxied-by"] = "AzuraJS";
-  },
-  onError: (err, req, res) => {
-    // Handle proxy errors
-    res.status(500).json({ error: "Proxy Error", details: err.message });
-  }
-}));
+app.use(
+  "/api",
+  proxyPlugin("http://localhost:8080", {
+    pathRewrite: {
+      "^/api": "/",
+    },
+    headers: {
+      "X-Custom-Header": "AzuraJS-Proxy",
+    },
+    timeout: 5000,
+    followRedirects: false,
+    preserveHost: true,
+    logLevel: "debug",
+    onProxyReq: (proxyReq, req) => {
+      proxyReq.setHeader("X-Real-IP", req.ip);
+    },
+    onProxyRes: (proxyRes, req, res) => {
+      proxyRes.headers["x-proxied-by"] = "AzuraJS";
+    },
+    onError: (err, req, res) => {
+      res.status(500).json({ error: "Proxy Error", details: err.message });
+    },
+  }),
+);
 
 await app.listen(3000);
 ```
 
 ### Options Details
 
-| Option | Type | Description |
-| :--- | :--- | :--- |
-| `target` | `string` | **Required**. The base URL of the target server. |
-| `pathRewrite` | `Record<string, string>` | An object to rewrite the URL path before forwarding. Keys are regex and values are replacement strings. |
-| `headers` | `Record<string, string>` | Additional headers to send to the target server. |
-| `timeout` | `number` | Timeout in milliseconds for the proxy request. Default: `30000` (30 seconds). |
-| `followRedirects` | `boolean` | If `true`, the proxy will follow redirects from the target server. Default: `false`. |
-| `preserveHost` | `boolean` | If `true`, the original `Host` header from the client request will be sent to the target. Default: `false`. |
-| `logLevel` | `"info" \| "warn" \| "error" \| "debug" \| "none"` | Log level for proxy logs. Default: `"info"`. |
-| `onProxyReq` | `(proxyReq, req) => void` | Callback function called before sending the request to the target. Allows modifying `proxyReq`. |
-| `onProxyRes` | `(proxyRes, req, res) => void` | Callback function called after receiving the response from the target. Allows modifying `proxyRes` or `res`. |
-| `onError` | `(err, req, res) => void` | Callback function to handle errors that occur during the proxy request. |
+| Option            | Type                                               | Description                                                    |
+| :---------------- | :------------------------------------------------- | :------------------------------------------------------------- |
+| `target`          | `string`                                           | **Required**. Base URL of the target server.                   |
+| `pathRewrite`     | `Record<string, string>`                           | Regex-based path rewriting rules.                              |
+| `headers`         | `Record<string, string>`                           | Custom headers attached to forwarded requests.                 |
+| `timeout`         | `number`                                           | Request timeout duration in ms. Default: `30000`.              |
+| `followRedirects` | `boolean`                                          | Whether to follow redirects from the target. Default: `false`. |
+| `preserveHost`    | `boolean`                                          | Preserves the original `Host` header. Default: `false`.        |
+| `logLevel`        | `"info" \| "warn" \| "error" \| "debug" \| "none"` | Verbosity level for proxy logging. Default: `"info"`.          |
+| `onProxyReq`      | `Function`                                         | Callback to modify the request before forwarding.              |
+| `onProxyRes`      | `Function`                                         | Callback to inspect/modify the response from the target.       |
+| `onError`         | `Function`                                         | Callback for handling proxy request failures.                  |
 
 ## Next Steps 📖
 

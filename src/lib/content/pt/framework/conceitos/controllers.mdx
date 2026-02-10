@@ -8,15 +8,17 @@ order: 1
 
 # Controllers 🎯
 
-Controllers são o coração das aplicações AzuraJS. Eles fornecem uma maneira limpa e orientada a objetos de organizar seus endpoints de API em classes lógicas e mantíveis usando decorators TypeScript.
+Os controllers servem como o núcleo arquitetural das aplicações AzuraJS. Eles utilizam o padrão MVC (Model-View-Controller) para organizar endpoints de API em classes lógicas, sustentáveis e seguras com tipos, utilizando decorators TypeScript.
 
-<Callout type="info" title="Por Que Usar Controllers?">
-Controllers seguem o padrão MVC (Model-View-Controller), promovendo a separação de responsabilidades. Eles mantêm sua lógica de roteamento organizada e reduzem a duplicação de código.
+<Callout type="info" title="Separação de Responsabilidades">
+  Controllers promovem uma arquitetura limpa, separando a lógica de roteamento
+  da lógica de negócios. Essa organização reduz a duplicação de código e melhora
+  a manutenibilidade.
 </Callout>
 
 ## O que é um Controller? 📚
 
-Um controller é uma classe TypeScript decorada com `@Controller` que agrupa manipuladores de rota (endpoints) relacionados. Cada método no controller representa uma rota específica e é decorado com decorators de métodos HTTP como `@Get`, `@Post`, `@Put` ou `@Delete`.
+Um controller é uma classe TypeScript decorada com `@Controller`. Ela agrupa manipuladores de rota relacionados. Cada método dentro da classe representa um endpoint específico e é decorado com decorators de métodos HTTP como `@Get`, `@Post`, `@Put` ou `@Delete`.
 
 ```typescript
 import { Controller, Get, Post } from "azurajs/decorators";
@@ -37,33 +39,33 @@ export class ProductController {
 
 ## Decorator Controller 🏷️
 
-O decorator `@Controller(prefix?)` aceita um prefixo opcional que será aplicado a todas as rotas dentro da classe.
+O decorator `@Controller(prefix?)` define a rota base para todos os métodos dentro da classe.
 
-- **Uso Básico**: `@Controller("/users")` -> Todas as rotas começarão com `/users`.
-- **Sem Prefixo**: `@Controller()` -> As rotas usarão apenas seus próprios caminhos.
-- **Caminhos Aninhados**: `@Controller("/api/v1/admin")` -> Prefixo longo para todas as rotas.
+- **Uso Básico**: `@Controller("/users")` prefixa `/users` em todas as rotas aninhadas.
+- **Sem Prefixo**: `@Controller()` significa que as rotas serão definidas apenas pelos decorators de seus métodos.
+- **Caminhos Aninhados**: `@Controller("/api/v1/admin")` permite aninhamento profundo de caminhos.
 
 ## Injeção de Parâmetros 💉
 
-O AzuraJS facilita o acesso aos dados da requisição através de decorators de parâmetros:
+O AzuraJS fornece um conjunto dedecorators para injetar dados da requisição diretamente nos métodos do seu controller.
 
-| Decorator | Descrição |
-| :--- | :--- |
-| `@Req()` | Injeta o objeto de requisição completo. |
-| `@Res()` | Injeta o objeto de resposta completo. |
-| `@Body()` | Injeta o corpo da requisição (parsed JSON). |
-| `@Param(name)` | Injeta um parâmetro da URL (ex: `:id`). |
-| `@Query(name)` | Injeta um parâmetro da query string. |
-| `@Headers(name)` | Injeta um header específico ou todos. |
-| `@Cookies(name)` | Injeta um cookie específico ou todos. |
-| `@Ip()` | Injeta o endereço IP do cliente. |
+| Decorator        | Descrição                                              |
+| :--------------- | :----------------------------------------------------- |
+| `@Req()`         | Injeta o objeto `RequestServer` completo.              |
+| `@Res()`         | Injeta o objeto `ResponseServer` completo.             |
+| `@Body()`        | Injeta o corpo da requisição processado (parsed body). |
+| `@Param(name)`   | Injeta um parâmetro específico da URL (ex: `:id`).     |
+| `@Query(name)`   | Injeta um parâmetro específico da query string.        |
+| `@Headers(name)` | Injeta um valor específico do cabeçalho.               |
+| `@Cookies(name)` | Injeta um valor específico de cookie.                  |
+| `@Ip()`          | Injeta o endereço IP do cliente.                       |
 
 ## Melhores Práticas ✨
 
-1.  **Responsabilidade Única**: Cada controller deve lidar com um único recurso ou domínio (ex: `UserController`, `OrderController`).
-2.  **Use Services**: Mantenha a lógica de negócio pesada em classes de serviço, deixando o controller apenas para lidar com HTTP.
-3.  **Respostas Consistentes**: Tente manter um padrão de resposta JSON em todos os métodos.
-4.  **Tratamento de Erros**: Use a classe `HttpError` para lançar erros com códigos de status específicos.
+1.  **Responsabilidade Única**: Dedique cada controller a um único recurso ou domínio (ex: `UserController`, `OrderController`).
+2.  **Camada de Serviço**: Delegue lógica de negócios complexa para classes de serviço; mantenha os controllers focados na manipulação HTTP.
+3.  **Respostas Consistentes**: Mantenha uma estrutura de resposta JSON padronizada em toda a sua API.
+4.  **Tratamento de Erros**: Utilize a classe `HttpError` para relatórios de erro consistentes com códigos de status apropriados.
 
 ## Próximos Passos 📖
 
