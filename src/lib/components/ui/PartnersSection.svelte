@@ -6,6 +6,8 @@
   import mnnLogo from "$lib/assets/partners/mnn.png";
   import devCenterLogo from "$lib/assets/partners/devcenter.png";
   import astralLogo from "$lib/assets/partners/astral-ia.png";
+  import quackLogo from "$lib/assets/partners/quackpay.png";
+  import teamProgrammingLogo from "$lib/assets/partners/teamprogramming.png";
 
   const partners = [
     {
@@ -42,6 +44,16 @@
       name: "Astral AI",
       logo: astralLogo,
       url: "https://astralai.pro/",
+    },
+    {
+      name: "Quack Pay",
+      logo: quackLogo,
+      url: "https://quackpay.com,br/",
+    },
+    {
+      name: "Team Programming",
+      logo: teamProgrammingLogo,
+      url: "https://discord.gg/teamprogramming",
     },
   ];
 </script>
