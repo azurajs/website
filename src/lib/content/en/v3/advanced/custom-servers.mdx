@@ -1,0 +1,280 @@
+---
+title: Custom Servers
+description: HTTPS, graceful shutdown, custom error handlers, and server tuning options
+category: Advanced
+icon: lucide:server
+order: 4
+---
+
+# Custom Servers
+
+`AzuraServer` wraps Node.js's built-in `http` and `https` modules. This page covers HTTPS configuration, server timeouts, custom error handlers, and graceful shutdown — everything you need to run a production-ready server.
+
+## HTTPS Configuration
+
+AzuraJS creates an HTTPS server automatically when you supply a `server.https` block in the config. No additional code is required — `app.listen()` detects the TLS options and switches from `http.createServer` to `https.createServer`.
+
+```typescript
+import { AzuraServer } from "azurats/core";
+
+const app = new AzuraServer({
+  server: {
+    port: 443,
+    https: {
+      key: "/etc/ssl/private/server.key",
+      cert: "/etc/ssl/certs/server.crt",
+      ca: "/etc/ssl/certs/ca-bundle.crt", // optional CA chain
+    },
+  },
+});
+
+app.get("/", (req, res) => {
+  res.json({ secure: req.secure, protocol: req.protocol });
+});
+
+app.listen();
+```
+
+### `HttpsConfig` Interface
+
+```typescript
+interface HttpsConfig {
+  key: string;   // path to the private key file
+  cert: string;  // path to the certificate file
+  ca?: string;   // path to the CA bundle (optional)
+}
+```
+
+The framework reads the files synchronously at startup via `fs.readFileSync` and passes them to `https.createServer`.
+
+<Callout>
+For local development you can generate self-signed certificates with `mkcert` or `openssl`. In production, use certificates from a trusted CA or a reverse proxy (nginx, Caddy) that handles TLS termination.
+</Callout>
+
+## Server Timeout Options
+
+`ServerConfig` exposes four timeout values that map directly to the underlying Node.js `http.Server` properties:
+
+| Option | Default | Description |
+|---|---|---|
+| `keepAliveTimeout` | `72000` (72 s) | Time (ms) the server waits for additional requests on a keep-alive connection before closing it |
+| `headersTimeout` | `75000` (75 s) | Time (ms) the server waits for the complete HTTP headers to be received |
+| `requestTimeout` | `30000` (30 s) | Time (ms) the server waits for the entire request (headers + body) |
+| `maxHeaderSize` | Node default | Maximum allowed size of HTTP headers in bytes |
+
+```typescript
+import { AzuraServer } from "azurats/core";
+
+const app = new AzuraServer({
+  server: {
+    port: 3000,
+    keepAliveTimeout: 65_000,
+    headersTimeout: 70_000,
+    requestTimeout: 60_000,
+    maxHeaderSize: 16_384,
+  },
+});
+```
+
+<Callout>
+`headersTimeout` should always be greater than `keepAliveTimeout`. If it is not, Node.js may close connections unexpectedly. The defaults shipped by AzuraJS already satisfy this constraint.
+</Callout>
+
+### Full `ServerConfig` Interface
+
+```typescript
+interface ServerConfig {
+  port?: number;               // default: 3000
+  host?: string;               // default: "0.0.0.0"
+  cluster?: boolean;           // enable cluster mode
+  clusterInstances?: number;   // number of worker processes
+  https?: HttpsConfig | false; // TLS configuration
+  keepAliveTimeout?: number;   // default: 72000
+  headersTimeout?: number;     // default: 75000
+  requestTimeout?: number;     // default: 30000
+  maxHeaderSize?: number;      // Node.js default
+}
+```
+
+## Custom Error Handlers
+
+By default, `AzuraServer` catches exceptions thrown in route handlers and returns a structured JSON response. You can override this behaviour with `app.onError()`:
+
+```typescript
+import { AzuraServer } from "azurats/core";
+import { HttpError } from "azurats/utils";
+import type { ErrorHandler } from "azurats/types";
+
+const app = new AzuraServer({ environment: "production" });
+
+app.onError((err, req, res) => {
+  if (err instanceof HttpError) {
+    res.status(err.statusCode).json(err.toJSON());
+    return;
+  }
+
+  // Log unexpected errors
+  console.error(`[${req.method}] ${req.pathname}`, err);
+
+  res.status(500).json({
+    error: {
+      statusCode: 500,
+      message: "Something went wrong",
+    },
+  });
+});
+```
+
+### Error Handler Signature
+
+```typescript
+type ErrorHandler = (
+  err: Error | unknown,
+  req: AzuraRequest,
+  res: AzuraResponse,
+  next: NextFunction,
+) => void | Promise<void>;
+```
+
+### Default Behaviour (No Custom Handler)
+
+When no custom error handler is registered:
+
+1. If the error is an `HttpError`, its `statusCode` and `toJSON()` output are used.
+2. Otherwise, a generic 500 response is returned. In `development` mode the error message and stack trace are included; in `production` only `"Internal Server Error"` is shown.
+3. If `debug: true` is set in the config, the stack trace is always included regardless of environment.
+
+### Using `HttpError` Factory Methods
+
+`HttpError` provides static methods for every common status code:
+
+```typescript
+import { HttpError } from "azurats/utils";
+
+throw HttpError.badRequest("Missing required field");     // 400
+throw HttpError.unauthorized("Invalid token");            // 401
+throw HttpError.forbidden("Insufficient permissions");    // 403
+throw HttpError.notFound("Resource not found");           // 404
+throw HttpError.conflict("Email already exists");         // 409
+throw HttpError.unprocessableEntity("Invalid input");     // 422
+throw HttpError.tooManyRequests("Rate limit exceeded");   // 429
+```
+
+## Graceful Shutdown
+
+A production server should stop accepting new connections, wait for in-flight requests to finish, and then exit cleanly. `AzuraServer` exposes an `async close()` method that wraps `server.close()`:
+
+```typescript
+import { AzuraServer } from "azurats/core";
+
+const app = new AzuraServer({ server: { port: 3000 } });
+
+app.get("/", (req, res) => res.json({ ok: true }));
+
+const server = await app.listen();
+
+async function shutdown(signal: string) {
+  console.log(`\nReceived ${signal}. Shutting down gracefully…`);
+
+  // Stop accepting new connections and wait for existing ones to drain
+  await app.close();
+
+  console.log("Server closed. Exiting.");
+  process.exit(0);
+}
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
+```
+
+### Shutdown with a Timeout
+
+If some connections hang, you may want to force-close after a deadline:
+
+```typescript
+async function shutdown(signal: string) {
+  console.log(`Received ${signal}. Starting graceful shutdown…`);
+
+  const forceTimeout = setTimeout(() => {
+    console.error("Shutdown timed out. Forcing exit.");
+    process.exit(1);
+  }, 10_000);
+
+  await app.close();
+  clearTimeout(forceTimeout);
+  process.exit(0);
+}
+```
+
+## Complete Production Example
+
+Putting it all together — HTTPS, tuned timeouts, custom error handling, and graceful shutdown:
+
+```typescript
+import { AzuraServer } from "azurats/core";
+import { CORSPlugin, HelmetPlugin, RateLimitPlugin, CompressionPlugin } from "azurats/plugins";
+import { LoggingMiddleware } from "azurats/middleware";
+import { HttpError } from "azurats/utils";
+
+const app = new AzuraServer({
+  environment: "production",
+  server: {
+    port: 443,
+    host: "0.0.0.0",
+    keepAliveTimeout: 65_000,
+    headersTimeout: 70_000,
+    requestTimeout: 30_000,
+    https: {
+      key: "/etc/ssl/private/server.key",
+      cert: "/etc/ssl/certs/server.crt",
+    },
+  },
+  logging: {
+    level: "info",
+    requestLogging: true,
+  },
+});
+
+// Plugins
+app.plugin(HelmetPlugin());
+app.plugin(CORSPlugin({ origins: ["https://app.example.com"], credentials: true }));
+app.plugin(RateLimitPlugin({ windowMs: 60_000, max: 200 }));
+app.plugin(CompressionPlugin({ threshold: 1024 }));
+app.plugin(LoggingMiddleware());
+
+// Routes
+app.get("/health", (req, res) => {
+  res.json({ status: "healthy", uptime: process.uptime() });
+});
+
+// Error handler
+app.onError((err, req, res) => {
+  if (err instanceof HttpError) {
+    res.status(err.statusCode).json(err.toJSON());
+    return;
+  }
+  console.error(`[ERROR] ${req.method} ${req.pathname}`, err);
+  res.status(500).json({ error: { statusCode: 500, message: "Internal Server Error" } });
+});
+
+// Start
+const server = await app.listen();
+
+// Graceful shutdown
+const shutdown = async (signal: string) => {
+  console.log(`${signal} received. Shutting down…`);
+  const timer = setTimeout(() => process.exit(1), 10_000);
+  await app.close();
+  clearTimeout(timer);
+  process.exit(0);
+};
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
+```
+
+## Next Steps
+
+- [**Configuration**](/docs/en/v3/getting-started/configuration) — Manage all server options through `azura.config.ts`.
+- [**Cluster Mode**](/docs/en/v3/features/cluster-mode) — Scale across CPU cores with built-in cluster support.
+- [**Error Handling**](/docs/en/v3/features/error-handling) — Deep dive into `HttpError` and structured error responses.

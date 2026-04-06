@@ -1,0 +1,164 @@
+---
+title: Static Files
+description: Serve static assets with caching, ETag support, and MIME type detection using the StaticPlugin
+category: Features
+icon: lucide:folder-open
+order: 10
+---
+
+# Static Files
+
+The `StaticPlugin` serves files from a directory on disk, handling MIME detection, conditional requests (ETag / Last-Modified), cache headers, and dotfile policies. Only `GET` and `HEAD` requests are served; all other methods pass through to the next handler.
+
+## Quick Start
+
+```typescript
+import { AzuraServer } from "azurats";
+import { StaticPlugin } from "azurats/plugins";
+
+const app = new AzuraServer();
+
+app.plugin(
+  StaticPlugin({
+    root: "./public",
+  })
+);
+
+app.listen(3000);
+```
+
+Files in `./public` are now served at the root URL. For example, `./public/css/style.css` is available at `http://localhost:3000/css/style.css`.
+
+## Options
+
+| Option | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `root` | `string` | **required** | Absolute or relative path to the directory containing static files. |
+| `prefix` | `string` | `"/"` | URL prefix. Only requests whose path starts with this prefix are handled. |
+| `index` | `string[]` | `["index.html"]` | Filenames to try when the request targets a directory. |
+| `dotfiles` | `"allow" \| "ignore" \| "deny"` | `"ignore"` | How to handle files starting with `.` (dotfiles). |
+| `maxAge` | `number` | `0` | `Cache-Control: max-age` value in **milliseconds**. `0` means no caching. |
+| `etag` | `boolean` | `true` | Generate and validate `ETag` headers for conditional requests. |
+| `lastModified` | `boolean` | `true` | Set the `Last-Modified` header from the file's mtime. |
+| `immutable` | `boolean` | `false` | Add `immutable` to the `Cache-Control` header (for fingerprinted assets). |
+| `fallthrough` | `boolean` | `true` | When `true`, requests that don't match a file call `next()`. When `false`, a 404 is returned. |
+
+## Examples
+
+### URL Prefix
+
+```typescript
+app.plugin(
+  StaticPlugin({
+    root: "./dist/assets",
+    prefix: "/assets",
+  })
+);
+// ./dist/assets/logo.png → http://localhost:3000/assets/logo.png
+```
+
+### Long-Term Caching for Hashed Assets
+
+```typescript
+app.plugin(
+  StaticPlugin({
+    root: "./dist",
+    prefix: "/static",
+    maxAge: 365 * 24 * 60 * 60 * 1000, // 1 year
+    immutable: true,
+    etag: true,
+  })
+);
+```
+
+### SPA Fallback
+
+For single-page applications, serve `index.html` for any unmatched route:
+
+```typescript
+app.plugin(
+  StaticPlugin({
+    root: "./dist",
+    index: ["index.html"],
+  })
+);
+
+// Fallback for client-side routing
+app.get("*", (req, res) => {
+  res.sendFile("./dist/index.html");
+});
+```
+
+### Dotfile Handling
+
+| Value | Behaviour |
+| :--- | :--- |
+| `"allow"` | Dotfiles are served normally. |
+| `"ignore"` | Requests for dotfiles call `next()` as if the file doesn't exist. |
+| `"deny"` | Responds with `403 Forbidden`. |
+
+```typescript
+app.plugin(
+  StaticPlugin({
+    root: "./public",
+    dotfiles: "deny", // block .env, .htaccess, etc.
+  })
+);
+```
+
+## MIME Type Detection
+
+The plugin determines `Content-Type` from the file extension. Common mappings:
+
+| Extension | Content-Type |
+| :--- | :--- |
+| `.html` | `text/html` |
+| `.css` | `text/css` |
+| `.js` | `application/javascript` |
+| `.json` | `application/json` |
+| `.png` | `image/png` |
+| `.jpg` | `image/jpeg` |
+| `.svg` | `image/svg+xml` |
+| `.woff2` | `font/woff2` |
+
+## Conditional Requests
+
+When `etag` and/or `lastModified` are enabled, the plugin supports conditional requests:
+
+- **`If-None-Match`** — compared against the generated ETag. Returns `304 Not Modified` on match.
+- **`If-Modified-Since`** — compared against the file's mtime. Returns `304` if the file hasn't changed.
+
+This saves bandwidth for repeat visitors without any application-level code.
+
+## Security
+
+<Callout>
+Path traversal is prevented — requests containing `..` segments are rejected before touching the filesystem.
+</Callout>
+
+## Production Configuration
+
+```typescript
+import { StaticPlugin, CompressionPlugin, HelmetPlugin } from "azurats/plugins";
+
+app.plugin(HelmetPlugin());
+app.plugin(CompressionPlugin({ threshold: 1024 }));
+
+app.plugin(
+  StaticPlugin({
+    root: "./dist/public",
+    prefix: "/static",
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    etag: true,
+    lastModified: true,
+    dotfiles: "deny",
+    immutable: false,
+  })
+);
+```
+
+## Next Steps
+
+- [Compression](/docs/en/framework/features/compression) — compress static file responses
+- [Security](/docs/en/framework/features/security) — protect served files with Helmet headers
+- [Proxy](/docs/en/framework/features/proxy) — combine static serving with API proxying

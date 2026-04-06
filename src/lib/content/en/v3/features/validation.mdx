@@ -1,0 +1,206 @@
+---
+title: Validation
+description: Validate request data with the built-in DTOValidator or integrate Zod / Joi via SchemaValidator
+category: Features
+icon: lucide:shield-check
+order: 2
+---
+
+# Validation
+
+AzuraJS provides two complementary validators, both imported from `azurats/utils`:
+
+- **DTOValidator** — a lightweight, zero-dependency validator with its own schema DSL.
+- **SchemaValidator** — a thin adapter that delegates to external libraries like **Zod** or **Joi**.
+
+## DTOValidator
+
+### Basic Usage
+
+```typescript
+import { AzuraServer } from "azurats";
+import { DTOValidator } from "azurats/utils";
+
+const app = new AzuraServer();
+
+const createUserSchema = {
+  username: { type: "string", required: true, min: 3, max: 30 },
+  email:    { type: "string", required: true, pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ },
+  age:      { type: "number", required: false, min: 13, max: 120 },
+  role:     { type: "string", required: true, enum: ["user", "admin", "moderator"] },
+};
+
+app.post("/users", (req, res) => {
+  const result = DTOValidator.validate(req.body, createUserSchema);
+
+  if (!result.valid) {
+    return res.status(400).json({ errors: result.errors });
+  }
+
+  // req.body is now validated
+  res.status(201).json({ user: req.body });
+});
+```
+
+### Schema Definition
+
+A schema is a `Record<string, FieldRule>`. Each key maps to a field on the incoming object.
+
+#### FieldRule Options
+
+| Property | Type | Description |
+| :--- | :--- | :--- |
+| `type` | `"string" \| "number" \| "boolean" \| "object" \| "array"` | Expected JavaScript type. Validated with `typeof` (arrays use `Array.isArray`). |
+| `required` | `boolean` | When `true`, the field must be present and not `undefined`. |
+| `min` | `number` | Minimum value for numbers, minimum length for strings, minimum item count for arrays. |
+| `max` | `number` | Maximum value for numbers, maximum length for strings, maximum item count for arrays. |
+| `pattern` | `RegExp` | Regular expression the string value must match. |
+| `enum` | `any[]` | Whitelist of allowed values. |
+| `custom` | `(value: any) => string \| null` | Custom validation function. Return an error string to fail, or `null` to pass. |
+| `message` | `string` | Custom error message override for this field. |
+
+### ValidationResult
+
+```typescript
+interface ValidationResult {
+  valid: boolean;
+  errors: ValidationError[];
+}
+
+interface ValidationError {
+  field: string;
+  message: string;
+}
+```
+
+### Advanced Schema Example
+
+```typescript
+const productSchema = {
+  name: {
+    type: "string",
+    required: true,
+    min: 1,
+    max: 200,
+    message: "Product name is required (1-200 chars)",
+  },
+  price: {
+    type: "number",
+    required: true,
+    min: 0,
+    custom: (v) => (Number.isFinite(v) ? null : "Price must be a finite number"),
+  },
+  tags: {
+    type: "array",
+    required: false,
+    min: 1,
+    max: 10,
+  },
+  category: {
+    type: "string",
+    required: true,
+    enum: ["electronics", "clothing", "food", "books"],
+  },
+  sku: {
+    type: "string",
+    required: true,
+    pattern: /^[A-Z]{2}-\d{6}$/,
+    message: "SKU must match format XX-000000",
+  },
+};
+```
+
+### Reusable Validation Middleware
+
+```typescript
+function validate(schema) {
+  return (ctx, next) => {
+    const result = DTOValidator.validate(ctx.req.body, schema);
+    if (!result.valid) {
+      return ctx.res.status(400).json({ errors: result.errors });
+    }
+    next();
+  };
+}
+
+app.plugin(validate(createUserSchema));
+```
+
+## SchemaValidator
+
+`SchemaValidator` provides a unified interface for external validation libraries. It auto-detects whether the schema exposes `safeParse` (Zod), `validate` (Joi), or `parse`.
+
+### With Zod
+
+```typescript
+import { z } from "zod";
+import { SchemaValidator } from "azurats/utils";
+
+const UserSchema = z.object({
+  username: z.string().min(3).max(30),
+  email: z.string().email(),
+  age: z.number().int().min(13).optional(),
+});
+
+app.post("/users", (req, res) => {
+  const result = SchemaValidator.validate(req.body, UserSchema);
+
+  if (!result.valid) {
+    return res.status(400).json({ errors: result.errors });
+  }
+
+  // result.data is the parsed & typed output
+  res.status(201).json({ user: result.data });
+});
+```
+
+### With Joi
+
+```typescript
+import Joi from "joi";
+import { SchemaValidator } from "azurats/utils";
+
+const schema = Joi.object({
+  username: Joi.string().min(3).max(30).required(),
+  email: Joi.string().email().required(),
+});
+
+app.post("/users", (req, res) => {
+  const result = SchemaValidator.validate(req.body, schema);
+
+  if (!result.valid) {
+    return res.status(400).json({ errors: result.errors });
+  }
+
+  res.status(201).json({ user: result.data });
+});
+```
+
+### SchemaValidationResult
+
+```typescript
+interface SchemaValidationResult {
+  valid: boolean;
+  data?: any;
+  errors?: Array<{ field?: string; message: string }>;
+}
+```
+
+<Callout>
+If the schema object doesn't expose `safeParse`, `parse`, or `validate`, `SchemaValidator.validate` returns `{ valid: true, data }` as a passthrough. This makes it safe to call even when you're unsure of the schema type.
+</Callout>
+
+## DTOValidator vs SchemaValidator
+
+| Feature | DTOValidator | SchemaValidator |
+| :--- | :--- | :--- |
+| Dependencies | None | Requires Zod, Joi, or similar |
+| Schema format | Plain objects | Library-specific |
+| Type inference | No | Yes (with Zod) |
+| Custom rules | `custom` function | Library-specific |
+| Best for | Simple / lightweight validation | Complex schemas with rich types |
+
+## Next Steps
+
+- [Error Handling](/docs/en/v3/features/error-handling) — return structured errors from validation failures
+- [Cookies](/docs/en/v3/features/cookies) — read and set cookies on validated requests

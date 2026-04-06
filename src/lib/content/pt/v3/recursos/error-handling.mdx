@@ -1,0 +1,411 @@
+---
+title: Tratamento de Erros
+description: Tratamento de erros no AzuraJS v3 — HttpError, factory methods, app.onError(), formato de resposta e boas práticas
+category: Recursos
+icon: lucide:alert-triangle
+order: 14
+---
+
+# Tratamento de Erros
+
+O AzuraJS v3 oferece um sistema de tratamento de erros robusto e integrado com a classe **HttpError**, factory methods para erros comuns, handler global customizável via `app.onError()` e formato de resposta padronizado.
+
+## A Classe HttpError
+
+### Import
+
+```typescript
+import { HttpError } from "azurats/utils";
+```
+
+### Criando Erros
+
+```typescript
+// Construtor genérico
+throw new HttpError(400, "Dados inválidos");
+throw new HttpError(404, "Recurso não encontrado");
+throw new HttpError(500, "Erro interno", { stack: "..." });
+```
+
+### Construtor
+
+```typescript
+class HttpError extends Error {
+  public readonly statusCode: number;
+  public readonly details?: any;
+  public readonly isOperational: boolean;
+
+  constructor(statusCode: number, message?: string, details?: any);
+}
+```
+
+| Propriedade | Tipo | Descrição |
+| :--- | :--- | :--- |
+| `statusCode` | `number` | Código de status HTTP |
+| `message` | `string` | Mensagem de erro (usa `HttpStatusText` se não fornecida) |
+| `details` | `any` | Detalhes adicionais (erros de validação, contexto, etc.) |
+| `isOperational` | `boolean` | Sempre `true` — indica erro operacional (não é bug) |
+
+## Factory Methods
+
+O `HttpError` fornece métodos estáticos para os erros HTTP mais comuns:
+
+```typescript
+// 400 Bad Request
+throw HttpError.badRequest("Campo obrigatório ausente");
+throw HttpError.badRequest("Dados inválidos", validationErrors);
+
+// 401 Unauthorized
+throw HttpError.unauthorized("Token inválido");
+
+// 403 Forbidden
+throw HttpError.forbidden("Acesso negado");
+
+// 404 Not Found
+throw HttpError.notFound("Usuário não encontrado");
+
+// 405 Method Not Allowed
+throw HttpError.methodNotAllowed("Método POST não permitido nesta rota");
+
+// 409 Conflict
+throw HttpError.conflict("Email já cadastrado", { field: "email" });
+
+// 422 Unprocessable Entity
+throw HttpError.unprocessableEntity("Validação falhou", errors);
+
+// 429 Too Many Requests
+throw HttpError.tooManyRequests("Limite de requisições excedido");
+
+// 500 Internal Server Error
+throw HttpError.internal("Erro inesperado no servidor");
+```
+
+### Tabela de Factory Methods
+
+| Método | Status Code | Mensagem Padrão |
+| :--- | :--- | :--- |
+| `badRequest()` | 400 | Bad Request |
+| `unauthorized()` | 401 | Unauthorized |
+| `forbidden()` | 403 | Forbidden |
+| `notFound()` | 404 | Not Found |
+| `methodNotAllowed()` | 405 | Method Not Allowed |
+| `conflict()` | 409 | Conflict |
+| `unprocessableEntity()` | 422 | Unprocessable Entity |
+| `tooManyRequests()` | 429 | Too Many Requests |
+| `internal()` | 500 | Internal Server Error |
+
+## Formato de Resposta
+
+O método `toJSON()` serializa o erro em formato padronizado:
+
+```typescript
+const error = HttpError.badRequest("Email inválido", {
+  field: "email",
+  value: "not-an-email",
+});
+
+console.log(error.toJSON());
+```
+
+```json
+{
+  "error": {
+    "statusCode": 400,
+    "message": "Email inválido",
+    "details": {
+      "field": "email",
+      "value": "not-an-email"
+    }
+  }
+}
+```
+
+Sem detalhes:
+
+```json
+{
+  "error": {
+    "statusCode": 404,
+    "message": "Usuário não encontrado"
+  }
+}
+```
+
+## Tratamento Automático
+
+Quando um `HttpError` é lançado em qualquer handler de rota ou middleware, o AzuraJS automaticamente:
+
+1. Detecta que é uma instância de `HttpError`
+2. Define o status code na resposta
+3. Retorna o JSON serializado via `toJSON()`
+
+```typescript
+app.get("/users/:id", (req, res) => {
+  const user = findUser(req.params.id);
+  if (!user) {
+    throw HttpError.notFound("Usuário não encontrado");
+    // Resposta automática: 404 { "error": { "statusCode": 404, "message": "Usuário não encontrado" } }
+  }
+  res.json(user);
+});
+```
+
+### Erros Não-HttpError
+
+Erros que não são instância de `HttpError` são tratados como erros internos:
+
+```typescript
+app.get("/api/data", async (req, res) => {
+  const data = await db.query("SELECT * FROM tabela"); // pode lançar Error
+  res.json(data);
+});
+// Se db.query lança: 500 { "error": { "statusCode": 500, "message": "Internal Server Error" } }
+```
+
+Em modo `development`, a mensagem real do erro é incluída. Em `production`, é sempre `"Internal Server Error"`:
+
+```typescript
+const app = new AzuraServer({ environment: "production" });
+// Erros genéricos sempre retornam "Internal Server Error"
+
+const app = new AzuraServer({ environment: "development" });
+// Erros genéricos retornam a mensagem real
+
+const app = new AzuraServer({ debug: true });
+// Inclui stack trace na resposta
+```
+
+## Handler Global: app.onError()
+
+Customize completamente como os erros são tratados:
+
+```typescript
+app.onError((err, req, res, next) => {
+  if (err instanceof HttpError) {
+    res.status(err.statusCode).json(err.toJSON());
+    return;
+  }
+
+  // Log do erro
+  console.error(`[ERROR] ${req.method} ${req.pathname}:`, err);
+
+  // Resposta genérica
+  res.status(500).json({
+    error: {
+      statusCode: 500,
+      message: "Algo deu errado. Tente novamente mais tarde.",
+    },
+  });
+});
+```
+
+### Assinatura do ErrorHandler
+
+```typescript
+type ErrorHandler = (
+  err: Error | unknown,
+  req: AzuraRequest,
+  res: AzuraResponse,
+  next: NextFunction,
+) => void | Promise<void>;
+```
+
+## Exemplos Práticos
+
+### CRUD com Tratamento de Erros
+
+```typescript
+import { AzuraServer } from "azurats";
+import { HttpError } from "azurats/utils";
+
+const app = new AzuraServer();
+const users = new Map<string, { id: string; name: string; email: string }>();
+
+app.get("/users/:id", (req, res) => {
+  const user = users.get(req.params.id);
+  if (!user) {
+    throw HttpError.notFound(`Usuário ${req.params.id} não encontrado`);
+  }
+  res.json(user);
+});
+
+app.post("/users", (req, res) => {
+  const { name, email } = req.body ?? {};
+
+  if (!name || !email) {
+    throw HttpError.badRequest("Nome e email são obrigatórios", {
+      missing: [
+        ...(!name ? ["name"] : []),
+        ...(!email ? ["email"] : []),
+      ],
+    });
+  }
+
+  const existing = [...users.values()].find((u) => u.email === email);
+  if (existing) {
+    throw HttpError.conflict("Email já cadastrado", { field: "email" });
+  }
+
+  const id = String(Date.now());
+  const user = { id, name, email };
+  users.set(id, user);
+
+  res.status(201).json(user);
+});
+
+app.delete("/users/:id", (req, res) => {
+  if (!users.has(req.params.id)) {
+    throw HttpError.notFound("Usuário não encontrado");
+  }
+  users.delete(req.params.id);
+  res.status(204).send("");
+});
+
+app.listen(3000);
+```
+
+### Error Handler com Logging Estruturado
+
+```typescript
+import { Logger, HttpError } from "azurats/utils";
+
+const logger = new Logger({ prefix: "error-handler" });
+
+app.onError((err, req, res) => {
+  const requestInfo = {
+    method: req.method,
+    path: req.pathname,
+    ip: req.ip,
+    requestId: req.requestId,
+  };
+
+  if (err instanceof HttpError) {
+    if (err.statusCode >= 500) {
+      logger.error("Server error:", { ...requestInfo, error: err.message });
+    } else {
+      logger.warn("Client error:", { ...requestInfo, error: err.message });
+    }
+    res.status(err.statusCode).json(err.toJSON());
+    return;
+  }
+
+  logger.error("Unhandled error:", {
+    ...requestInfo,
+    error: (err as Error).message,
+    stack: (err as Error).stack,
+  });
+
+  res.status(500).json({
+    error: {
+      statusCode: 500,
+      message: "Erro interno do servidor",
+      ...(process.env.NODE_ENV !== "production" && {
+        details: (err as Error).message,
+      }),
+    },
+  });
+});
+```
+
+### Validação + Erro Customizado
+
+```typescript
+import { DTOValidator, HttpError } from "azurats/utils";
+import type { Schema } from "azurats/utils";
+
+const schema: Schema = {
+  email: {
+    type: "string",
+    required: true,
+    pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+  },
+  password: {
+    type: "string",
+    required: true,
+    min: 8,
+  },
+};
+
+app.post("/register", (req, res) => {
+  const { valid, errors } = DTOValidator.validate(req.body, schema);
+
+  if (!valid) {
+    throw HttpError.unprocessableEntity("Dados de registro inválidos", errors);
+    // {
+    //   "error": {
+    //     "statusCode": 422,
+    //     "message": "Dados de registro inválidos",
+    //     "details": [
+    //       { "field": "email", "message": "email has invalid format" },
+    //       { "field": "password", "message": "password must be at least 8 characters" }
+    //     ]
+    //   }
+    // }
+  }
+
+  res.status(201).json({ message: "Usuário criado" });
+});
+```
+
+### Error Handler por Tipo de Erro
+
+```typescript
+app.onError((err, req, res) => {
+  // Erros HTTP conhecidos
+  if (err instanceof HttpError) {
+    res.status(err.statusCode).json(err.toJSON());
+    return;
+  }
+
+  // Erros de parsing JSON
+  if (err instanceof SyntaxError && "body" in err) {
+    res.status(400).json({
+      error: { statusCode: 400, message: "JSON inválido no corpo da requisição" },
+    });
+    return;
+  }
+
+  // Erros de timeout
+  if ((err as any).code === "ETIMEDOUT") {
+    res.status(504).json({
+      error: { statusCode: 504, message: "Timeout na operação" },
+    });
+    return;
+  }
+
+  // Fallback
+  res.status(500).json({
+    error: { statusCode: 500, message: "Erro interno do servidor" },
+  });
+});
+```
+
+## Boas Práticas
+
+1. **Use factory methods** ao invés do construtor genérico — são mais legíveis e padronizados.
+
+2. **Inclua detalhes úteis** nos erros de validação para que o cliente saiba exatamente o que corrigir.
+
+3. **Nunca exponha detalhes internos** em produção — stack traces, queries SQL, caminhos de arquivos, etc.
+
+4. **Use `isOperational`** para distinguir erros esperados (operacionais) de bugs reais:
+
+```typescript
+app.onError((err, req, res) => {
+  if (err instanceof HttpError && err.isOperational) {
+    res.status(err.statusCode).json(err.toJSON());
+    return;
+  }
+  // Bug real — loggar e investigar
+  console.error("BUG:", err);
+  res.status(500).json({
+    error: { statusCode: 500, message: "Erro interno" },
+  });
+});
+```
+
+5. **Sempre defina um error handler global** para garantir que nenhum erro escape sem tratamento adequado.
+
+<Callout>
+O AzuraJS garante que erros não tratados durante o processamento de uma requisição nunca derrubem o processo. Mesmo sem `app.onError()`, o servidor retorna uma resposta JSON de erro estruturada.
+</Callout>

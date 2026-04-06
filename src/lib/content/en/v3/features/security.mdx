@@ -1,0 +1,232 @@
+---
+title: Security Headers
+description: Harden your application with the HelmetPlugin — CSP, HSTS, X-Frame-Options, and more
+category: Features
+icon: lucide:shield
+order: 8
+---
+
+# Security Headers (Helmet)
+
+The `HelmetPlugin` sets a comprehensive suite of HTTP security headers on every response, protecting your application against common web vulnerabilities such as clickjacking, MIME sniffing, and cross-site scripting.
+
+## Quick Start
+
+```typescript
+import { AzuraServer } from "azurats";
+import { HelmetPlugin } from "azurats/plugins";
+
+const app = new AzuraServer();
+
+app.plugin(HelmetPlugin());
+
+app.listen(3000);
+```
+
+With no options the plugin enables sensible defaults for all headers.
+
+## Options
+
+Every option can be set to an object for fine-grained control, `true` for the default behaviour, or `false` to disable the header entirely.
+
+| Option | Type | Default | Header |
+| :--- | :--- | :--- | :--- |
+| `contentSecurityPolicy` | `object \| boolean` | `true` | `Content-Security-Policy` |
+| `hsts` | `object \| boolean` | `{ maxAge: 15552000, includeSubDomains: true }` | `Strict-Transport-Security` |
+| `frameguard` | `object \| boolean` | `true` (`SAMEORIGIN`) | `X-Frame-Options` |
+| `noSniff` | `boolean` | `true` | `X-Content-Type-Options: nosniff` |
+| `xssFilter` | `boolean` | `true` | `X-XSS-Protection: 0` |
+| `hidePoweredBy` | `boolean` | `true` | Removes `X-Powered-By` |
+| `dnsPrefetchControl` | `object \| boolean` | `true` | `X-DNS-Prefetch-Control` |
+| `referrerPolicy` | `string \| boolean` | `"no-referrer"` | `Referrer-Policy` |
+| `permissionsPolicy` | `object \| boolean` | `false` | `Permissions-Policy` |
+| `crossOriginEmbedderPolicy` | `string \| boolean` | `false` | `Cross-Origin-Embedder-Policy` |
+| `crossOriginOpenerPolicy` | `string \| boolean` | `false` | `Cross-Origin-Opener-Policy` |
+| `crossOriginResourcePolicy` | `string \| boolean` | `false` | `Cross-Origin-Resource-Policy` |
+
+## Header Details
+
+### Content-Security-Policy (CSP)
+
+Controls which resources the browser is allowed to load.
+
+```typescript
+app.plugin(
+  HelmetPlugin({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "https://cdn.example.com"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:", "https:"],
+        connectSrc: ["'self'", "https://api.example.com"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com"],
+        objectSrc: ["'none'"],
+        upgradeInsecureRequests: [],
+      },
+    },
+  })
+);
+```
+
+### HTTP Strict Transport Security (HSTS)
+
+Forces HTTPS connections for a specified duration.
+
+```typescript
+app.plugin(
+  HelmetPlugin({
+    hsts: {
+      maxAge: 31_536_000, // 1 year
+      includeSubDomains: true,
+      preload: true,
+    },
+  })
+);
+```
+
+<Callout>
+Only enable `preload` if you have submitted your domain to the [HSTS Preload List](https://hstspreload.org). Incorrect use can lock users out of your site.
+</Callout>
+
+### X-Frame-Options
+
+Prevents your pages from being embedded in `<iframe>` elements (clickjacking protection).
+
+```typescript
+app.plugin(
+  HelmetPlugin({
+    frameguard: { action: "deny" }, // or "sameorigin"
+  })
+);
+```
+
+| Value | Effect |
+| :--- | :--- |
+| `"deny"` | Page cannot be framed at all |
+| `"sameorigin"` | Page can only be framed by the same origin |
+
+### X-Content-Type-Options
+
+Prevents MIME-type sniffing. Always set to `nosniff`.
+
+```typescript
+app.plugin(HelmetPlugin({ noSniff: true }));
+```
+
+### Referrer-Policy
+
+Controls how much referrer information is sent with requests.
+
+```typescript
+app.plugin(
+  HelmetPlugin({
+    referrerPolicy: "strict-origin-when-cross-origin",
+  })
+);
+```
+
+Common values: `"no-referrer"`, `"same-origin"`, `"strict-origin-when-cross-origin"`, `"origin"`.
+
+### Permissions-Policy
+
+Restricts access to browser features such as camera, microphone, and geolocation.
+
+```typescript
+app.plugin(
+  HelmetPlugin({
+    permissionsPolicy: {
+      camera: ["'none'"],
+      microphone: ["'none'"],
+      geolocation: ["'self'"],
+      fullscreen: ["'self'"],
+    },
+  })
+);
+```
+
+### Cross-Origin Policies
+
+```typescript
+app.plugin(
+  HelmetPlugin({
+    crossOriginEmbedderPolicy: "require-corp",
+    crossOriginOpenerPolicy: "same-origin",
+    crossOriginResourcePolicy: "same-origin",
+  })
+);
+```
+
+| Header | Purpose |
+| :--- | :--- |
+| `Cross-Origin-Embedder-Policy` | Controls which cross-origin resources can be loaded |
+| `Cross-Origin-Opener-Policy` | Isolates your browsing context from cross-origin windows |
+| `Cross-Origin-Resource-Policy` | Controls who may load your resources cross-origin |
+
+## Full Production Example
+
+```typescript
+import { AzuraServer } from "azurats";
+import { HelmetPlugin, CORSPlugin } from "azurats/plugins";
+
+const app = new AzuraServer();
+
+app.plugin(
+  HelmetPlugin({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:", "https:"],
+        connectSrc: ["'self'", process.env.API_URL!],
+        objectSrc: ["'none'"],
+        frameAncestors: ["'none'"],
+        upgradeInsecureRequests: [],
+      },
+    },
+    hsts: {
+      maxAge: 31_536_000,
+      includeSubDomains: true,
+      preload: true,
+    },
+    frameguard: { action: "deny" },
+    referrerPolicy: "strict-origin-when-cross-origin",
+    permissionsPolicy: {
+      camera: ["'none'"],
+      microphone: ["'none'"],
+      geolocation: ["'none'"],
+    },
+    crossOriginOpenerPolicy: "same-origin",
+    crossOriginResourcePolicy: "same-origin",
+  })
+);
+
+app.plugin(
+  CORSPlugin({
+    origins: [process.env.FRONTEND_URL!],
+    credentials: true,
+  })
+);
+
+app.listen(3000);
+```
+
+## Disabling Individual Headers
+
+Pass `false` to disable any header you don't need:
+
+```typescript
+app.plugin(
+  HelmetPlugin({
+    hsts: false,           // disable HSTS (e.g. behind a reverse proxy that handles it)
+    dnsPrefetchControl: false,
+  })
+);
+```
+
+## Next Steps
+
+- [CORS](/docs/en/v3/features/cors) — pair security headers with cross-origin policies
+- [JWT Authentication](/docs/en/v3/features/jwt) — secure your API endpoints
+- [Rate Limiting](/docs/en/v3/features/rate-limiting) — prevent abuse alongside security headers

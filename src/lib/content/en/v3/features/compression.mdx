@@ -1,0 +1,141 @@
+---
+title: Compression
+description: Reduce bandwidth with automatic gzip and deflate response compression
+category: Features
+icon: lucide:archive
+order: 9
+---
+
+# Compression
+
+The `CompressionPlugin` transparently compresses response bodies using **gzip** or **deflate**, based on the client's `Accept-Encoding` header. It intercepts `res.end`, buffers the output, and compresses it when the payload exceeds the configured threshold.
+
+## Quick Start
+
+```typescript
+import { AzuraServer } from "azurats";
+import { CompressionPlugin } from "azurats/plugins";
+
+const app = new AzuraServer();
+
+app.plugin(CompressionPlugin());
+
+app.get("/data", (req, res) => {
+  res.json(largeDataset); // automatically compressed if > 1 KB
+});
+
+app.listen(3000);
+```
+
+## Options
+
+| Option | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `threshold` | `number` | `1024` | Minimum response size in bytes before compression kicks in. Responses smaller than this are sent uncompressed. |
+| `level` | `number` | `6` | Compression level from `0` (no compression) to `9` (maximum compression). Higher levels use more CPU. |
+| `algorithms` | `string[]` | `["gzip", "deflate"]` | Ordered list of algorithms to offer. The first match against the client's `Accept-Encoding` wins. |
+
+## How It Works
+
+1. The plugin intercepts `res.end`.
+2. When the handler finishes, the plugin checks:
+   - Is the response body at least `threshold` bytes?
+   - Does the `Content-Type` match a compressible MIME type (JSON, text, JavaScript, CSS, XML, SVG)?
+   - Does the client accept one of the configured algorithms?
+3. If all conditions are met, the body is compressed, `Content-Encoding` is set, and the `Content-Length` is updated.
+
+### Compressible Content Types
+
+The built-in filter matches these patterns:
+
+```
+application/json
+text/*
+application/javascript
+text/css
+application/xml
+image/svg+xml
+```
+
+Binary formats like images, video, and already-compressed files are left untouched.
+
+## Examples
+
+### High Compression for APIs
+
+```typescript
+app.plugin(
+  CompressionPlugin({
+    threshold: 512,  // compress anything above 512 bytes
+    level: 9,        // maximum compression
+    algorithms: ["gzip"],
+  })
+);
+```
+
+### Deflate Only
+
+```typescript
+app.plugin(
+  CompressionPlugin({
+    algorithms: ["deflate"],
+  })
+);
+```
+
+### Balanced Production Config
+
+```typescript
+app.plugin(
+  CompressionPlugin({
+    threshold: 1024,
+    level: 6,
+    algorithms: ["gzip", "deflate"],
+  })
+);
+```
+
+## Performance Considerations
+
+| Level | Compression Ratio | CPU Cost | Best For |
+| :---: | :---: | :---: | :--- |
+| 1 | ~60% | Low | High-throughput APIs |
+| 6 | ~70% | Medium | General use (default) |
+| 9 | ~75% | High | Bandwidth-constrained clients |
+
+<Callout>
+Level 6 provides a good trade-off between compression ratio and CPU usage for most applications. Only increase to 9 if your bottleneck is bandwidth, not CPU.
+</Callout>
+
+## Interaction with Other Plugins
+
+### With ETagPlugin
+
+Register `ETagPlugin` **before** `CompressionPlugin` so the ETag is computed on the uncompressed body:
+
+```typescript
+import { ETagPlugin, CompressionPlugin } from "azurats/plugins";
+
+app.plugin(ETagPlugin());
+app.plugin(CompressionPlugin());
+```
+
+### With StaticPlugin
+
+Static files are served directly from disk and bypass the compression interceptor. If you need compressed static assets, pre-compress them or place `CompressionPlugin` before `StaticPlugin`.
+
+## Client-Side Verification
+
+```bash
+curl -H "Accept-Encoding: gzip" -I http://localhost:3000/api/data
+
+# Expected headers:
+# Content-Encoding: gzip
+# Vary: Accept-Encoding
+```
+
+## Next Steps
+
+- [Static Files](/docs/en/v3/features/static-files) — serve assets with caching
+- [Security](/docs/en/v3/features/security) — combine with Helmet for full production hardening
+- [Proxy](/docs/en/v3/features/proxy) — compress proxied responses

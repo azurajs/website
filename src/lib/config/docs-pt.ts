@@ -44,6 +44,56 @@ export const docsConfig = {
       ],
     },
   ],
+  v3: [
+    {
+      title: "Começando",
+      items: [
+        { title: "Bem-vindo ao AzuraJS v3", slug: "introduction-v3" },
+        { title: "Instalação", slug: "v3/comecando/instalacao" },
+        { title: "Início Rápido", slug: "v3/comecando/inicio-rapido" },
+        { title: "Uso com JavaScript", slug: "v3/comecando/uso-com-javascript" },
+        { title: "Configuração", slug: "v3/comecando/configuracao" },
+      ],
+    },
+    {
+      title: "Conceitos Principais",
+      items: [
+        { title: "Controllers", slug: "v3/conceitos/controllers" },
+        { title: "Roteamento", slug: "v3/conceitos/routing" },
+        { title: "Decorators", slug: "v3/conceitos/decorators" },
+        { title: "Middleware", slug: "v3/conceitos/middleware" },
+        { title: "Request & Response", slug: "v3/conceitos/http" },
+      ],
+    },
+    {
+      title: "Recursos",
+      items: [
+        { title: "Visão Geral dos Plugins", slug: "v3/recursos/plugins" },
+        { title: "Validação", slug: "v3/recursos/validacao" },
+        { title: "Cookies", slug: "v3/recursos/cookies" },
+        { title: "Logger", slug: "v3/recursos/logger" },
+        { title: "CORS", slug: "v3/recursos/cors" },
+        { title: "Rate Limiting", slug: "v3/recursos/rate-limiting" },
+        { title: "Autenticação JWT", slug: "v3/recursos/jwt" },
+        { title: "Segurança (Helmet)", slug: "v3/recursos/security" },
+        { title: "Compressão", slug: "v3/recursos/compression" },
+        { title: "Arquivos Estáticos", slug: "v3/recursos/static-files" },
+        { title: "Proxy", slug: "v3/recursos/proxy" },
+        { title: "Server-Sent Events", slug: "v3/recursos/sse" },
+        { title: "Health Check", slug: "v3/recursos/health-check" },
+        { title: "Tratamento de Erros", slug: "v3/recursos/error-handling" },
+      ],
+    },
+    {
+      title: "Avançado",
+      items: [
+        { title: "Importações Modulares", slug: "v3/avancado/importacoes-modulares" },
+        { title: "Suporte TypeScript", slug: "v3/avancado/suporte-typescript" },
+        { title: "Extensões de Tipo", slug: "v3/avancado/extensoes-de-tipo" },
+        { title: "Servidores Customizados", slug: "v3/avancado/servidores-customizados" },
+      ],
+    },
+  ],
   cdn: [
     {
       title: "Rede Edge",
@@ -57,5 +107,6 @@ export const docsConfig = {
 
 export const frameworkOptions = [
   { id: "framework", label: "AzuraJS Framework", icon: "lucide:box" },
+  { id: "v3", label: "Framework v3", icon: "lucide:zap" },
   { id: "cdn", label: "@azurajs/cdn", icon: "lucide:globe" },
 ];

@@ -1,0 +1,267 @@
+---
+title: Suporte TypeScript
+description: Aproveite ao máximo o design TypeScript-first do AzuraJS v3
+category: Avançado
+icon: lucide:file-type
+order: 2
+---
+
+# Suporte TypeScript 🛠️
+
+O AzuraJS foi construído do zero com TypeScript — não é um wrapper sobre JavaScript com tipos adicionados depois. Toda a base de código, desde o roteador radix-tree até os plugins, é escrita em TypeScript estrito. Isso garante autocompletar preciso, verificação de erros em tempo de compilação e refatoração segura em qualquer IDE.
+
+## TypeScript-First por Design
+
+Diferente de frameworks que adicionam tipos como um afterthought, o AzuraJS v3:
+
+- **Exporta todas as interfaces e tipos** via `azurats/types`, sem necessidade de `@types/azurats`
+- **Usa decorators nativos do TypeScript** com `experimentalDecorators` e `emitDecoratorMetadata`
+- **Infere tipos automaticamente** nos handlers de rota, parâmetros de decorators e configuração
+- **Zero dependências de runtime** — compila para JavaScript puro com `tsup`
+
+## Configuração Recomendada do `tsconfig.json`
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "strict": true,
+    "strictNullChecks": true,
+    "strictPropertyInitialization": true,
+    "noUncheckedIndexedAccess": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    "lib": ["ES2022"]
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
+```
+
+<Callout type="warning" title="Opções obrigatórias">
+  `experimentalDecorators` e `emitDecoratorMetadata` são **obrigatórios** para que os decorators `@Controller`, `@Get`, `@Body` e outros funcionem corretamente. Sem eles, o TypeScript não emite os metadados necessários para resolução de parâmetros.
+</Callout>
+
+### Explicação das Opções Principais
+
+| Opção | Valor | Motivo |
+|---|---|---|
+| `target` | `ES2022` | Suporta `BigInt` (usado em `req.startTime`), top-level `await` e outras features modernas |
+| `module` | `ESNext` | Habilita ESM nativo, compatível com o sistema de exports do AzuraJS |
+| `moduleResolution` | `bundler` | Resolve corretamente os subcaminhos como `azurats/core`, `azurats/plugins` etc. |
+| `experimentalDecorators` | `true` | Ativa decorators de classe, método e parâmetro |
+| `emitDecoratorMetadata` | `true` | Emite metadados de tipo em runtime, usado pelo sistema de injeção de parâmetros |
+| `strict` | `true` | Ativa todas as verificações estritas de tipo |
+| `noUncheckedIndexedAccess` | `true` | Evita acesso a propriedades indexadas sem verificação de `undefined` |
+
+## Type Safety nos Handlers
+
+### Handlers Funcionais
+
+Com handlers funcionais, `req` e `res` são totalmente tipados:
+
+```typescript
+import { AzuraServer } from "azurats/core";
+import type { AzuraRequest, AzuraResponse } from "azurats/types";
+
+const app = new AzuraServer();
+
+app.get("/users/:id", (req: AzuraRequest, res: AzuraResponse) => {
+  const id: string = req.params.id;
+  const page: string | string[] | undefined = req.query.page;
+  const ip: string = req.ip;
+  const isSecure: boolean = req.secure;
+
+  res.status(200).json({ id, page, ip, isSecure });
+});
+```
+
+O TypeScript conhece todas as propriedades de `AzuraRequest` e `AzuraResponse`, incluindo `pathname`, `query`, `params`, `cookies`, `body`, `ip`, `protocol`, `secure`, `hostname`, `session` e `locals`.
+
+### Handlers com Decorators
+
+Com decorators, os parâmetros são extraídos e tipados automaticamente:
+
+```typescript
+import { Controller, Get, Post, Param, Body, Query } from "azurats/decorators";
+
+interface CreateUserDTO {
+  name: string;
+  email: string;
+}
+
+@Controller("/users")
+class UserController {
+  @Get("/:id")
+  findOne(@Param("id") id: string, @Query("fields") fields: string) {
+    return { id, fields };
+  }
+
+  @Post()
+  create(@Body() data: CreateUserDTO) {
+    // TypeScript garante que 'data' tem 'name' e 'email'
+    return { created: true, name: data.name, email: data.email };
+  }
+}
+```
+
+### ErrorHandler Tipado
+
+O método `onError` aceita um `ErrorHandler` totalmente tipado:
+
+```typescript
+import { AzuraServer } from "azurats/core";
+import { HttpError } from "azurats/utils";
+import type { ErrorHandler } from "azurats/types";
+
+const errorHandler: ErrorHandler = (err, req, res, next) => {
+  if (err instanceof HttpError) {
+    res.status(err.statusCode).json(err.toJSON());
+    return;
+  }
+
+  const message = err instanceof Error ? err.message : "Erro interno";
+  res.status(500).json({ error: { statusCode: 500, message } });
+};
+
+const app = new AzuraServer();
+app.onError(errorHandler);
+```
+
+## Decorator Metadata e Reflect
+
+O AzuraJS usa `Reflect.getMetadata` para armazenar e recuperar informações dos decorators em runtime. Isso permite que o método `register()` descubra automaticamente as rotas, middlewares e parâmetros de cada controller.
+
+```typescript
+import { Controller, Get, UseMiddleware, Param, Req } from "azurats/decorators";
+import type { AzuraRequest } from "azurats/types";
+
+function AuthGuard(req: AzuraRequest, res: any, next: Function) {
+  if (!req.headers.authorization) {
+    return res.status(401).json({ error: "Não autorizado" });
+  }
+  next();
+}
+
+@Controller("/admin")
+@UseMiddleware(AuthGuard)
+class AdminController {
+  @Get("/dashboard")
+  dashboard(@Req() req: AzuraRequest) {
+    return { admin: true, ip: req.ip };
+  }
+
+  @Get("/users/:id")
+  getUser(@Param("id") id: string) {
+    return { userId: id };
+  }
+}
+```
+
+Internamente, o AzuraJS armazena três chaves de metadata:
+- `azura:controller` — prefixo de rota da classe
+- `azura:routes` — método HTTP e caminho de cada handler
+- `azura:params` — tipo, nome e índice de cada parâmetro decorado
+
+## Tipagem de Configuração
+
+O objeto de configuração `AzuraConfig` é totalmente tipado, incluindo sub-interfaces para servidor, logging e plugins:
+
+```typescript
+import { AzuraServer } from "azurats/core";
+import type { AzuraConfig } from "azurats/types";
+
+const config: AzuraConfig = {
+  environment: "production",
+  server: {
+    port: 8080,
+    host: "0.0.0.0",
+    keepAliveTimeout: 72000,
+    headersTimeout: 75000,
+    requestTimeout: 30000,
+    https: {
+      key: "/path/to/key.pem",
+      cert: "/path/to/cert.pem",
+    },
+  },
+  logging: {
+    enabled: true,
+    level: "warn",
+    timestamp: true,
+    colors: false,
+    requestLogging: true,
+  },
+  debug: false,
+};
+
+const app = new AzuraServer(config);
+```
+
+O TypeScript vai alertar se você passar uma opção inválida, um tipo errado ou uma propriedade que não existe na interface.
+
+## Tipos Utilitários Exportados
+
+O subcaminho `azurats/types` exporta mais de 30 tipos e interfaces para uso em sua aplicação:
+
+```typescript
+import type {
+  // Request/Response
+  AzuraRequest,
+  AzuraResponse,
+  NextFunction,
+  CookieOptions,
+
+  // Handlers
+  MiddlewareHandler,
+  RouteHandler,
+  ErrorHandler,
+
+  // Routing
+  HttpMethod,
+  RouteMatch,
+  RouteMetadata,
+  ControllerMetadata,
+  ParamMetadata,
+
+  // Config
+  AzuraConfig,
+  ServerConfig,
+  LoggingConfig,
+  PluginsConfig,
+
+  // Plugins
+  PluginContext,
+  PluginHandler,
+  CORSOptions,
+  RateLimitOptions,
+  JWTOptions,
+  SessionOptions,
+} from "azurats/types";
+```
+
+Importar tipos com `import type` garante que eles são eliminados em tempo de compilação e não afetam o bundle final.
+
+## Integração com IDEs
+
+Com a configuração correta, sua IDE oferece:
+
+- **Autocompletar** em todas as propriedades de `req`, `res` e `config`
+- **Go to Definition** diretamente para os tipos do AzuraJS
+- **Hover documentation** com JSDoc em métodos como `res.json()`, `res.cookie()` e `req.ip`
+- **Verificação de erros inline** para parâmetros de decorators, opções de plugins e handlers
+- **Renomeação segura** de tipos, interfaces e propriedades em toda a codebase
+
+## Próximos Passos 📖
+
+- [🧬 **Extensões de Tipo**](/docs/pt/v3/avancado/extensoes-de-tipo): Aprenda a estender `AzuraRequest` e `AzuraResponse` com declaration merging.
+- [📦 **Importações Modulares**](/docs/pt/v3/avancado/importacoes-modulares): Otimize seu bundle aproveitando os 8 subcaminhos de importação.

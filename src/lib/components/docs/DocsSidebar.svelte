@@ -2,13 +2,14 @@
   import { page } from "$app/stores";
   import { slide } from "svelte/transition";
   import { getDocsConfig, getFrameworkOptions } from "$lib/config/docs";
+  import type { FrameworkId } from "$lib/config/docs";
   import Icon from "@iconify/svelte";
   import { onMount } from "svelte";
 
   export let open = false;
   export let collapsed = false;
 
-  let activeFramework: 'framework' | 'cdn' = "framework";
+  let activeFramework: FrameworkId = "framework";
   let openSections: Record<number, boolean> = {};
 
   $: currentLang = $page.params.lang || "en";
@@ -18,6 +19,16 @@
   $: docsConfig = getDocsConfig(currentLang);
   $: frameworkOptions = getFrameworkOptions(currentLang);
   $: navItems = docsConfig[activeFramework] || [];
+
+  $: {
+    if (currentSlug.startsWith("v3/") || currentSlug === "introduction-v3") {
+      if (activeFramework !== "v3") activeFramework = "v3";
+    } else if (currentSlug.startsWith("cdn/")) {
+      if (activeFramework !== "cdn") activeFramework = "cdn";
+    } else if (currentSlug.startsWith("framework/") || currentSlug === "introduction") {
+      if (activeFramework !== "framework") activeFramework = "framework";
+    }
+  }
 
   function toggleSection(index: number) {
     openSections[index] = !openSections[index];
@@ -29,7 +40,7 @@
     return normalizedCurrent === normalizedItem;
   };
 
-  function selectFramework(id: 'framework' | 'cdn') {
+  function selectFramework(id: FrameworkId) {
     activeFramework = id;
     navItems.forEach((_: any, i: number) => (openSections[i] = true));
   }
@@ -73,7 +84,7 @@
           >
             {#each frameworkOptions as option}
               <button
-                on:click={() => selectFramework(option.id as 'framework' | 'cdn')}
+                on:click={() => selectFramework(option.id as FrameworkId)}
                 class="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-white/5 transition-colors cursor-pointer
                 {activeFramework === option.id ? 'text-blue-400 bg-blue-500/5' : 'text-neutral-400'}"
               >

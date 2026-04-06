@@ -1,0 +1,304 @@
+---
+title: Roteamento
+description: Entenda os padrões de rota, parâmetros, wildcards e o roteador radix tree de alta performance do AzuraJS v3
+category: Conceitos Principais
+icon: lucide:git-branch
+order: 2
+---
+
+# Roteamento 🛣️
+
+O AzuraJS v3 vem com um **roteador radix tree** de alta performance apoiado por um cache LRU. Essa arquitetura entrega buscas de rota em tempo constante, independentemente de quantas rotas sua aplicação define, tornando-o ideal para APIs de larga escala.
+
+<Callout type="info" title="Performance">
+  Rotas estáticas são armazenadas em um hash map dedicado para buscas O(1). Rotas parametrizadas e wildcard usam a radix tree com resultados cacheados via LRU cache (capacidade padrão: 1024 entradas).
+</Callout>
+
+## Dois Estilos de Roteamento
+
+O AzuraJS suporta duas abordagens complementares para definir rotas. Você pode misturá-las na mesma aplicação.
+
+<Tabs items={["Estilo Express", "Baseado em Decorators"]}>
+  <Tab value="Estilo Express">
+```typescript
+import { AzuraServer } from "azurats";
+
+const app = new AzuraServer();
+
+app.get("/", (req, res) => {
+  res.json({ message: "Hello, World!" });
+});
+
+app.post("/users", (req, res) => {
+  res.status(201).json({ user: req.body });
+});
+
+app.listen();
+```
+  </Tab>
+  <Tab value="Baseado em Decorators">
+```typescript
+import { AzuraServer } from "azurats";
+import { Controller, Get, Post, Body } from "azurats/decorators";
+
+@Controller("/users")
+class UserController {
+  @Get()
+  list() {
+    return { users: [] };
+  }
+
+  @Post()
+  create(@Body() data: any) {
+    return { user: data };
+  }
+}
+
+const app = new AzuraServer();
+app.register(UserController);
+app.listen();
+```
+  </Tab>
+</Tabs>
+
+## Métodos de Rota Estilo Express
+
+A instância `AzuraServer` oferece métodos encadeáveis para cada verbo HTTP:
+
+| Método | Assinatura | Verbo HTTP |
+| :--- | :--- | :--- |
+| `app.get()` | `app.get(path, ...handlers)` | `GET` |
+| `app.post()` | `app.post(path, ...handlers)` | `POST` |
+| `app.put()` | `app.put(path, ...handlers)` | `PUT` |
+| `app.delete()` | `app.delete(path, ...handlers)` | `DELETE` |
+| `app.patch()` | `app.patch(path, ...handlers)` | `PATCH` |
+| `app.head()` | `app.head(path, ...handlers)` | `HEAD` |
+| `app.options()` | `app.options(path, ...handlers)` | `OPTIONS` |
+| `app.all()` | `app.all(path, ...handlers)` | Todos os métodos |
+
+Cada método aceita uma string de caminho seguida por uma ou mais funções handler. O último handler é o manipulador da rota; quaisquer handlers anteriores são tratados como middleware específico da rota.
+
+```typescript
+const requireAuth = (req, res, next) => {
+  if (!req.headers.authorization) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  next();
+};
+
+app.get("/public", (req, res) => {
+  res.json({ data: "open to all" });
+});
+
+app.get("/private", requireAuth, (req, res) => {
+  res.json({ data: "secret stuff" });
+});
+
+app.all("/health", (req, res) => {
+  res.json({ status: "ok" });
+});
+```
+
+## Padrões de Rota
+
+### Rotas Estáticas
+
+Rotas estáticas correspondem a caminhos exatos. Elas são resolvidas primeiro via busca direta em hash map — a correspondência mais rápida possível.
+
+```typescript
+app.get("/health", (req, res) => {
+  res.json({ status: "ok" });
+});
+
+app.get("/api/v1/status", (req, res) => {
+  res.json({ version: "1.0" });
+});
+```
+
+### Rotas Parametrizadas
+
+Use o prefixo `:` para definir segmentos dinâmicos. Os valores correspondidos ficam disponíveis em `req.params`.
+
+```typescript
+app.get("/users/:id", (req, res) => {
+  res.json({ userId: req.params.id });
+});
+
+app.get("/org/:orgId/projects/:projectId", (req, res) => {
+  const { orgId, projectId } = req.params;
+  res.json({ orgId, projectId });
+});
+```
+
+Com decorators, use `@Param()` para injetar parâmetros diretamente:
+
+```typescript
+@Controller("/users")
+class UserController {
+  @Get("/:id")
+  findOne(@Param("id") id: string) {
+    return { userId: id };
+  }
+
+  @Get("/:userId/posts/:postId")
+  findPost(
+    @Param("userId") userId: string,
+    @Param("postId") postId: string,
+  ) {
+    return { userId, postId };
+  }
+}
+```
+
+### Rotas Wildcard
+
+Rotas wildcard usam `*` para corresponder a qualquer sufixo de caminho. Elas atuam como handlers catch-all e são avaliadas por último.
+
+```typescript
+app.get("/files/*", (req, res) => {
+  res.json({ path: req.pathname });
+});
+
+app.get("/api/*", (req, res) => {
+  res.status(404).json({ error: "API route not found" });
+});
+```
+
+## Prioridade de Rotas
+
+Quando múltiplos padrões de rota podem corresponder a uma requisição, o AzuraJS aplica uma ordem de precedência estrita:
+
+| Prioridade | Tipo do Padrão | Exemplo | Descrição |
+| :---: | :--- | :--- | :--- |
+| 1 | Estático | `/users/profile` | Correspondências exatas sempre vencem |
+| 2 | Parametrizado | `/users/:id` | Avaliado se nenhuma correspondência estática existir |
+| 3 | Wildcard | `/users/*` | Catch-all, verificado por último |
+
+```typescript
+app.get("/users/me", (req, res) => {
+  res.json({ type: "static" });
+});
+
+app.get("/users/:id", (req, res) => {
+  res.json({ type: "param", id: req.params.id });
+});
+
+app.get("/users/*", (req, res) => {
+  res.json({ type: "wildcard" });
+});
+```
+
+Uma requisição para `GET /users/me` sempre atingirá a rota estática, mesmo que `:id` e `*` também possam corresponder.
+
+## Parâmetros de Query
+
+Parâmetros de query são automaticamente parseados e ficam disponíveis em `req.query`. Eles não fazem parte do padrão de rota.
+
+```typescript
+app.get("/search", (req, res) => {
+  const { q, page, limit } = req.query;
+  res.json({ query: q, page, limit });
+});
+```
+
+Com decorators:
+
+```typescript
+@Controller("/search")
+class SearchController {
+  @Get()
+  search(@Query("q") query: string, @Query("page") page?: string) {
+    return { query, page: Number(page) || 1 };
+  }
+}
+```
+
+## Middleware por Rota
+
+Ambos os estilos de roteamento suportam middleware específico de rota. Funções de middleware executam antes do handler final.
+
+<Tabs items={["Estilo Express", "Baseado em Decorators"]}>
+  <Tab value="Estilo Express">
+```typescript
+import type { AzuraRequest, AzuraResponse, NextFunction } from "azurats/types";
+
+const logRoute = (req: AzuraRequest, res: AzuraResponse, next: NextFunction) => {
+  console.log(`${req.method} ${req.pathname}`);
+  next();
+};
+
+const validateId = (req: AzuraRequest, res: AzuraResponse, next: NextFunction) => {
+  if (isNaN(Number(req.params.id))) {
+    return res.status(400).json({ error: "Invalid ID" });
+  }
+  next();
+};
+
+app.get("/users/:id", logRoute, validateId, (req, res) => {
+  res.json({ user: { id: req.params.id } });
+});
+```
+  </Tab>
+  <Tab value="Baseado em Decorators">
+```typescript
+import { Controller, Get, Param, UseMiddleware } from "azurats/decorators";
+import type { AzuraRequest, AzuraResponse, NextFunction } from "azurats/types";
+
+const validateId = (req: AzuraRequest, res: AzuraResponse, next: NextFunction) => {
+  if (isNaN(Number(req.params.id))) {
+    return res.status(400).json({ error: "Invalid ID" });
+  }
+  next();
+};
+
+@Controller("/users")
+class UserController {
+  @UseMiddleware(validateId)
+  @Get("/:id")
+  findOne(@Param("id") id: string) {
+    return { user: { id } };
+  }
+}
+```
+  </Tab>
+</Tabs>
+
+## Listando Todas as Rotas Registradas
+
+Use `app.getRoutes()` para inspecionar todas as rotas que sua aplicação registrou. Útil para depuração e geração de documentação de API.
+
+```typescript
+const app = new AzuraServer();
+
+app.get("/health", (req, res) => res.json({ ok: true }));
+app.register(UserController);
+
+const routes = app.getRoutes();
+console.log(routes);
+// [
+//   { method: "GET", path: "/health" },
+//   { method: "GET", path: "/api/users" },
+//   { method: "POST", path: "/api/users" },
+//   { method: "GET", path: "/api/users/:id" },
+//   ...
+// ]
+```
+
+## Case Sensitivity
+
+A correspondência de rotas no AzuraJS é **case-sensitive** por padrão. `/Users` e `/users` são tratados como rotas distintas.
+
+```typescript
+app.get("/Users", handler1);
+app.get("/users", handler2);
+```
+
+## Normalização de Caminho
+
+Barras finais são automaticamente removidas durante o registro de rotas. Tanto `/users/` quanto `/users` resolvem para a mesma rota.
+
+## Próximos Passos
+
+- [**Controllers**](/docs/pt/v3/conceitos/controllers) — Organize rotas em classes estruturadas.
+- [**Decorators**](/docs/pt/v3/conceitos/decorators) — Aprenda todos os decorators disponíveis para roteamento e injeção de parâmetros.
+- [**Middleware**](/docs/pt/v3/conceitos/middleware) — Intercepte requisições antes que elas cheguem aos handlers de rota.

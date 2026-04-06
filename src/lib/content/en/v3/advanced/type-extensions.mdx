@@ -1,0 +1,204 @@
+---
+title: Type Extensions
+description: Extend AzuraRequest and AzuraResponse with custom properties using declaration merging
+category: Advanced
+icon: lucide:puzzle
+order: 3
+---
+
+# Type Extensions
+
+Middleware and plugins often attach extra data to the request or response — an authenticated user, a session, a request-scoped logger. TypeScript's **declaration merging** lets you extend `AzuraRequest` and `AzuraResponse` so that these properties are type-safe throughout your entire application.
+
+## Extending `AzuraRequest`
+
+Create a declaration file anywhere in your project (e.g. `src/types/azura.d.ts`) and augment the module that owns the interface:
+
+```typescript
+// src/types/azura.d.ts
+declare module "azurats/types" {
+  interface AzuraRequest {
+    user?: {
+      id: string;
+      email: string;
+      roles: string[];
+    };
+    session?: {
+      id: string;
+      data: Record<string, unknown>;
+      expiresAt: Date;
+    };
+    tenantId?: string;
+    requestStartedAt?: number;
+  }
+}
+```
+
+<Callout>
+The file must be included by your `tsconfig.json` (either via `include` or `files`). Make sure `src/types` is covered — the default `"include": ["src"]` is usually enough.
+</Callout>
+
+Once declared, every reference to `AzuraRequest` picks up the new properties:
+
+```typescript
+import { AzuraServer } from "azurats/core";
+import type { AzuraRequest, AzuraResponse, NextFunction } from "azurats/types";
+
+const app = new AzuraServer();
+
+app.use((req: AzuraRequest, res: AzuraResponse, next: NextFunction) => {
+  req.requestStartedAt = performance.now();
+  next();
+});
+
+app.get("/profile", (req: AzuraRequest, res: AzuraResponse) => {
+  // TypeScript knows about req.user
+  if (!req.user) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  res.json({
+    id: req.user.id,
+    email: req.user.email,
+    roles: req.user.roles,
+    tenant: req.tenantId,
+  });
+});
+```
+
+### Populating Custom Properties in Middleware
+
+A common pattern is an authentication middleware that verifies a token and attaches the decoded user:
+
+```typescript
+import type { MiddlewareHandler } from "azurats/types";
+import { HttpError } from "azurats/utils";
+
+export const authMiddleware: MiddlewareHandler = async (req, res, next) => {
+  const header = req.headers["authorization"];
+  if (!header?.startsWith("Bearer ")) {
+    throw HttpError.unauthorized("Missing or invalid Authorization header");
+  }
+
+  const token = header.slice(7);
+  const decoded = await verifyToken(token); // your verification logic
+
+  req.user = {
+    id: decoded.sub,
+    email: decoded.email,
+    roles: decoded.roles,
+  };
+
+  next();
+};
+```
+
+Because `req.user` is declared in the augmented interface, both the middleware and every downstream handler get full autocompletion and type checking.
+
+## Extending `AzuraResponse`
+
+You can add custom response helpers the same way:
+
+```typescript
+// src/types/azura.d.ts
+declare module "azurats/types" {
+  interface AzuraResponse {
+    success(data: unknown, message?: string): void;
+    fail(statusCode: number, error: string, details?: unknown): void;
+  }
+}
+```
+
+Then implement them in a middleware that runs early in the chain:
+
+```typescript
+import type { MiddlewareHandler } from "azurats/types";
+
+export const responseHelpers: MiddlewareHandler = (req, res, next) => {
+  res.success = (data, message = "OK") => {
+    res.status(200).json({ success: true, message, data });
+  };
+
+  res.fail = (statusCode, error, details = null) => {
+    res.status(statusCode).json({ success: false, error, details });
+  };
+
+  next();
+};
+```
+
+Usage in a route handler:
+
+```typescript
+import { Controller, Get, Post, Body, Res } from "azurats/decorators";
+import type { AzuraResponse } from "azurats/types";
+
+@Controller("/api/items")
+export class ItemController {
+  @Get()
+  list(@Res() res: AzuraResponse) {
+    res.success([{ id: 1, name: "Widget" }]);
+  }
+
+  @Post()
+  create(@Body() body: { name: string }, @Res() res: AzuraResponse) {
+    if (!body.name) {
+      res.fail(400, "Validation error", { field: "name", message: "Required" });
+      return;
+    }
+    res.status(201).success({ id: Date.now(), name: body.name }, "Created");
+  }
+}
+```
+
+## Combining Multiple Extensions
+
+You can place all augmentations in a single file or split them across multiple `.d.ts` files — TypeScript merges them all:
+
+```typescript
+// src/types/azura.d.ts
+declare module "azurats/types" {
+  interface AzuraRequest {
+    user?: { id: string; email: string; roles: string[] };
+    session?: { id: string; data: Record<string, unknown> };
+    locale?: string;
+  }
+
+  interface AzuraResponse {
+    success(data: unknown, message?: string): void;
+    fail(statusCode: number, error: string, details?: unknown): void;
+  }
+}
+```
+
+## Using `res.locals` for Request-Scoped Data
+
+`AzuraResponse` already provides a `locals` property typed as `Record<string, any>`. This is a lightweight alternative for attaching transient data without formal declaration merging:
+
+```typescript
+app.use((req, res, next) => {
+  res.locals.startTime = process.hrtime.bigint();
+  next();
+});
+
+app.get("/", (req, res) => {
+  const elapsed = process.hrtime.bigint() - res.locals.startTime;
+  res.json({ elapsed: Number(elapsed) / 1e6 });
+});
+```
+
+<Callout>
+`res.locals` is loosely typed (`Record<string, any>`). For properties that span many files or are critical to correctness, prefer declaration merging on `AzuraRequest` or `AzuraResponse` for strict type safety.
+</Callout>
+
+## Tips
+
+- Mark extended properties as **optional** (`?`) — middleware might not run on every route.
+- Keep your `.d.ts` file in a `src/types/` directory so it's easy to find.
+- If you use the decorator-based controller system, the extended types flow into `@Req()` and `@Res()` parameter decorators automatically.
+- Run `tsc --noEmit` in CI to catch type errors early — extended properties that fall out of sync with middleware will fail here.
+
+## Next Steps
+
+- [**Custom Servers**](/docs/en/v3/advanced/custom-servers) — HTTPS, graceful shutdown, and advanced server tuning.
+- [**Middleware**](/docs/en/v3/concepts/middleware) — Learn how middleware populates the request pipeline.

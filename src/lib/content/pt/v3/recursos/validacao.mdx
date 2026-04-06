@@ -1,0 +1,317 @@
+---
+title: Validação
+description: Validação de dados no AzuraJS v3 — DTOValidator integrado e SchemaValidator compatível com Zod e Joi
+category: Recursos
+icon: lucide:shield-check
+order: 2
+---
+
+# Validação
+
+O AzuraJS v3 oferece duas estratégias de validação integradas, sem dependências externas: o **DTOValidator** para schemas declarativos nativos e o **SchemaValidator** como adaptador universal para bibliotecas externas como Zod e Joi.
+
+## DTOValidator
+
+O `DTOValidator` permite definir schemas inline com regras tipadas. Ideal para validações rápidas sem adicionar dependências ao projeto.
+
+### Import
+
+```typescript
+import { DTOValidator } from "azurats/utils";
+import type { Schema, ValidationResult, ValidationError } from "azurats/utils";
+```
+
+### Definindo um Schema
+
+Um schema é um `Record<string, FieldRule>` onde cada chave corresponde a um campo do objeto a ser validado:
+
+```typescript
+const userSchema: Schema = {
+  name: {
+    type: "string",
+    required: true,
+    min: 2,
+    max: 100,
+    message: "Nome deve ter entre 2 e 100 caracteres",
+  },
+  email: {
+    type: "string",
+    required: true,
+    pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+    message: "Email inválido",
+  },
+  age: {
+    type: "number",
+    min: 18,
+    max: 120,
+  },
+  role: {
+    type: "string",
+    enum: ["admin", "user", "moderator"],
+  },
+  tags: {
+    type: "array",
+    min: 1,
+    max: 10,
+  },
+};
+```
+
+### Regras Disponíveis
+
+| Propriedade | Tipo | Descrição |
+| :--- | :--- | :--- |
+| `type` | `"string" \| "number" \| "boolean" \| "object" \| "array"` | Tipo esperado do campo |
+| `required` | `boolean` | Campo obrigatório (rejeita `undefined`, `null` e `""`) |
+| `min` | `number` | Valor mínimo (número), comprimento mínimo (string/array) |
+| `max` | `number` | Valor máximo (número), comprimento máximo (string/array) |
+| `pattern` | `RegExp` | Expressão regular para validação de strings |
+| `enum` | `any[]` | Lista de valores permitidos |
+| `custom` | `(value: any) => string \| null` | Função de validação customizada (retorna mensagem de erro ou `null`) |
+| `message` | `string` | Mensagem de erro padrão para o campo |
+
+### Validando Dados
+
+```typescript
+const result: ValidationResult = DTOValidator.validate(data, userSchema);
+
+if (!result.valid) {
+  console.log(result.errors);
+  // [{ field: "email", message: "Email inválido", value: "invalid" }]
+} else {
+  console.log(result.data); // dados validados
+}
+```
+
+### Interface ValidationResult
+
+```typescript
+interface ValidationResult {
+  valid: boolean;
+  errors: ValidationError[];
+  data?: any; // presente apenas quando valid === true
+}
+
+interface ValidationError {
+  field: string;
+  message: string;
+  value?: any;
+}
+```
+
+### Exemplo Completo em Rota
+
+```typescript
+import { AzuraServer } from "azurats";
+import { DTOValidator, HttpError } from "azurats/utils";
+import type { Schema } from "azurats/utils";
+
+const app = new AzuraServer();
+
+const createUserSchema: Schema = {
+  name: { type: "string", required: true, min: 2, max: 50 },
+  email: {
+    type: "string",
+    required: true,
+    pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+  },
+  password: { type: "string", required: true, min: 8 },
+  age: { type: "number", min: 18 },
+};
+
+app.post("/users", (req, res) => {
+  const { valid, errors, data } = DTOValidator.validate(req.body, createUserSchema);
+
+  if (!valid) {
+    throw HttpError.unprocessableEntity("Dados inválidos", errors);
+  }
+
+  res.status(201).json({ id: Date.now(), ...data });
+});
+
+app.listen(3000);
+```
+
+### Validação Customizada
+
+A propriedade `custom` permite lógica de validação arbitrária:
+
+```typescript
+const passwordSchema: Schema = {
+  password: {
+    type: "string",
+    required: true,
+    min: 8,
+    custom: (value: string) => {
+      if (!/[A-Z]/.test(value)) return "Deve conter ao menos uma letra maiúscula";
+      if (!/[0-9]/.test(value)) return "Deve conter ao menos um número";
+      if (!/[!@#$%^&*]/.test(value)) return "Deve conter ao menos um caractere especial";
+      return null;
+    },
+  },
+  confirmPassword: {
+    type: "string",
+    required: true,
+  },
+};
+```
+
+## SchemaValidator
+
+O `SchemaValidator` é um adaptador universal que funciona com qualquer biblioteca de validação que implemente `parse`, `safeParse` (Zod) ou `validate` (Joi).
+
+### Import
+
+```typescript
+import { SchemaValidator } from "azurats/utils";
+import type { ExternalSchema, SchemaValidationResult } from "azurats/utils";
+```
+
+### Com Zod
+
+```typescript
+import { z } from "zod";
+import { SchemaValidator } from "azurats/utils";
+
+const UserSchema = z.object({
+  name: z.string().min(2).max(50),
+  email: z.string().email(),
+  age: z.number().int().min(18).optional(),
+});
+
+app.post("/users", (req, res) => {
+  const result = SchemaValidator.validate(req.body, UserSchema);
+
+  if (!result.valid) {
+    throw HttpError.unprocessableEntity("Validação falhou", result.errors);
+  }
+
+  res.status(201).json(result.data);
+});
+```
+
+O `SchemaValidator` detecta automaticamente o método `safeParse` do Zod. Se o schema não tiver `safeParse`, tenta `parse` (que lança exceção em caso de erro).
+
+### Com Joi
+
+```typescript
+import Joi from "joi";
+import { SchemaValidator } from "azurats/utils";
+
+const userSchema = Joi.object({
+  name: Joi.string().min(2).max(50).required(),
+  email: Joi.string().email().required(),
+  age: Joi.number().integer().min(18),
+});
+
+app.post("/users", (req, res) => {
+  const result = SchemaValidator.validate(req.body, userSchema);
+
+  if (!result.valid) {
+    throw HttpError.unprocessableEntity("Validação falhou", result.errors);
+  }
+
+  res.status(201).json(result.data);
+});
+```
+
+### Interface SchemaValidationResult
+
+```typescript
+interface SchemaValidationResult {
+  valid: boolean;
+  data?: any;
+  errors?: any; // formato depende da biblioteca utilizada
+}
+```
+
+### Detecção Automática de Biblioteca
+
+O `SchemaValidator` detecta a biblioteca automaticamente pela presença dos métodos:
+
+| Prioridade | Método | Biblioteca |
+| :--- | :--- | :--- |
+| 1 | `safeParse()` | Zod (modo seguro) |
+| 2 | `parse()` | Zod (modo throw) |
+| 3 | `validate()` | Joi, Yup, e similares |
+
+## Middleware de Validação Reutilizável
+
+Crie um middleware de validação genérico para reaproveitar em várias rotas:
+
+```typescript
+import { DTOValidator, HttpError } from "azurats/utils";
+import type { Schema, MiddlewareHandler } from "azurats";
+
+function validate(schema: Schema): MiddlewareHandler {
+  return (req, res, next) => {
+    const { valid, errors } = DTOValidator.validate(req.body, schema);
+    if (!valid) {
+      throw HttpError.unprocessableEntity("Dados inválidos", errors);
+    }
+    next();
+  };
+}
+
+const createUserSchema: Schema = {
+  name: { type: "string", required: true, min: 2 },
+  email: { type: "string", required: true, pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ },
+};
+
+const updateUserSchema: Schema = {
+  name: { type: "string", min: 2 },
+  email: { type: "string", pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ },
+};
+
+app.post("/users", validate(createUserSchema), (req, res) => {
+  res.status(201).json({ id: Date.now(), ...req.body });
+});
+
+app.put("/users/:id", validate(updateUserSchema), (req, res) => {
+  res.json({ id: req.params.id, ...req.body });
+});
+```
+
+### Middleware com Zod
+
+```typescript
+import { z } from "zod";
+import { SchemaValidator, HttpError } from "azurats/utils";
+import type { MiddlewareHandler } from "azurats";
+
+function zodValidate(schema: z.ZodSchema): MiddlewareHandler {
+  return (req, res, next) => {
+    const result = SchemaValidator.validate(req.body, schema);
+    if (!result.valid) {
+      throw HttpError.unprocessableEntity("Validação falhou", result.errors);
+    }
+    req.body = result.data;
+    next();
+  };
+}
+
+const CreateUser = z.object({
+  name: z.string().min(2),
+  email: z.string().email(),
+  password: z.string().min(8),
+});
+
+app.post("/users", zodValidate(CreateUser), (req, res) => {
+  res.status(201).json({ id: Date.now(), ...req.body });
+});
+```
+
+## Comparação: DTOValidator vs SchemaValidator
+
+| Característica | DTOValidator | SchemaValidator |
+| :--- | :--- | :--- |
+| Dependências | Nenhuma | Zod, Joi, ou similar |
+| Complexidade do schema | Simples a moderada | Qualquer complexidade |
+| Inferência de tipos | Manual | Automática (Zod `z.infer`) |
+| Transformações | Não | Sim (depende da biblioteca) |
+| Mensagens customizadas | Sim (`message`) | Depende da biblioteca |
+| Validação aninhada | Não | Sim |
+
+<Callout>
+Para projetos sem dependências externas, use o `DTOValidator`. Para projetos que já utilizam Zod ou Joi, o `SchemaValidator` integra-se perfeitamente sem forçar migração.
+</Callout>

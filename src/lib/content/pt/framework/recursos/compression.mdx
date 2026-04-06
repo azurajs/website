@@ -1,0 +1,240 @@
+---
+title: Compressão
+description: Compressão de respostas no AzuraJS v3 — CompressionPlugin com Gzip e Deflate, threshold configurável e filtros
+category: Recursos
+icon: lucide:file-archive
+order: 9
+---
+
+# Compressão
+
+O **CompressionPlugin** comprime automaticamente as respostas HTTP utilizando **Gzip** ou **Deflate**, reduzindo significativamente o tamanho das respostas e o consumo de banda. Construído com `node:zlib`, sem dependências externas.
+
+## Início Rápido
+
+```typescript
+import { AzuraServer } from "azurats";
+import { CompressionPlugin } from "azurats/plugins";
+
+const app = new AzuraServer();
+
+app.plugin(CompressionPlugin({ threshold: 1024 }));
+
+app.get("/api/dados", (req, res) => {
+  res.json({ data: "muitos dados aqui...".repeat(100) });
+});
+
+app.listen(3000);
+```
+
+## Opções
+
+```typescript
+interface CompressionOptions {
+  threshold?: number;
+  level?: number;
+  algorithms?: ("gzip" | "deflate" | "br")[];
+  filter?: (req: AzuraRequest, res: AzuraResponse) => boolean;
+}
+```
+
+| Opção | Tipo | Padrão | Descrição |
+| :--- | :--- | :--- | :--- |
+| `threshold` | `number` | `1024` | Tamanho mínimo em bytes para comprimir |
+| `level` | `number` | `6` | Nível de compressão (0-9) |
+| `algorithms` | `string[]` | `["gzip", "deflate"]` | Algoritmos suportados, em ordem de preferência |
+| `filter` | `function` | — | Função para decidir se a resposta deve ser comprimida |
+
+## Como Funciona
+
+1. O plugin verifica o header `Accept-Encoding` da requisição
+2. Seleciona o primeiro algoritmo suportado pelo cliente (na ordem configurada)
+3. Intercepta `res.end()` para comprimir o corpo da resposta
+4. Se o corpo for menor que `threshold`, retorna sem comprimir
+5. Se o `Content-Type` não for compressível, retorna sem comprimir
+6. Define `Content-Encoding`, `Vary: Accept-Encoding` e atualiza `Content-Length`
+
+### Tipos Compressíveis
+
+O plugin comprime automaticamente respostas com estes Content-Types:
+
+- `text/*` (text/html, text/plain, text/css, etc.)
+- `application/json`
+- `application/javascript`
+- `application/xml`
+- `image/svg+xml`
+
+Tipos binários como `image/png`, `image/jpeg`, `application/zip` não são comprimidos pois já estão em formato compacto.
+
+## Threshold
+
+O `threshold` define o tamanho mínimo para compressão. Respostas menores que este valor não são comprimidas, evitando overhead desnecessário:
+
+```typescript
+// Comprimir apenas respostas maiores que 2KB
+app.plugin(CompressionPlugin({ threshold: 2048 }));
+
+// Comprimir tudo (não recomendado)
+app.plugin(CompressionPlugin({ threshold: 0 }));
+```
+
+<Callout>
+Comprimir respostas muito pequenas pode na verdade **aumentar** o tamanho total (overhead dos headers de compressão). O valor padrão de 1024 bytes é um bom equilíbrio.
+</Callout>
+
+## Nível de Compressão
+
+O nível varia de 0 (sem compressão) a 9 (máxima compressão):
+
+| Nível | Velocidade | Compressão | Uso Recomendado |
+| :--- | :--- | :--- | :--- |
+| 1 | Muito rápido | Baixa | APIs de alta frequência |
+| 4 | Rápido | Moderada | Equilíbrio para APIs |
+| 6 | Moderado | Boa | **Padrão** — bom equilíbrio geral |
+| 9 | Lento | Máxima | Conteúdo estático pré-comprimido |
+
+```typescript
+// Alta performance, compressão menor
+app.plugin(CompressionPlugin({ level: 1 }));
+
+// Máxima compressão
+app.plugin(CompressionPlugin({ level: 9 }));
+```
+
+## Algoritmos
+
+Os algoritmos são verificados na ordem configurada contra o header `Accept-Encoding` do cliente:
+
+```typescript
+// Preferir gzip (padrão)
+app.plugin(CompressionPlugin({
+  algorithms: ["gzip", "deflate"],
+}));
+
+// Preferir deflate
+app.plugin(CompressionPlugin({
+  algorithms: ["deflate", "gzip"],
+}));
+```
+
+### Negociação de Encoding
+
+O plugin seleciona o primeiro algoritmo da lista que o cliente suporta. Por exemplo, com `algorithms: ["gzip", "deflate"]`:
+
+- `Accept-Encoding: gzip, deflate` → usa **gzip**
+- `Accept-Encoding: deflate` → usa **deflate**
+- `Accept-Encoding: identity` → sem compressão
+
+## Filtro Customizado
+
+Use `filter` para controlar quais requisições/respostas são comprimidas:
+
+```typescript
+app.plugin(CompressionPlugin({
+  threshold: 1024,
+  filter: (req, res) => {
+    // Não comprimir respostas de streaming
+    if (req.headers["x-no-compression"]) return false;
+
+    // Não comprimir respostas já comprimidas
+    if (res.getHeader("Content-Encoding")) return false;
+
+    return true;
+  },
+}));
+```
+
+## Headers de Resposta
+
+Quando a compressão é aplicada, o plugin modifica os headers:
+
+| Header | Ação |
+| :--- | :--- |
+| `Content-Encoding` | Definido como `gzip` ou `deflate` |
+| `Vary` | Definido como `Accept-Encoding` |
+| `Content-Length` | Atualizado para o tamanho comprimido |
+
+## Exemplos Práticos
+
+### API com Compressão
+
+```typescript
+import { AzuraServer } from "azurats";
+import { CompressionPlugin, CORSPlugin, HelmetPlugin } from "azurats/plugins";
+
+const app = new AzuraServer();
+
+app.plugin(HelmetPlugin());
+app.plugin(CORSPlugin({ origins: "*" }));
+app.plugin(CompressionPlugin({ threshold: 1024, level: 6 }));
+
+app.get("/api/products", (req, res) => {
+  const products = Array.from({ length: 1000 }, (_, i) => ({
+    id: i + 1,
+    name: `Produto ${i + 1}`,
+    price: Math.round(Math.random() * 10000) / 100,
+    description: `Descrição detalhada do produto ${i + 1}`,
+  }));
+
+  res.json({ products, total: products.length });
+  // Sem compressão: ~95KB
+  // Com gzip: ~12KB (redução de ~87%)
+});
+
+app.listen(3000);
+```
+
+### Compressão Condicional por Rota
+
+```typescript
+app.plugin(CompressionPlugin({
+  threshold: 512,
+  filter: (req) => {
+    // Não comprimir SSE e WebSocket upgrade
+    if (req.headers.accept === "text/event-stream") return false;
+    if (req.headers.upgrade) return false;
+    return true;
+  },
+}));
+```
+
+### Monitorando Tamanho das Respostas
+
+```typescript
+import { Logger } from "azurats/utils";
+
+const logger = new Logger({ prefix: "compression" });
+
+app.plugin(CompressionPlugin({ threshold: 1024 }));
+
+app.use((req, res, next) => {
+  const originalEnd = res.end;
+  (res as any).end = function (...args: any[]) {
+    const encoding = res.getHeader("Content-Encoding");
+    const length = res.getHeader("Content-Length");
+    if (encoding) {
+      logger.debug(`${req.pathname} compressed with ${encoding}: ${length} bytes`);
+    }
+    return (originalEnd as any).apply(this, args);
+  };
+  next();
+});
+```
+
+## Performance
+
+### Impacto no Throughput
+
+| Cenário | Sem Compressão | Com Gzip (L6) | Redução |
+| :--- | :--- | :--- | :--- |
+| JSON (1KB) | 1KB | ~600B | ~40% |
+| JSON (10KB) | 10KB | ~2KB | ~80% |
+| JSON (100KB) | 100KB | ~12KB | ~88% |
+| HTML (50KB) | 50KB | ~8KB | ~84% |
+
+### Recomendações
+
+- **APIs**: `threshold: 1024`, `level: 4-6` — bom equilíbrio entre CPU e rede
+- **Conteúdo estático**: use `StaticPlugin` com cache ao invés de comprimir em cada requisição
+- **Respostas pequenas**: mantenha `threshold >= 1024` para evitar overhead
+- **Alta carga**: considere `level: 1-3` para minimizar uso de CPU

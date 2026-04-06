@@ -1,0 +1,212 @@
+---
+title: Importações Modulares
+description: Otimize o tamanho do seu bundle com os 8 subcaminhos de importação do AzuraJS
+category: Avançado
+icon: lucide:box
+order: 1
+---
+
+# Importações Modulares 📦
+
+O AzuraJS v3 expõe **8 subcaminhos de importação** via `exports` no `package.json`. Cada subcaminho aponta para um módulo isolado com declarações de tipo dedicadas, permitindo que bundlers realizem tree-shaking completo e que o TypeScript resolva tipos sem configuração extra.
+
+## Mapa de Subcaminhos
+
+| Subcaminho | Descrição | Exports principais |
+|---|---|---|
+| `azurats` | Reexporta tudo — conveniente para prototipação | `AzuraServer`, `Router`, todos os decorators, plugins, utils, types |
+| `azurats/core` | Núcleo do servidor e roteador | `AzuraServer`, `Router` |
+| `azurats/plugins` | Plugins oficiais | `CORSPlugin`, `RateLimitPlugin`, `HelmetPlugin`, `JWTPlugin`, `SessionPlugin`, `CompressionPlugin`, `StaticPlugin`, `ETagPlugin`, `RequestIdPlugin`, `TimeoutPlugin`, `HealthCheckPlugin`, `CircuitBreakerPlugin`, `SSEPlugin`, `SSEManager`, `ProxyPlugin`, `MultipartPlugin`, `signJWT`, `verifyJWT` |
+| `azurats/decorators` | Decorators de classe, método e parâmetro | `Controller`, `Get`, `Post`, `Put`, `Delete`, `Patch`, `Head`, `Options`, `Body`, `Query`, `Param`, `Headers`, `Cookies`, `Req`, `Res`, `NextFunc`, `Ip`, `Session`, `UseMiddleware`, `applyDecorators`, `Meta` |
+| `azurats/types` | Interfaces, enums e type aliases | `AzuraRequest`, `AzuraResponse`, `NextFunction`, `MiddlewareHandler`, `RouteHandler`, `ErrorHandler`, `HttpMethod`, `HttpStatus`, `HttpStatusText`, `AzuraConfig`, `ServerConfig`, `CORSOptions`, `RateLimitOptions` e 20+ tipos de plugin |
+| `azurats/utils` | Utilitários e validação | `Logger`, `HttpError`, `resolveIp`, `parseQueryString`, `parseCookies`, `parseBody`, `parseUrl`, `serializeCookie`, `clearCookieHeader`, `DTOValidator`, `SchemaValidator` |
+| `azurats/config` | Módulo de configuração | `ConfigModule` |
+| `azurats/middleware` | Middlewares embutidos | `LoggingMiddleware` |
+
+## Importação Completa vs. Modular
+
+### Importação Completa (não recomendado para produção)
+
+```typescript
+import {
+  AzuraServer,
+  Controller,
+  Get,
+  CORSPlugin,
+  HttpError,
+  ConfigModule,
+} from "azurats";
+```
+
+Funciona perfeitamente, mas o bundler precisa analisar o módulo raiz inteiro para determinar o que descartar.
+
+### Importação Modular (recomendado)
+
+```typescript
+import { AzuraServer } from "azurats/core";
+import { Controller, Get, Body, Param } from "azurats/decorators";
+import { CORSPlugin, RateLimitPlugin } from "azurats/plugins";
+import { HttpError } from "azurats/utils";
+import type { AzuraRequest, AzuraResponse } from "azurats/types";
+```
+
+Cada `import` resolve para um arquivo de entrada menor. O bundler (esbuild, Rollup, webpack) faz tree-shaking apenas no subconjunto importado.
+
+## Detalhamento por Subcaminho
+
+### `azurats/core`
+
+```typescript
+import { AzuraServer, Router } from "azurats/core";
+
+const app = new AzuraServer({ server: { port: 3000 } });
+
+const apiRouter = new Router();
+apiRouter.add("GET", "/health", (req, res) => res.json({ ok: true }));
+```
+
+`AzuraServer` é a classe principal que gerencia o ciclo de vida HTTP. `Router` é o roteador radix-tree de alta performance utilizado internamente.
+
+### `azurats/plugins`
+
+```typescript
+import { CORSPlugin, HelmetPlugin, JWTPlugin, signJWT } from "azurats/plugins";
+
+app.plugin(CORSPlugin({ origin: "*" }));
+app.plugin(HelmetPlugin());
+app.plugin(JWTPlugin({ secret: process.env.JWT_SECRET! }));
+
+const token = signJWT({ userId: "123" }, process.env.JWT_SECRET!);
+```
+
+Cada plugin é uma factory que retorna um `PluginHandler`. A lista completa inclui 16 plugins oficiais: CORS, Rate Limit, Helmet, JWT, Session, Compression, Static, ETag, Request ID, Timeout, Health Check, Circuit Breaker, SSE, Proxy e Multipart.
+
+### `azurats/decorators`
+
+```typescript
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  UseMiddleware,
+  Meta,
+} from "azurats/decorators";
+
+@Controller("/users")
+class UserController {
+  @Get("/:id")
+  findOne(@Param("id") id: string) {
+    return { id };
+  }
+
+  @Post()
+  @Meta({ roles: ["admin"] })
+  create(@Body() data: unknown) {
+    return { created: true, data };
+  }
+}
+```
+
+Decorators disponíveis: **Classe** — `Controller`, `UseMiddleware`; **Método** — `Get`, `Post`, `Put`, `Delete`, `Patch`, `Head`, `Options`, `Meta`; **Parâmetro** — `Body`, `Query`, `Param`, `Headers`, `Cookies`, `Req`, `Res`, `NextFunc`, `Ip`, `Session`.
+
+### `azurats/types`
+
+```typescript
+import type {
+  AzuraRequest,
+  AzuraResponse,
+  MiddlewareHandler,
+  ErrorHandler,
+  HttpMethod,
+  AzuraConfig,
+  CORSOptions,
+} from "azurats/types";
+import { HttpStatus, HttpStatusText } from "azurats/types";
+
+const notFound: number = HttpStatus.NOT_FOUND; // 404
+const text: string = HttpStatusText[404]; // "Not Found"
+```
+
+Este subcaminho exporta **apenas tipos** (com exceção de `HttpStatus` e `HttpStatusText`), então seu impacto no bundle é praticamente zero.
+
+### `azurats/utils`
+
+```typescript
+import { HttpError, Logger, DTOValidator } from "azurats/utils";
+import type { Schema, ValidationResult } from "azurats/utils";
+
+throw HttpError.badRequest("Campo 'email' é obrigatório");
+
+const logger = new Logger({ level: "debug", colors: true });
+logger.info("Servidor inicializado");
+
+const schema: Schema = {
+  name: { type: "string", required: true },
+  age: { type: "number", min: 0 },
+};
+const result: ValidationResult = DTOValidator.validate(schema, body);
+```
+
+Inclui também funções de parsing (`parseBody`, `parseQueryString`, `parseCookies`, `parseUrl`) e gerenciamento de cookies (`serializeCookie`, `clearCookieHeader`).
+
+### `azurats/config`
+
+```typescript
+import { ConfigModule } from "azurats/config";
+
+const config = await ConfigModule.load();
+
+ConfigModule.merge({
+  server: { port: 8080 },
+  logging: { level: "debug" },
+});
+```
+
+O `ConfigModule` é um singleton que carrega automaticamente de `azura.config.ts`, `.js`, `.mjs`, `.json`, `.yaml` ou `.yml`.
+
+### `azurats/middleware`
+
+```typescript
+import { LoggingMiddleware } from "azurats/middleware";
+
+app.use(LoggingMiddleware());
+```
+
+Middlewares embutidos prontos para uso. Atualmente expõe o `LoggingMiddleware` para log automático de requisições.
+
+## Tree-Shaking na Prática
+
+Considere um projeto que usa apenas o servidor, CORS e dois decorators:
+
+```typescript
+import { AzuraServer } from "azurats/core";
+import { Controller, Get } from "azurats/decorators";
+import { CORSPlugin } from "azurats/plugins";
+```
+
+Neste cenário, o bundler **não inclui** no output final: os outros 15 plugins, os 19 decorators não importados, `Logger`, `HttpError`, `DTOValidator`, `SchemaValidator`, `ConfigModule`, `LoggingMiddleware` nem nenhuma das 30+ interfaces de tipo.
+
+<Callout type="tip" title="Dica de Performance">
+  Para builds de produção com `tsup`, `esbuild` ou `rollup`, importações modulares podem reduzir o tamanho do bundle em **40-60%** comparado com `import * from "azurats"`.
+</Callout>
+
+## Compatibilidade com CommonJS e ESM
+
+Todos os subcaminhos suportam ambos os sistemas de módulos:
+
+```typescript
+// ESM
+import { AzuraServer } from "azurats/core";
+
+// CommonJS
+const { AzuraServer } = require("azurats/core");
+```
+
+O campo `exports` no `package.json` usa condições `import` (ESM) e `require` (CJS), com `types` dedicado para cada um.
+
+## Próximos Passos 📖
+
+- [🛠️ **Suporte TypeScript**](/docs/pt/v3/avancado/suporte-typescript): Veja como o TypeScript é fundamental para o desenvolvimento com AzuraJS.
+- [🧬 **Extensões de Tipo**](/docs/pt/v3/avancado/extensoes-de-tipo): Aprenda a estender `AzuraRequest` e `AzuraResponse` com propriedades personalizadas.

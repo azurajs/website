@@ -1,0 +1,374 @@
+---
+title: Server-Sent Events
+description: Server-Sent Events no AzuraJS v3 — SSEPlugin, SSEManager, broadcast e gerenciamento de clientes em tempo real
+category: Recursos
+icon: lucide:radio
+order: 12
+---
+
+# Server-Sent Events (SSE)
+
+O **SSEPlugin** e o **SSEManager** permitem comunicação em tempo real do servidor para o cliente via o protocolo Server-Sent Events. Ideal para notificações, dashboards em tempo real, feeds de atividade e atualizações de progresso.
+
+## Início Rápido
+
+```typescript
+import { AzuraServer } from "azurats";
+import { SSEPlugin } from "azurats/plugins";
+
+const app = new AzuraServer();
+
+const sse = SSEPlugin({
+  path: "/events",
+  heartbeatInterval: 30_000,
+});
+
+app.plugin(sse);
+
+// Acessar o manager para broadcast
+setInterval(() => {
+  sse.manager.broadcast("time", { now: new Date().toISOString() });
+}, 5000);
+
+app.listen(3000);
+```
+
+## SSEPlugin — Opções
+
+```typescript
+interface SSEOptions {
+  path: string;
+  heartbeatInterval?: number;
+  retry?: number;
+  maxClients?: number;
+}
+```
+
+| Opção | Tipo | Padrão | Descrição |
+| :--- | :--- | :--- | :--- |
+| `path` | `string` | — | **Obrigatório.** Rota para conexões SSE |
+| `heartbeatInterval` | `number` | `30000` | Intervalo de heartbeat em ms (0 para desabilitar) |
+| `retry` | `number` | `3000` | Tempo de reconexão sugerido ao cliente em ms |
+| `maxClients` | `number` | `1000` | Número máximo de clientes simultâneos |
+
+## Como Funciona
+
+1. O cliente conecta via `GET /events`
+2. O plugin verifica o limite de clientes
+3. Configura os headers SSE: `Content-Type: text/event-stream`, `Cache-Control: no-cache`, `Connection: keep-alive`
+4. Envia `retry: 3000` para configurar a reconexão automática
+5. Envia evento `connected` com o ID do cliente
+6. Heartbeats periódicos mantêm a conexão ativa
+
+### Headers de Resposta
+
+```
+Content-Type: text/event-stream
+Cache-Control: no-cache
+Connection: keep-alive
+X-Accel-Buffering: no
+```
+
+O header `X-Accel-Buffering: no` previne que proxies como Nginx façam buffer da resposta.
+
+## SSEManager
+
+O `SSEManager` gerencia todos os clientes conectados e permite envio de mensagens:
+
+```typescript
+import { SSEManager } from "azurats/plugins";
+
+const manager = new SSEManager();
+```
+
+### Métodos
+
+| Método | Descrição |
+| :--- | :--- |
+| `addClient(res)` | Adiciona um cliente e retorna `SSEClient` |
+| `broadcast(event, data, id?)` | Envia evento para **todos** os clientes |
+| `getClient(id)` | Busca um cliente pelo ID |
+| `getClientCount()` | Retorna o número de clientes conectados |
+| `closeAll()` | Fecha todas as conexões |
+
+## SSEClient
+
+Cada cliente conectado é representado pela interface `SSEClient`:
+
+```typescript
+interface SSEClient {
+  id: string;
+  res: AzuraResponse;
+  send(event: string, data: any, id?: string): void;
+  close(): void;
+}
+```
+
+### Enviando Eventos
+
+```typescript
+const client = manager.addClient(res);
+
+// Enviar evento com tipo e dados
+client.send("notification", { message: "Nova mensagem!" });
+
+// Enviar com ID de evento (para reconexão)
+client.send("update", { version: 2 }, "evt-123");
+
+// Fechar conexão
+client.close();
+```
+
+### Formato do Evento
+
+O protocolo SSE envia dados no formato:
+
+```
+id: evt-123
+event: notification
+data: {"message":"Nova mensagem!"}
+
+```
+
+Dados objetos são serializados automaticamente com `JSON.stringify`.
+
+## Broadcast
+
+Enviar mensagem para todos os clientes conectados:
+
+```typescript
+const sse = SSEPlugin({ path: "/events" });
+app.plugin(sse);
+
+// Broadcast simples
+sse.manager.broadcast("notification", {
+  title: "Atualização do sistema",
+  message: "Nova versão disponível",
+});
+
+// Broadcast com ID de evento
+sse.manager.broadcast("update", { data: "..." }, "evt-456");
+```
+
+## Gerenciamento de Clientes
+
+### Contagem de Clientes
+
+```typescript
+app.get("/stats", (req, res) => {
+  res.json({
+    connectedClients: sse.manager.getClientCount(),
+  });
+});
+```
+
+### Envio Direcionado
+
+```typescript
+app.post("/notify/:clientId", (req, res) => {
+  const client = sse.manager.getClient(req.params.clientId);
+
+  if (!client) {
+    res.status(404).json({
+      error: { message: "Cliente não encontrado" },
+    });
+    return;
+  }
+
+  client.send("private", req.body);
+  res.json({ sent: true });
+});
+```
+
+### Desconexão Automática
+
+Quando um cliente desconecta, ele é automaticamente removido do `SSEManager` via listener no evento `close` do response:
+
+```typescript
+// Internamente, o SSEManager faz:
+res.on("close", () => {
+  this.clients.delete(id);
+});
+```
+
+### Limite de Clientes
+
+Quando o limite `maxClients` é atingido, novas conexões recebem:
+
+```json
+{
+  "error": {
+    "statusCode": 503,
+    "message": "Too many SSE connections"
+  }
+}
+```
+
+## Heartbeat
+
+O heartbeat envia um evento periódico para manter a conexão viva e detectar clientes desconectados:
+
+```typescript
+const sse = SSEPlugin({
+  path: "/events",
+  heartbeatInterval: 15_000, // a cada 15 segundos
+});
+```
+
+O evento de heartbeat é:
+
+```
+event: heartbeat
+data: {"time":1704067200000}
+
+```
+
+Para desabilitar o heartbeat:
+
+```typescript
+const sse = SSEPlugin({
+  path: "/events",
+  heartbeatInterval: 0,
+});
+```
+
+## Cliente (Frontend)
+
+### EventSource Nativo
+
+```javascript
+const eventSource = new EventSource("/events");
+
+eventSource.addEventListener("connected", (e) => {
+  const { clientId } = JSON.parse(e.data);
+  console.log("Conectado com ID:", clientId);
+});
+
+eventSource.addEventListener("notification", (e) => {
+  const data = JSON.parse(e.data);
+  console.log("Notificação:", data);
+});
+
+eventSource.addEventListener("heartbeat", (e) => {
+  console.log("Heartbeat recebido");
+});
+
+eventSource.onerror = () => {
+  console.log("Conexão perdida. Reconectando...");
+};
+```
+
+### Com React
+
+```typescript
+import { useEffect, useState } from "react";
+
+function useSSE<T>(url: string, event: string): T | null {
+  const [data, setData] = useState<T | null>(null);
+
+  useEffect(() => {
+    const es = new EventSource(url);
+
+    es.addEventListener(event, (e) => {
+      setData(JSON.parse(e.data));
+    });
+
+    return () => es.close();
+  }, [url, event]);
+
+  return data;
+}
+
+function Dashboard() {
+  const metrics = useSSE<{ cpu: number; memory: number }>("/events", "metrics");
+
+  if (!metrics) return <p>Conectando...</p>;
+
+  return (
+    <div>
+      <p>CPU: {metrics.cpu}%</p>
+      <p>Memória: {metrics.memory}MB</p>
+    </div>
+  );
+}
+```
+
+## Exemplos Práticos
+
+### Dashboard em Tempo Real
+
+```typescript
+import { AzuraServer } from "azurats";
+import { SSEPlugin } from "azurats/plugins";
+
+const app = new AzuraServer();
+
+const sse = SSEPlugin({
+  path: "/events",
+  heartbeatInterval: 30_000,
+  maxClients: 500,
+});
+
+app.plugin(sse);
+
+// Enviar métricas a cada segundo
+setInterval(() => {
+  sse.manager.broadcast("metrics", {
+    cpu: process.cpuUsage(),
+    memory: process.memoryUsage(),
+    uptime: process.uptime(),
+    clients: sse.manager.getClientCount(),
+    timestamp: Date.now(),
+  });
+}, 1000);
+
+app.listen(3000);
+```
+
+### Sistema de Notificações
+
+```typescript
+const sse = SSEPlugin({ path: "/notifications/stream" });
+app.plugin(sse);
+
+app.post("/notifications", (req, res) => {
+  const { title, message, target } = req.body;
+
+  if (target === "all") {
+    sse.manager.broadcast("notification", { title, message });
+  } else {
+    const client = sse.manager.getClient(target);
+    client?.send("notification", { title, message });
+  }
+
+  res.json({ sent: true });
+});
+```
+
+### Feed de Atividades
+
+```typescript
+const sse = SSEPlugin({ path: "/feed" });
+app.plugin(sse);
+
+app.post("/posts", (req, res) => {
+  const post = { id: Date.now(), ...req.body, createdAt: new Date().toISOString() };
+
+  // Notificar todos os clientes conectados sobre o novo post
+  sse.manager.broadcast("new-post", post);
+
+  res.status(201).json(post);
+});
+
+app.post("/comments", (req, res) => {
+  const comment = { id: Date.now(), ...req.body };
+
+  sse.manager.broadcast("new-comment", comment);
+
+  res.status(201).json(comment);
+});
+```
+
+<Callout>
+O SSE é unidirecional (servidor → cliente). Para comunicação bidirecional, considere WebSockets. O SSE é ideal quando o servidor é a fonte principal de dados e o cliente apenas recebe atualizações.
+</Callout>

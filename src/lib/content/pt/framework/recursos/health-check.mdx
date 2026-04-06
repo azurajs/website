@@ -1,0 +1,317 @@
+---
+title: Health Check
+description: Monitoramento de saúde no AzuraJS v3 — HealthCheckPlugin com checks customizados, timeout e formato de resposta
+category: Recursos
+icon: lucide:heart-pulse
+order: 13
+---
+
+# Health Check
+
+O **HealthCheckPlugin** expõe um endpoint de verificação de saúde da aplicação. Suporta checks customizados de dependências (banco de dados, cache, APIs externas), timeout por check e resposta estruturada com métricas do processo.
+
+## Início Rápido
+
+```typescript
+import { AzuraServer } from "azurats";
+import { HealthCheckPlugin } from "azurats/plugins";
+
+const app = new AzuraServer();
+
+app.plugin(HealthCheckPlugin());
+
+app.listen(3000);
+// GET /health → { status: "healthy", timestamp: "...", uptime: 123.4, ... }
+```
+
+## Opções
+
+```typescript
+interface HealthCheckOptions {
+  path?: string;
+  checks?: Record<string, () => Promise<boolean> | boolean>;
+  timeout?: number;
+}
+```
+
+| Opção | Tipo | Padrão | Descrição |
+| :--- | :--- | :--- | :--- |
+| `path` | `string` | `"/health"` | Rota do endpoint de saúde |
+| `checks` | `Record<string, function>` | `{}` | Checks customizados de dependências |
+| `timeout` | `number` | `5000` | Timeout por check em milissegundos |
+
+## Formato de Resposta
+
+### Aplicação Saudável (200)
+
+```json
+{
+  "status": "healthy",
+  "timestamp": "2026-04-04T12:00:00.000Z",
+  "uptime": 3600.5,
+  "memory": {
+    "rss": 45678592,
+    "heapTotal": 20971520,
+    "heapUsed": 15728640,
+    "external": 1048576,
+    "arrayBuffers": 524288
+  },
+  "checks": {
+    "database": {
+      "status": "healthy",
+      "duration": 5
+    },
+    "redis": {
+      "status": "healthy",
+      "duration": 2
+    }
+  }
+}
+```
+
+### Aplicação com Problemas (503)
+
+```json
+{
+  "status": "unhealthy",
+  "timestamp": "2026-04-04T12:00:00.000Z",
+  "uptime": 3600.5,
+  "memory": {
+    "rss": 45678592,
+    "heapTotal": 20971520,
+    "heapUsed": 15728640,
+    "external": 1048576,
+    "arrayBuffers": 524288
+  },
+  "checks": {
+    "database": {
+      "status": "healthy",
+      "duration": 5
+    },
+    "redis": {
+      "status": "unhealthy",
+      "duration": 5001
+    }
+  }
+}
+```
+
+### Campos da Resposta
+
+| Campo | Tipo | Descrição |
+| :--- | :--- | :--- |
+| `status` | `"healthy" \| "unhealthy"` | Status geral — `"unhealthy"` se **qualquer** check falhar |
+| `timestamp` | `string` | Timestamp ISO 8601 da verificação |
+| `uptime` | `number` | Tempo de atividade do processo em segundos |
+| `memory` | `object` | Dados de `process.memoryUsage()` |
+| `checks` | `object` | Resultados individuais de cada check |
+
+## Checks Customizados
+
+Cada check é uma função que retorna `boolean` ou `Promise<boolean>`:
+
+```typescript
+app.plugin(HealthCheckPlugin({
+  checks: {
+    database: async () => {
+      await db.query("SELECT 1");
+      return true;
+    },
+
+    redis: async () => {
+      const result = await redis.ping();
+      return result === "PONG";
+    },
+
+    memory: () => {
+      return process.memoryUsage().heapUsed < 500 * 1024 * 1024;
+    },
+
+    diskSpace: async () => {
+      const { execSync } = await import("child_process");
+      const output = execSync("df -h /").toString();
+      const usagePercent = parseInt(output.split("\n")[1].split(/\s+/)[4]);
+      return usagePercent < 90;
+    },
+  },
+}));
+```
+
+### Resultado dos Checks
+
+Cada check produz um resultado com:
+
+| Campo | Tipo | Descrição |
+| :--- | :--- | :--- |
+| `status` | `"healthy" \| "unhealthy"` | Resultado individual |
+| `duration` | `number` | Tempo de execução em milissegundos |
+
+Um check é marcado como `"unhealthy"` quando:
+- Retorna `false`
+- Lança uma exceção
+- Excede o timeout configurado
+
+## Timeout
+
+O `timeout` define o tempo máximo que cada check pode levar:
+
+```typescript
+app.plugin(HealthCheckPlugin({
+  timeout: 3000, // 3 segundos por check
+  checks: {
+    externalApi: async () => {
+      const res = await fetch("https://api.example.com/health");
+      return res.ok;
+    },
+  },
+}));
+```
+
+Se um check excede o timeout, ele é automaticamente marcado como `"unhealthy"` com duração igual ao timeout.
+
+## Headers de Resposta
+
+O plugin define headers para prevenir caching:
+
+```
+Content-Type: application/json
+Cache-Control: no-cache, no-store
+```
+
+## Status Code
+
+| Condição | Status Code |
+| :--- | :--- |
+| Todos os checks saudáveis | `200 OK` |
+| Qualquer check falhou | `503 Service Unavailable` |
+
+## Exemplos Práticos
+
+### Monitoramento Completo
+
+```typescript
+import { AzuraServer } from "azurats";
+import { HealthCheckPlugin, HelmetPlugin, CORSPlugin } from "azurats/plugins";
+
+const app = new AzuraServer();
+
+app.plugin(HelmetPlugin());
+app.plugin(CORSPlugin({ origins: "*" }));
+
+app.plugin(HealthCheckPlugin({
+  path: "/health",
+  timeout: 5000,
+  checks: {
+    database: async () => {
+      try {
+        await db.query("SELECT 1");
+        return true;
+      } catch {
+        return false;
+      }
+    },
+
+    redis: async () => {
+      try {
+        return (await redis.ping()) === "PONG";
+      } catch {
+        return false;
+      }
+    },
+
+    memory: () => {
+      const { heapUsed } = process.memoryUsage();
+      return heapUsed < 512 * 1024 * 1024; // < 512MB
+    },
+
+    eventLoop: () => {
+      return process.uptime() > 0;
+    },
+  },
+}));
+
+app.listen(3000);
+```
+
+### Check Apenas de Liveness
+
+Para load balancers que precisam apenas saber se o processo está vivo:
+
+```typescript
+app.plugin(HealthCheckPlugin({
+  path: "/healthz",
+}));
+// Retorna sempre 200 se o processo está respondendo
+```
+
+### Check de Readiness
+
+Para Kubernetes readiness probes com verificação de dependências:
+
+```typescript
+app.plugin(HealthCheckPlugin({
+  path: "/ready",
+  timeout: 3000,
+  checks: {
+    database: async () => {
+      await db.query("SELECT 1");
+      return true;
+    },
+    migrations: async () => {
+      return await db.areMigrationsCurrent();
+    },
+    cache: async () => {
+      return (await redis.ping()) === "PONG";
+    },
+  },
+}));
+```
+
+### Múltiplos Endpoints
+
+```typescript
+// Liveness — processo está vivo?
+app.plugin(HealthCheckPlugin({
+  path: "/healthz",
+}));
+
+// Readiness — pronto para receber tráfego?
+app.plugin(HealthCheckPlugin({
+  path: "/ready",
+  checks: {
+    database: async () => {
+      await db.query("SELECT 1");
+      return true;
+    },
+  },
+}));
+```
+
+### Integração com Docker
+
+```dockerfile
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD curl -f http://localhost:3000/health || exit 1
+```
+
+### Integração com Kubernetes
+
+```yaml
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: 3000
+  initialDelaySeconds: 10
+  periodSeconds: 15
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 3000
+  initialDelaySeconds: 5
+  periodSeconds: 10
+```
+
+<Callout>
+Health checks sem `checks` customizados ainda retornam informações valiosas como uptime, memória e timestamp. Use-os como liveness probes e reserve checks de dependências para readiness probes.
+</Callout>

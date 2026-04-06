@@ -1,0 +1,426 @@
+---
+title: Configuration
+description: Complete reference for the AzuraJS v3 configuration system — AzuraConfig interface, config files, and all available options.
+category: Getting Started
+icon: settings
+order: 3
+---
+
+# Configuration
+
+AzuraJS v3 features a flexible configuration system that supports TypeScript, JavaScript, JSON, and YAML config files. Configuration can be passed directly to the `AzuraServer` constructor or loaded automatically from a config file in your project root.
+
+## Configuration Methods
+
+There are two ways to configure your AzuraJS application:
+
+### 1. Constructor Configuration
+
+Pass an `AzuraConfig` object directly to the `AzuraServer` constructor:
+
+```typescript
+import { AzuraServer } from "azurats";
+
+const app = new AzuraServer({
+  environment: "production",
+  server: {
+    port: 8080,
+    host: "0.0.0.0",
+    keepAliveTimeout: 72000,
+  },
+  logging: {
+    level: "warn",
+    requestLogging: true,
+  },
+  debug: false,
+});
+```
+
+### 2. Config File (Auto-Loaded)
+
+Create a config file in your project root. The `ConfigModule` searches for files in the following order and uses the **first one found**:
+
+| Priority | Filename | Format |
+|---|---|---|
+| 1 | `azura.config.ts` | TypeScript (ESM) |
+| 2 | `azura.config.js` | JavaScript (ESM/CJS) |
+| 3 | `azura.config.mjs` | JavaScript (ESM) |
+| 4 | `azura.config.json` | JSON |
+| 5 | `azura.config.yaml` | YAML |
+| 6 | `azura.config.yml` | YAML |
+
+<Callout type="info" title="TypeScript config files">
+  TypeScript config files (`azura.config.ts`) require a runtime that can execute `.ts` directly (like tsx or Bun). When running compiled JavaScript in production, use `azura.config.js` or `azura.config.json` instead.
+</Callout>
+
+## Config File Examples
+
+<Tabs items={["TypeScript", "JavaScript", "JSON", "YAML"]}>
+<Tab value="TypeScript">
+```typescript
+// azura.config.ts
+import type { AzuraConfig } from "azurats/types";
+
+const config: AzuraConfig = {
+  environment: "development",
+  server: {
+    port: 3000,
+    host: "0.0.0.0",
+    keepAliveTimeout: 72000,
+    headersTimeout: 75000,
+    requestTimeout: 30000,
+  },
+  logging: {
+    enabled: true,
+    level: "debug",
+    timestamp: true,
+    colors: true,
+    requestLogging: true,
+  },
+  plugins: {
+    cors: {
+      enabled: true,
+      origins: "*",
+    },
+    rateLimit: {
+      enabled: true,
+      windowMs: 60000,
+      max: 100,
+    },
+  },
+  debug: true,
+};
+
+export default config;
+```
+</Tab>
+<Tab value="JavaScript">
+```javascript
+// azura.config.js
+
+/** @type {import('azurats/types').AzuraConfig} */
+export default {
+  environment: "development",
+  server: {
+    port: 3000,
+    host: "0.0.0.0",
+  },
+  logging: {
+    enabled: true,
+    level: "debug",
+    requestLogging: true,
+  },
+  debug: true,
+};
+```
+</Tab>
+<Tab value="JSON">
+```json
+{
+  "environment": "development",
+  "server": {
+    "port": 3000,
+    "host": "0.0.0.0",
+    "keepAliveTimeout": 72000
+  },
+  "logging": {
+    "enabled": true,
+    "level": "debug",
+    "requestLogging": true
+  },
+  "debug": true
+}
+```
+</Tab>
+<Tab value="YAML">
+```yaml
+# azura.config.yaml
+environment: development
+server:
+  port: 3000
+  host: 0.0.0.0
+  keepAliveTimeout: 72000
+logging:
+  enabled: true
+  level: debug
+  requestLogging: true
+debug: true
+```
+</Tab>
+</Tabs>
+
+## Using the ConfigModule Programmatically
+
+The `ConfigModule` singleton can be used to load, read, and merge configuration at runtime:
+
+```typescript
+import { ConfigModule } from "azurats/config";
+
+// Async load (supports TS/JS/JSON/YAML)
+const config = await ConfigModule.load();
+
+// Sync load (JSON and YAML only)
+const config = ConfigModule.loadSync();
+
+// Read current config
+const current = ConfigModule.get();
+
+// Overwrite config
+ConfigModule.set({ environment: "test", server: { port: 4000 } });
+
+// Deep-merge partial config into existing
+ConfigModule.merge({ logging: { level: "error" } });
+```
+
+## AzuraConfig Interface Reference
+
+Here is the complete `AzuraConfig` interface with every available option:
+
+```typescript
+interface AzuraConfig {
+  environment?: "development" | "production" | "test";
+  server?: ServerConfig;
+  logging?: LoggingConfig;
+  plugins?: PluginsConfig;
+  debug?: boolean;
+}
+```
+
+### Top-Level Options
+
+| Property | Type | Default | Description |
+|---|---|---|---|
+| `environment` | `"development" \| "production" \| "test"` | `"development"` | The application environment. In production, error stack traces are hidden from responses. Falls back to `NODE_ENV`. |
+| `server` | `ServerConfig` | See below | HTTP server configuration. |
+| `logging` | `LoggingConfig` | See below | Logger configuration. |
+| `plugins` | `PluginsConfig` | `{}` | Declarative plugin configuration for the config file. |
+| `debug` | `boolean` | `false` | When `true`, error stack traces are included in error responses and verbose debug logs are emitted. |
+
+---
+
+### ServerConfig
+
+```typescript
+interface ServerConfig {
+  port?: number;
+  host?: string;
+  cluster?: boolean;
+  clusterInstances?: number;
+  https?: HttpsConfig | false;
+  keepAliveTimeout?: number;
+  headersTimeout?: number;
+  maxHeaderSize?: number;
+  requestTimeout?: number;
+}
+```
+
+| Property | Type | Default | Description |
+|---|---|---|---|
+| `port` | `number` | `3000` | The port the server listens on. |
+| `host` | `string` | `"0.0.0.0"` | The host/interface to bind to. Use `"127.0.0.1"` for localhost-only. |
+| `cluster` | `boolean` | `false` | Enable cluster mode to spawn multiple worker processes. |
+| `clusterInstances` | `number` | CPU count | Number of cluster worker instances to spawn. |
+| `https` | `HttpsConfig \| false` | `false` | HTTPS/TLS configuration. Set to `false` or omit for plain HTTP. |
+| `keepAliveTimeout` | `number` | `72000` | Keep-alive timeout in milliseconds. |
+| `headersTimeout` | `number` | `75000` | Maximum time to receive HTTP headers, in milliseconds. |
+| `maxHeaderSize` | `number` | Node default | Maximum size of HTTP headers in bytes. |
+| `requestTimeout` | `number` | `30000` | Maximum time for the entire request, in milliseconds. |
+
+#### HTTPS Configuration
+
+```typescript
+interface HttpsConfig {
+  key: string;   // Path to the private key file
+  cert: string;  // Path to the certificate file
+  ca?: string;   // Path to the CA certificate file (optional)
+}
+```
+
+Example:
+
+```typescript
+const app = new AzuraServer({
+  server: {
+    port: 443,
+    https: {
+      key: "./certs/server.key",
+      cert: "./certs/server.crt",
+      ca: "./certs/ca.crt",
+    },
+  },
+});
+```
+
+---
+
+### LoggingConfig
+
+```typescript
+interface LoggingConfig {
+  enabled?: boolean;
+  level?: "debug" | "info" | "warn" | "error" | "silent";
+  timestamp?: boolean;
+  colors?: boolean;
+  requestLogging?: boolean;
+}
+```
+
+| Property | Type | Default | Description |
+|---|---|---|---|
+| `enabled` | `boolean` | `true` | Enable or disable all logging. When `false`, the logger is set to `"silent"`. |
+| `level` | `string` | `"info"` | Minimum log level. Messages below this level are suppressed. |
+| `timestamp` | `boolean` | `true` | Prepend ISO timestamps to log messages. |
+| `colors` | `boolean` | `true` | Use ANSI colors in log output. Disable for production log aggregators. |
+| `requestLogging` | `boolean` | `true` | Log every HTTP request with method, path, status code, and response time. |
+
+**Log levels** (from most to least verbose):
+
+| Level | Includes |
+|---|---|
+| `debug` | Debug, Info, Warn, Error |
+| `info` | Info, Warn, Error |
+| `warn` | Warn, Error |
+| `error` | Error only |
+| `silent` | Nothing |
+
+---
+
+### PluginsConfig
+
+The `plugins` section allows you to declare plugin configuration in your config file. Each plugin has an optional `enabled` flag plus its own specific options.
+
+```typescript
+interface PluginsConfig {
+  cors?: CORSOptions & { enabled?: boolean };
+  rateLimit?: RateLimitOptions & { enabled?: boolean };
+  helmet?: HelmetOptions & { enabled?: boolean };
+  jwt?: JWTOptions & { enabled?: boolean };
+  session?: SessionOptions & { enabled?: boolean };
+  compression?: CompressionOptions & { enabled?: boolean };
+  static?: StaticOptions & { enabled?: boolean };
+  healthCheck?: HealthCheckOptions & { enabled?: boolean };
+  circuitBreaker?: CircuitBreakerOptions & { enabled?: boolean };
+}
+```
+
+Example config file with plugin configuration:
+
+```typescript
+// azura.config.ts
+import type { AzuraConfig } from "azurats/types";
+
+export default {
+  environment: "production",
+  server: { port: 8080 },
+  logging: { level: "warn", colors: false },
+  plugins: {
+    cors: {
+      enabled: true,
+      origins: ["https://myapp.com", "https://admin.myapp.com"],
+      credentials: true,
+    },
+    rateLimit: {
+      enabled: true,
+      windowMs: 60000,
+      max: 200,
+    },
+    helmet: {
+      enabled: true,
+    },
+    compression: {
+      enabled: true,
+      threshold: 1024,
+    },
+    healthCheck: {
+      enabled: true,
+      path: "/health",
+    },
+  },
+} satisfies AzuraConfig;
+```
+
+<Callout type="warning" title="Config file vs programmatic plugins">
+  The `plugins` section in the config file is a **declarative** way to describe plugin preferences. You still need to register plugins programmatically using `app.plugin()` in your main file. The config file values are available via `ConfigModule.get().plugins` for use in your plugin setup.
+</Callout>
+
+## Environment-Specific Configuration
+
+A common pattern is to use environment variables or conditional logic in your config file:
+
+```typescript
+// azura.config.ts
+import type { AzuraConfig } from "azurats/types";
+
+const isProd = process.env.NODE_ENV === "production";
+
+export default {
+  environment: isProd ? "production" : "development",
+  server: {
+    port: Number(process.env.PORT) || 3000,
+    host: isProd ? "0.0.0.0" : "127.0.0.1",
+  },
+  logging: {
+    level: isProd ? "warn" : "debug",
+    colors: !isProd,
+    requestLogging: true,
+  },
+  debug: !isProd,
+} satisfies AzuraConfig;
+```
+
+## Configuration Precedence
+
+When both a constructor argument and a config file are present, the **constructor argument takes priority**. The resolution order is:
+
+1. Values passed to `new AzuraServer(config)` (highest priority)
+2. Values from the auto-loaded config file
+3. Built-in defaults (lowest priority)
+
+If you pass configuration to the constructor, the config file is **not** loaded automatically. To merge both, load the config file explicitly:
+
+```typescript
+import { AzuraServer } from "azurats/core";
+import { ConfigModule } from "azurats/config";
+
+const fileConfig = await ConfigModule.load();
+
+const app = new AzuraServer({
+  ...fileConfig,
+  server: {
+    ...fileConfig.server,
+    port: Number(process.env.PORT) || fileConfig.server?.port || 3000,
+  },
+});
+```
+
+## Default Values
+
+When no configuration is provided, AzuraJS uses these defaults:
+
+```typescript
+{
+  environment: process.env.NODE_ENV || "development",
+  server: {
+    port: 3000,
+    host: "0.0.0.0",
+    keepAliveTimeout: 72000,
+    headersTimeout: 75000,
+    requestTimeout: 30000,
+  },
+  logging: {
+    enabled: true,
+    level: "info",
+    timestamp: true,
+    colors: true,
+    requestLogging: true,
+  },
+  plugins: {},
+  debug: false,
+}
+```
+
+## Next Steps
+
+- [**Usage with JavaScript**](/docs/en/v3/getting-started/usage-with-javascript) — Use AzuraJS without TypeScript.
+- [**Plugins**](/docs/en/v3/plugins) — Full reference for all 15 built-in plugins.
+- [**Quick Start**](/docs/en/v3/getting-started/quick-start) — Build your first API step by step.

@@ -1,0 +1,304 @@
+---
+title: Routing
+description: Understand AzuraJS route patterns, parameters, wildcards, and the high-performance radix tree router
+category: Core Concepts
+icon: lucide:route
+order: 2
+---
+
+# Routing 🛣️
+
+AzuraJS v3 ships with a high-performance **radix tree router** backed by an LRU cache. This architecture delivers constant-time route lookups regardless of how many routes your application defines, making it ideal for large-scale APIs.
+
+<Callout type="info" title="Performance">
+  Static routes are stored in a dedicated hash map for O(1) lookups. Parameterized and wildcard routes use the radix tree with results cached via an LRU cache (default capacity: 1024 entries).
+</Callout>
+
+## Two Routing Styles
+
+AzuraJS supports two complementary approaches to defining routes. You can mix and match them in the same application.
+
+<Tabs items={["Express-style", "Decorator-based"]}>
+  <Tab value="Express-style">
+```typescript
+import { AzuraServer } from "azurats";
+
+const app = new AzuraServer();
+
+app.get("/", (req, res) => {
+  res.json({ message: "Hello, World!" });
+});
+
+app.post("/users", (req, res) => {
+  res.status(201).json({ user: req.body });
+});
+
+app.listen();
+```
+  </Tab>
+  <Tab value="Decorator-based">
+```typescript
+import { AzuraServer } from "azurats";
+import { Controller, Get, Post, Body } from "azurats/decorators";
+
+@Controller("/users")
+class UserController {
+  @Get()
+  list() {
+    return { users: [] };
+  }
+
+  @Post()
+  create(@Body() data: any) {
+    return { user: data };
+  }
+}
+
+const app = new AzuraServer();
+app.register(UserController);
+app.listen();
+```
+  </Tab>
+</Tabs>
+
+## Express-Style Route Methods
+
+The `AzuraServer` instance provides chainable methods for every HTTP verb:
+
+| Method | Signature | HTTP Verb |
+| :--- | :--- | :--- |
+| `app.get()` | `app.get(path, ...handlers)` | `GET` |
+| `app.post()` | `app.post(path, ...handlers)` | `POST` |
+| `app.put()` | `app.put(path, ...handlers)` | `PUT` |
+| `app.delete()` | `app.delete(path, ...handlers)` | `DELETE` |
+| `app.patch()` | `app.patch(path, ...handlers)` | `PATCH` |
+| `app.head()` | `app.head(path, ...handlers)` | `HEAD` |
+| `app.options()` | `app.options(path, ...handlers)` | `OPTIONS` |
+| `app.all()` | `app.all(path, ...handlers)` | All methods |
+
+Each method accepts a path string followed by one or more handler functions. The last handler is the route handler; any preceding handlers are treated as route-specific middleware.
+
+```typescript
+const requireAuth = (req, res, next) => {
+  if (!req.headers.authorization) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  next();
+};
+
+app.get("/public", (req, res) => {
+  res.json({ data: "open to all" });
+});
+
+app.get("/private", requireAuth, (req, res) => {
+  res.json({ data: "secret stuff" });
+});
+
+app.all("/health", (req, res) => {
+  res.json({ status: "ok" });
+});
+```
+
+## Route Patterns
+
+### Static Routes
+
+Static routes match exact paths. They are resolved first via a direct hash map lookup — the fastest possible match.
+
+```typescript
+app.get("/health", (req, res) => {
+  res.json({ status: "ok" });
+});
+
+app.get("/api/v1/status", (req, res) => {
+  res.json({ version: "1.0" });
+});
+```
+
+### Parameterized Routes
+
+Use the `:` prefix to define dynamic segments. Matched values are available on `req.params`.
+
+```typescript
+app.get("/users/:id", (req, res) => {
+  res.json({ userId: req.params.id });
+});
+
+app.get("/org/:orgId/projects/:projectId", (req, res) => {
+  const { orgId, projectId } = req.params;
+  res.json({ orgId, projectId });
+});
+```
+
+With decorators, use `@Param()` to inject parameters directly:
+
+```typescript
+@Controller("/users")
+class UserController {
+  @Get("/:id")
+  findOne(@Param("id") id: string) {
+    return { userId: id };
+  }
+
+  @Get("/:userId/posts/:postId")
+  findPost(
+    @Param("userId") userId: string,
+    @Param("postId") postId: string,
+  ) {
+    return { userId, postId };
+  }
+}
+```
+
+### Wildcard Routes
+
+Wildcard routes use `*` to match any path suffix. They act as catch-all handlers and are evaluated last.
+
+```typescript
+app.get("/files/*", (req, res) => {
+  res.json({ path: req.pathname });
+});
+
+app.get("/api/*", (req, res) => {
+  res.status(404).json({ error: "API route not found" });
+});
+```
+
+## Route Priority
+
+When multiple route patterns could match a request, AzuraJS applies a strict precedence order:
+
+| Priority | Pattern Type | Example | Description |
+| :---: | :--- | :--- | :--- |
+| 1 | Static | `/users/profile` | Exact matches always win |
+| 2 | Parameterized | `/users/:id` | Evaluated if no static match |
+| 3 | Wildcard | `/users/*` | Catch-all, checked last |
+
+```typescript
+app.get("/users/me", (req, res) => {
+  res.json({ type: "static" });
+});
+
+app.get("/users/:id", (req, res) => {
+  res.json({ type: "param", id: req.params.id });
+});
+
+app.get("/users/*", (req, res) => {
+  res.json({ type: "wildcard" });
+});
+```
+
+A request to `GET /users/me` will always hit the static route, even though `:id` and `*` could also match.
+
+## Query Parameters
+
+Query parameters are automatically parsed and available on `req.query`. They are not part of the route pattern.
+
+```typescript
+app.get("/search", (req, res) => {
+  const { q, page, limit } = req.query;
+  res.json({ query: q, page, limit });
+});
+```
+
+With decorators:
+
+```typescript
+@Controller("/search")
+class SearchController {
+  @Get()
+  search(@Query("q") query: string, @Query("page") page?: string) {
+    return { query, page: Number(page) || 1 };
+  }
+}
+```
+
+## Route-Level Middleware
+
+Both routing styles support route-specific middleware. Middleware functions run before the final handler.
+
+<Tabs items={["Express-style", "Decorator-based"]}>
+  <Tab value="Express-style">
+```typescript
+import type { AzuraRequest, AzuraResponse, NextFunction } from "azurats/types";
+
+const logRoute = (req: AzuraRequest, res: AzuraResponse, next: NextFunction) => {
+  console.log(`${req.method} ${req.pathname}`);
+  next();
+};
+
+const validateId = (req: AzuraRequest, res: AzuraResponse, next: NextFunction) => {
+  if (isNaN(Number(req.params.id))) {
+    return res.status(400).json({ error: "Invalid ID" });
+  }
+  next();
+};
+
+app.get("/users/:id", logRoute, validateId, (req, res) => {
+  res.json({ user: { id: req.params.id } });
+});
+```
+  </Tab>
+  <Tab value="Decorator-based">
+```typescript
+import { Controller, Get, Param, UseMiddleware } from "azurats/decorators";
+import type { AzuraRequest, AzuraResponse, NextFunction } from "azurats/types";
+
+const validateId = (req: AzuraRequest, res: AzuraResponse, next: NextFunction) => {
+  if (isNaN(Number(req.params.id))) {
+    return res.status(400).json({ error: "Invalid ID" });
+  }
+  next();
+};
+
+@Controller("/users")
+class UserController {
+  @UseMiddleware(validateId)
+  @Get("/:id")
+  findOne(@Param("id") id: string) {
+    return { user: { id } };
+  }
+}
+```
+  </Tab>
+</Tabs>
+
+## Listing All Registered Routes
+
+Use `app.getRoutes()` to inspect every route your application has registered. This is useful for debugging and generating API documentation.
+
+```typescript
+const app = new AzuraServer();
+
+app.get("/health", (req, res) => res.json({ ok: true }));
+app.register(UserController);
+
+const routes = app.getRoutes();
+console.log(routes);
+// [
+//   { method: "GET", path: "/health" },
+//   { method: "GET", path: "/api/users" },
+//   { method: "POST", path: "/api/users" },
+//   { method: "GET", path: "/api/users/:id" },
+//   ...
+// ]
+```
+
+## Case Sensitivity
+
+Route matching in AzuraJS is **case-sensitive** by default. `/Users` and `/users` are treated as distinct routes.
+
+```typescript
+app.get("/Users", handler1);
+app.get("/users", handler2);
+```
+
+## Path Normalization
+
+Trailing slashes are automatically stripped during route registration. Both `/users/` and `/users` resolve to the same route.
+
+## Next Steps
+
+- [**Controllers**](/docs/en/v3/concepts/controllers) — Organize routes into structured classes.
+- [**Decorators**](/docs/en/v3/concepts/decorators) — Learn every decorator available for routing and parameter injection.
+- [**Middleware**](/docs/en/v3/concepts/middleware) — Intercept requests before they reach route handlers.

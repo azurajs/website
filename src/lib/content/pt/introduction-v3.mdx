@@ -1,0 +1,148 @@
+---
+title: Bem-vindo ao AzuraJS v3
+description: AzuraJS v3.0 — Framework web ultra-rápido, sem dependências, TypeScript-first para Node.js e Bun com roteamento baseado em decorators e um poderoso sistema de plugins.
+category: Começando
+icon: lucide:zap
+status: new
+date: 2026-04-01
+order: 1
+---
+
+# Bem-vindo ao AzuraJS v3.0
+
+AzuraJS é um **framework web ultra-rápido, TypeScript-first**, construído do zero para Node.js e Bun. A versão 3.0 é uma reescrita completa com **zero dependências externas**, um roteador radix-tree com cache LRU, mais de 15 plugins integrados e suporte nativo a decorators.
+
+<Callout type="info" title="O que há de novo na v3?">
+  AzuraJS v3 é uma versão major. O pacote foi renomeado para **azurats**, a classe principal agora é `AzuraServer`, e todo o sistema de plugins e tipos foi redesenhado. Se você está migrando da v2, consulte os docs do Framework para a API antiga.
+</Callout>
+
+## Por que AzuraJS v3?
+
+| Recurso | AzuraJS v3 | Express | Fastify | NestJS |
+|---|---|---|---|---|
+| **Zero dependências** | Sim | Não | Não | Não |
+| **TypeScript-first** | Sim | Não | Parcial | Sim |
+| **Roteamento por decorators** | Nativo | Não | Não | Sim |
+| **Plugins integrados** | 15+ | 0 | ~5 | Varia |
+| **Roteador radix-tree** | Sim + cache LRU | Não | Sim | Não |
+| **Suporte a runtimes** | Node.js + Bun | Node.js | Node.js | Node.js |
+| **Suporte a arquivo de config** | TS / JS / JSON / YAML | Não | Não | Não |
+| **Validação integrada** | DTO + schemas Zod | Não | JSON Schema | class-validator |
+
+## Recursos Principais
+
+- **Zero Dependências** — O framework inteiro é distribuído sem pacotes externos. Tudo, desde roteamento até assinatura JWT, é implementado nativamente.
+- **Roteador Ultra-Rápido** — Um roteador radix-tree com cache LRU integrado oferece buscas de rotas em sub-microssegundos para caminhos registrados.
+- **15+ Plugins Integrados** — CORS, Helmet, Rate Limiting, JWT, Sessions, Compression, Static Files, ETag, Request IDs, Timeouts, Health Checks, Circuit Breaker, SSE, Proxy e Multipart — tudo incluso de fábrica.
+- **Controllers Baseados em Decorators** — Use `@Controller`, `@Get`, `@Post`, `@Body`, `@Param`, `@Query` e mais para construir APIs limpas baseadas em classes.
+- **Roteamento Estilo Express** — Prefere roteamento funcional? Use `app.get()`, `app.post()`, etc., exatamente como no Express — sem necessidade de decorators.
+- **TypeScript-First** — Escrito inteiramente em TypeScript com cobertura total de tipos. Tipos fortes para requests, responses, configuração e plugins.
+- **Node.js & Bun** — Roda em Node.js 18+ e Bun sem nenhuma configuração extra.
+- **Importações Modulares** — Importe apenas o que precisa: `azurats/core`, `azurats/plugins`, `azurats/decorators`, `azurats/types`, `azurats/utils`, `azurats/config`, `azurats/middleware`.
+- **Sistema de Arquivos de Config** — Carrega automaticamente `azura.config.ts`, `.js`, `.json` ou `.yaml` na raiz do projeto.
+- **Validação Integrada** — `DTOValidator` para validação baseada em schemas e `SchemaValidator` para schemas compatíveis com Zod.
+- **Tratamento de Erros Estruturado** — `HttpError.notFound()`, `HttpError.badRequest()` e mais fornecem respostas de erro consistentes e serializáveis em JSON.
+
+## Exemplo Rápido
+
+```typescript
+import { AzuraServer, CORSPlugin, HelmetPlugin, RateLimitPlugin } from "azurats";
+
+const app = new AzuraServer({
+  server: { port: 3000 },
+  logging: { level: "debug" },
+});
+
+// Registrar plugins
+app.plugin(CORSPlugin({ origins: "*" }));
+app.plugin(HelmetPlugin());
+app.plugin(RateLimitPlugin({ windowMs: 60_000, max: 100 }));
+
+// Definir rotas
+app.get("/", (req, res) => {
+  res.json({ message: "Hello from AzuraJS v3!" });
+});
+
+app.get("/users/:id", (req, res) => {
+  res.json({ id: req.params.id, name: `User ${req.params.id}` });
+});
+
+// Iniciar o servidor
+app.listen(3000, () => {
+  console.log("Server running on http://localhost:3000");
+});
+```
+
+Ou com **decorators**:
+
+```typescript
+import { AzuraServer } from "azurats/core";
+import { Controller, Get, Param } from "azurats/decorators";
+
+@Controller("/users")
+class UserController {
+  @Get("/")
+  findAll() {
+    return { users: [] };
+  }
+
+  @Get("/:id")
+  findOne(@Param("id") id: string) {
+    return { id, name: `User ${id}` };
+  }
+}
+
+const app = new AzuraServer();
+app.register(UserController);
+app.listen(3000);
+```
+
+## Plugins Integrados
+
+AzuraJS v3 inclui **15 plugins prontos para produção**:
+
+| Plugin | Descrição |
+|---|---|
+| `CORSPlugin` | Headers de Cross-Origin Resource Sharing |
+| `HelmetPlugin` | Headers de segurança (X-Frame-Options, CSP, etc.) |
+| `RateLimitPlugin` | Limitação de taxa de requisições com janelas deslizantes |
+| `JWTPlugin` | Autenticação com JSON Web Token |
+| `SessionPlugin` | Gerenciamento de sessões em memória |
+| `CompressionPlugin` | Compressão de respostas com Gzip/deflate |
+| `StaticPlugin` | Servir arquivos estáticos |
+| `ETagPlugin` | Requisições condicionais com ETags |
+| `RequestIdPlugin` | Geração de IDs únicos por requisição |
+| `TimeoutPlugin` | Aplicação de timeout em requisições |
+| `HealthCheckPlugin` | Endpoints de health check com verificações customizadas |
+| `CircuitBreakerPlugin` | Padrão circuit breaker para resiliência |
+| `SSEPlugin` | Suporte a Server-Sent Events |
+| `ProxyPlugin` | Proxy reverso HTTP |
+| `MultipartPlugin` | Upload de arquivos e formulários multipart |
+
+## Estrutura do Projeto
+
+Um projeto típico do AzuraJS v3 se parece com isto:
+
+```
+my-app/
+├── src/
+│   ├── controllers/
+│   │   └── UserController.ts
+│   ├── middleware/
+│   │   └── auth.ts
+│   └── main.ts
+├── azura.config.ts
+├── tsconfig.json
+└── package.json
+```
+
+## Próximos Passos
+
+<Callout type="info" title="Pronto para começar?">
+  Siga os guias abaixo para configurar seu primeiro projeto AzuraJS v3.
+</Callout>
+
+- [**Instalação**](/docs/pt/v3/comecando/instalacao) — Instale o AzuraJS e configure seu projeto TypeScript.
+- [**Início Rápido**](/docs/pt/v3/comecando/inicio-rapido) — Construa sua primeira API em menos de 5 minutos.
+- [**Configuração**](/docs/pt/v3/comecando/configuracao) — Aprenda sobre o sistema de configuração.
+- [**Uso com JavaScript**](/docs/pt/v3/comecando/uso-com-javascript) — Use o AzuraJS sem TypeScript.

@@ -1,0 +1,283 @@
+---
+title: Arquivos Estáticos
+description: Servir arquivos estáticos no AzuraJS v3 — StaticPlugin com MIME types, caching, ETag e directory indexing
+category: Recursos
+icon: lucide:folder-open
+order: 10
+---
+
+# Arquivos Estáticos
+
+O **StaticPlugin** serve arquivos estáticos (HTML, CSS, JS, imagens, fontes, etc.) com detecção automática de MIME type, suporte a ETag, cache headers e resolução de diretórios. Construído com `node:fs`, sem dependências externas.
+
+## Início Rápido
+
+```typescript
+import { AzuraServer } from "azurats";
+import { StaticPlugin } from "azurats/plugins";
+
+const app = new AzuraServer();
+
+app.plugin(StaticPlugin({ root: "./public" }));
+
+app.listen(3000);
+// GET /styles.css → ./public/styles.css
+// GET /images/logo.png → ./public/images/logo.png
+```
+
+## Opções
+
+```typescript
+interface StaticOptions {
+  root: string;
+  prefix?: string;
+  index?: string | string[];
+  dotfiles?: "allow" | "deny" | "ignore";
+  maxAge?: number;
+  etag?: boolean;
+  lastModified?: boolean;
+  fallthrough?: boolean;
+  immutable?: boolean;
+}
+```
+
+| Opção | Tipo | Padrão | Descrição |
+| :--- | :--- | :--- | :--- |
+| `root` | `string` | — | **Obrigatório.** Diretório raiz dos arquivos |
+| `prefix` | `string` | `"/"` | Prefixo de URL para servir arquivos |
+| `index` | `string \| string[]` | `["index.html"]` | Arquivo(s) de índice para diretórios |
+| `dotfiles` | `string` | `"ignore"` | Tratamento de arquivos iniciados com `.` |
+| `maxAge` | `number` | `0` | Tempo de cache em segundos (`Cache-Control: max-age`) |
+| `etag` | `boolean` | `true` | Gerar ETag para validação de cache |
+| `lastModified` | `boolean` | `true` | Enviar header `Last-Modified` |
+| `fallthrough` | `boolean` | `true` | Passar para o próximo handler se o arquivo não existir |
+| `immutable` | `boolean` | `false` | Adicionar `immutable` ao `Cache-Control` |
+
+## Prefixo de URL
+
+Para servir arquivos sob um caminho específico:
+
+```typescript
+app.plugin(StaticPlugin({
+  root: "./public",
+  prefix: "/static",
+}));
+// GET /static/styles.css → ./public/styles.css
+// GET /static/js/app.js → ./public/js/app.js
+```
+
+## MIME Types Suportados
+
+O StaticPlugin detecta automaticamente o MIME type pela extensão do arquivo:
+
+| Extensão | MIME Type |
+| :--- | :--- |
+| `.html`, `.htm` | `text/html; charset=utf-8` |
+| `.css` | `text/css; charset=utf-8` |
+| `.js`, `.mjs` | `application/javascript; charset=utf-8` |
+| `.json` | `application/json; charset=utf-8` |
+| `.xml` | `application/xml; charset=utf-8` |
+| `.txt`, `.csv` | `text/plain; charset=utf-8` / `text/csv; charset=utf-8` |
+| `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.avif` | `image/*` |
+| `.svg` | `image/svg+xml` |
+| `.ico` | `image/x-icon` |
+| `.woff`, `.woff2`, `.ttf`, `.otf` | `font/*` |
+| `.mp4`, `.webm` | `video/*` |
+| `.mp3`, `.ogg`, `.wav` | `audio/*` |
+| `.pdf` | `application/pdf` |
+| `.zip`, `.gz` | `application/zip` / `application/gzip` |
+| `.wasm` | `application/wasm` |
+| `.map` | `application/json` |
+
+Extensões não reconhecidas retornam `application/octet-stream`.
+
+## Caching
+
+### Cache-Control
+
+```typescript
+// Sem cache (padrão)
+app.plugin(StaticPlugin({
+  root: "./public",
+  maxAge: 0,
+}));
+// Cache-Control: public, max-age=0
+
+// Cache de 1 dia
+app.plugin(StaticPlugin({
+  root: "./public",
+  maxAge: 86400,
+}));
+// Cache-Control: public, max-age=86400
+
+// Cache imutável (arquivos versionados)
+app.plugin(StaticPlugin({
+  root: "./dist/assets",
+  prefix: "/assets",
+  maxAge: 31536000,
+  immutable: true,
+}));
+// Cache-Control: public, max-age=31536000, immutable
+```
+
+### ETag
+
+Quando `etag: true` (padrão), o plugin gera ETags fracas baseadas no tamanho e data de modificação do arquivo:
+
+```
+ETag: W/"1a2b-18c6d7e8f90"
+```
+
+Se o cliente envia `If-None-Match` com o mesmo valor, o plugin retorna `304 Not Modified` sem enviar o corpo:
+
+```typescript
+// Desabilitar ETag
+app.plugin(StaticPlugin({
+  root: "./public",
+  etag: false,
+}));
+```
+
+### Last-Modified
+
+Quando `lastModified: true` (padrão), o header `Last-Modified` é incluído com a data de modificação do arquivo.
+
+## Arquivos de Índice
+
+Quando uma requisição corresponde a um diretório, o plugin busca automaticamente um arquivo de índice:
+
+```typescript
+app.plugin(StaticPlugin({
+  root: "./public",
+  index: ["index.html", "index.htm"],
+}));
+// GET / → ./public/index.html
+// GET /about/ → ./public/about/index.html
+```
+
+## Dotfiles
+
+Controla como arquivos que começam com `.` são tratados:
+
+```typescript
+// Ignorar silenciosamente (padrão)
+app.plugin(StaticPlugin({ root: "./public", dotfiles: "ignore" }));
+// GET /.env → passa para próximo handler
+
+// Negar acesso (403 Forbidden)
+app.plugin(StaticPlugin({ root: "./public", dotfiles: "deny" }));
+// GET /.env → 403 Forbidden
+
+// Permitir acesso
+app.plugin(StaticPlugin({ root: "./public", dotfiles: "allow" }));
+// GET /.well-known/acme → servido normalmente
+```
+
+## Fallthrough
+
+Quando `fallthrough: true` (padrão), se o arquivo não existir, a requisição continua para o próximo handler. Com `false`, retorna `404 Not Found`:
+
+```typescript
+// Fallthrough ativado (padrão)
+app.plugin(StaticPlugin({ root: "./public", fallthrough: true }));
+app.get("/api/hello", (req, res) => {
+  res.json({ hello: "world" }); // alcançável mesmo se /api/hello não existir em ./public
+});
+
+// Fallthrough desativado
+app.plugin(StaticPlugin({ root: "./public", fallthrough: false }));
+// GET /inexistente → 404 Not Found (não chega em outros handlers)
+```
+
+## Proteção contra Path Traversal
+
+O plugin bloqueia automaticamente tentativas de path traversal (`..`):
+
+```
+GET /../../etc/passwd → ignorado (passa para próximo handler)
+```
+
+## Requisições HEAD
+
+O plugin responde a requisições `HEAD` com os headers corretos mas sem o corpo, permitindo que clientes verifiquem se um arquivo existe sem baixá-lo.
+
+## Exemplos Práticos
+
+### SPA (Single Page Application)
+
+```typescript
+const app = new AzuraServer();
+
+// Servir assets estáticos com cache longo
+app.plugin(StaticPlugin({
+  root: "./dist/assets",
+  prefix: "/assets",
+  maxAge: 31536000,
+  immutable: true,
+}));
+
+// Servir arquivos da raiz
+app.plugin(StaticPlugin({
+  root: "./dist",
+  index: ["index.html"],
+}));
+
+// Fallback para SPA routing
+app.get("*", (req, res) => {
+  const { createReadStream } = require("fs");
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  createReadStream("./dist/index.html").pipe(res);
+});
+
+app.listen(3000);
+```
+
+### API + Documentação Estática
+
+```typescript
+const app = new AzuraServer();
+
+// Documentação estática
+app.plugin(StaticPlugin({
+  root: "./docs/build",
+  prefix: "/docs",
+  maxAge: 3600,
+}));
+
+// API
+app.get("/api/users", (req, res) => {
+  res.json({ users: [] });
+});
+
+app.listen(3000);
+```
+
+### Múltiplos Diretórios
+
+```typescript
+const app = new AzuraServer();
+
+// Uploads de usuários
+app.plugin(StaticPlugin({
+  root: "./uploads",
+  prefix: "/uploads",
+  maxAge: 86400,
+  dotfiles: "deny",
+}));
+
+// Assets da aplicação
+app.plugin(StaticPlugin({
+  root: "./public",
+  maxAge: 604800,
+}));
+
+app.listen(3000);
+```
+
+### Streaming de Arquivos
+
+O `StaticPlugin` utiliza `createReadStream` internamente, fazendo streaming do arquivo para o cliente sem carregar todo o conteúdo em memória. Isso é eficiente mesmo para arquivos grandes como vídeos e PDFs.
+
+<Callout>
+Para performance máxima em produção, considere usar um CDN ou proxy reverso (como Nginx) para servir arquivos estáticos, delegando ao Node.js apenas o processamento de API.
+</Callout>

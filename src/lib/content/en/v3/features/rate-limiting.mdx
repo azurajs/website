@@ -1,0 +1,164 @@
+---
+title: Rate Limiting
+description: Protect your API from abuse with the sliding-window RateLimitPlugin
+category: Features
+icon: lucide:gauge
+order: 6
+---
+
+# Rate Limiting
+
+The `RateLimitPlugin` uses a **sliding-window** algorithm to limit the number of requests a client can make within a configurable time window. It tracks clients by IP address (or a custom key) and communicates limits through standard headers.
+
+## Quick Start
+
+```typescript
+import { AzuraServer } from "azurats";
+import { RateLimitPlugin } from "azurats/plugins";
+
+const app = new AzuraServer();
+
+app.plugin(
+  RateLimitPlugin({
+    windowMs: 60_000, // 1 minute
+    max: 100,         // 100 requests per window
+  })
+);
+
+app.listen(3000);
+```
+
+## Options
+
+| Option | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `windowMs` | `number` | `60000` | Time window in milliseconds. |
+| `max` | `number` | `100` | Maximum number of requests allowed per window per key. |
+| `message` | `string \| object` | `{ error: { statusCode: 429, message: "Too many requests..." } }` | Response body when the limit is exceeded. |
+| `statusCode` | `number` | `429` | HTTP status code when the limit is exceeded. |
+| `keyGenerator` | `(req) => string` | `(req) => req.ip` | Function that returns a string identifying the client. |
+| `skipSuccessfulRequests` | `boolean` | `false` | When `true`, successful responses (< 400) are not counted against the limit. |
+| `skipFailedRequests` | `boolean` | `false` | When `true`, failed responses (>= 400) are not counted against the limit. |
+
+## Response Headers
+
+Every response includes rate-limit metadata:
+
+| Header | Description |
+| :--- | :--- |
+| `X-RateLimit-Limit` | Maximum requests allowed in the window. |
+| `X-RateLimit-Remaining` | Requests remaining in the current window. |
+| `X-RateLimit-Reset` | Unix timestamp (seconds) when the window resets. |
+
+When the limit is exceeded the plugin responds immediately without calling `next()`.
+
+## How the Sliding Window Works
+
+```
+Timeline (windowMs = 60s, max = 5)
+
+t=0s    ──●──────────────────────────────── window start
+t=10s   ──●──────────────────────────────── 2/5
+t=20s   ──●──────────────────────────────── 3/5
+t=30s   ──●──────────────────────────────── 4/5
+t=40s   ──●──────────────────────────────── 5/5 (limit reached)
+t=45s   ──✗ 429 Too Many Requests
+t=60s   ──────────────────────────────────── window resets
+t=61s   ──● ─────────────────────────────── 1/5 (allowed again)
+```
+
+Entries older than `windowMs` are continuously pruned, giving clients a smooth sliding window rather than a hard reset.
+
+## Examples
+
+### Per-Route Rate Limiting
+
+Apply different limits to different parts of your API:
+
+```typescript
+import { AzuraServer } from "azurats";
+import { RateLimitPlugin } from "azurats/plugins";
+
+const app = new AzuraServer();
+
+// Strict limit on auth endpoints
+app.plugin(
+  RateLimitPlugin({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 5,
+    keyGenerator: (req) => `auth:${req.ip}`,
+    message: { error: "Too many login attempts. Try again in 15 minutes." },
+  })
+);
+```
+
+### API Key-Based Limiting
+
+```typescript
+app.plugin(
+  RateLimitPlugin({
+    windowMs: 60_000,
+    max: 1000,
+    keyGenerator: (req) => {
+      return req.headers["x-api-key"] ?? req.ip;
+    },
+  })
+);
+```
+
+### Skip Counting for Certain Responses
+
+```typescript
+app.plugin(
+  RateLimitPlugin({
+    windowMs: 60_000,
+    max: 100,
+    skipSuccessfulRequests: true, // only count errors toward limit
+  })
+);
+```
+
+### Custom Error Response
+
+```typescript
+app.plugin(
+  RateLimitPlugin({
+    windowMs: 60_000,
+    max: 50,
+    statusCode: 429,
+    message: {
+      error: {
+        code: "RATE_LIMIT_EXCEEDED",
+        message: "You have exceeded the request limit. Please try again later.",
+        retryAfter: 60,
+      },
+    },
+  })
+);
+```
+
+## Client-Side Handling
+
+```javascript
+const response = await fetch("/api/data");
+
+if (response.status === 429) {
+  const retryAfter = response.headers.get("X-RateLimit-Reset");
+  const waitMs = (Number(retryAfter) - Date.now() / 1000) * 1000;
+  console.log(`Rate limited. Retrying in ${Math.ceil(waitMs / 1000)}s`);
+  await new Promise((r) => setTimeout(r, waitMs));
+  // retry...
+}
+
+console.log("Remaining:", response.headers.get("X-RateLimit-Remaining"));
+```
+
+<Callout>
+The built-in store is an in-memory `Map`. In a multi-process or clustered deployment, each process maintains its own counters. For shared state, implement a custom `RateLimitStore` backed by Redis or a similar data store.
+</Callout>
+
+## Next Steps
+
+- [CORS](/docs/en/v3/features/cors) — pair rate limiting with CORS for public APIs
+- [JWT Authentication](/docs/en/v3/features/jwt) — combine auth and rate limiting
+- [Security](/docs/en/v3/features/security) — full security header coverage with Helmet

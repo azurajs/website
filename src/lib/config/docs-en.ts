@@ -44,6 +44,56 @@ export const docsConfig = {
       ],
     },
   ],
+  v3: [
+    {
+      title: "Getting Started",
+      items: [
+        { title: "Welcome to AzuraJS v3", slug: "introduction-v3" },
+        { title: "Installation", slug: "v3/getting-started/installation" },
+        { title: "Quick Start", slug: "v3/getting-started/quick-start" },
+        { title: "Usage with JavaScript", slug: "v3/getting-started/usage-with-javascript" },
+        { title: "Configuration", slug: "v3/getting-started/configuration" },
+      ],
+    },
+    {
+      title: "Core Concepts",
+      items: [
+        { title: "Controllers", slug: "v3/concepts/controllers" },
+        { title: "Routing", slug: "v3/concepts/routing" },
+        { title: "Decorators", slug: "v3/concepts/decorators" },
+        { title: "Middleware", slug: "v3/concepts/middleware" },
+        { title: "Request & Response", slug: "v3/concepts/http" },
+      ],
+    },
+    {
+      title: "Features",
+      items: [
+        { title: "Plugins Overview", slug: "v3/features/plugins" },
+        { title: "Validation", slug: "v3/features/validation" },
+        { title: "Cookies", slug: "v3/features/cookies" },
+        { title: "Logger", slug: "v3/features/logger" },
+        { title: "CORS", slug: "v3/features/cors" },
+        { title: "Rate Limiting", slug: "v3/features/rate-limiting" },
+        { title: "JWT Authentication", slug: "v3/features/jwt" },
+        { title: "Security (Helmet)", slug: "v3/features/security" },
+        { title: "Compression", slug: "v3/features/compression" },
+        { title: "Static Files", slug: "v3/features/static-files" },
+        { title: "Proxy", slug: "v3/features/proxy" },
+        { title: "Server-Sent Events", slug: "v3/features/sse" },
+        { title: "Health Check", slug: "v3/features/health-check" },
+        { title: "Error Handling", slug: "v3/features/error-handling" },
+      ],
+    },
+    {
+      title: "Advanced",
+      items: [
+        { title: "Modular Imports", slug: "v3/advanced/modular-imports" },
+        { title: "TypeScript Support", slug: "v3/advanced/typescript-support" },
+        { title: "Type Extensions", slug: "v3/advanced/type-extensions" },
+        { title: "Custom Servers", slug: "v3/advanced/custom-servers" },
+      ],
+    },
+  ],
   cdn: [
     {
       title: "Edge Network",
@@ -57,5 +107,6 @@ export const docsConfig = {
 
 export const frameworkOptions = [
   { id: "framework", label: "AzuraJS Framework", icon: "lucide:box" },
+  { id: "v3", label: "Framework v3", icon: "lucide:zap" },
   { id: "cdn", label: "@azurajs/cdn", icon: "lucide:globe" },
 ];

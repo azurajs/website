@@ -1,0 +1,287 @@
+---
+title: Error Handling
+description: Structured errors with HttpError, factory methods, and custom error handlers
+category: Features
+icon: lucide:alert-triangle
+order: 14
+---
+
+# Error Handling
+
+AzuraJS provides the `HttpError` class (from `azurats/utils`) for throwing structured HTTP errors, plus a global error handler hook via `app.onError()`. Together they give you consistent, predictable error responses across your entire API.
+
+## HttpError Class
+
+```typescript
+import { HttpError } from "azurats/utils";
+
+throw new HttpError(404, "User not found");
+```
+
+### Constructor
+
+```typescript
+new HttpError(statusCode: number, message?: string, details?: any)
+```
+
+| Parameter | Type | Description |
+| :--- | :--- | :--- |
+| `statusCode` | `number` | HTTP status code. |
+| `message` | `string` | Human-readable error message. Defaults to the standard status text. |
+| `details` | `any` | Optional additional data (validation errors, debug info, etc.). |
+
+### Properties
+
+| Property | Type | Description |
+| :--- | :--- | :--- |
+| `statusCode` | `number` | The HTTP status code. |
+| `message` | `string` | Error message. |
+| `details` | `any` | Additional context, if provided. |
+| `isOperational` | `boolean` | Always `true`. Useful for distinguishing expected errors from unexpected crashes. |
+
+### toJSON()
+
+Returns a structured object suitable for JSON responses:
+
+```typescript
+const error = new HttpError(422, "Validation failed", {
+  fields: { email: "Invalid format" },
+});
+
+error.toJSON();
+// {
+//   error: {
+//     statusCode: 422,
+//     message: "Validation failed",
+//     details: { fields: { email: "Invalid format" } }
+//   }
+// }
+```
+
+## Factory Methods
+
+`HttpError` provides static factory methods for common HTTP error codes:
+
+| Method | Status Code | Usage |
+| :--- | :---: | :--- |
+| `HttpError.badRequest(msg?, details?)` | 400 | Malformed request or invalid input. |
+| `HttpError.unauthorized(msg?, details?)` | 401 | Missing or invalid authentication. |
+| `HttpError.forbidden(msg?, details?)` | 403 | Authenticated but insufficient permissions. |
+| `HttpError.notFound(msg?, details?)` | 404 | Resource does not exist. |
+| `HttpError.methodNotAllowed(msg?, details?)` | 405 | HTTP method not supported for this route. |
+| `HttpError.conflict(msg?, details?)` | 409 | Resource conflict (e.g. duplicate entry). |
+| `HttpError.unprocessableEntity(msg?, details?)` | 422 | Semantically invalid request body. |
+| `HttpError.tooManyRequests(msg?, details?)` | 429 | Rate limit exceeded. |
+| `HttpError.internal(msg?, details?)` | 500 | Unexpected server error. |
+
+### Examples
+
+```typescript
+import { HttpError } from "azurats/utils";
+
+// 400 Bad Request
+throw HttpError.badRequest("Missing required field: email");
+
+// 401 Unauthorized
+throw HttpError.unauthorized("Token expired");
+
+// 403 Forbidden
+throw HttpError.forbidden("Admin access required");
+
+// 404 Not Found
+throw HttpError.notFound("User not found");
+
+// 409 Conflict
+throw HttpError.conflict("Email already registered");
+
+// 429 Too Many Requests
+throw HttpError.tooManyRequests("Rate limit exceeded. Retry after 60s");
+
+// 500 Internal Server Error
+throw HttpError.internal("Database connection lost");
+```
+
+## Throwing Errors in Route Handlers
+
+When you throw an `HttpError` inside a route handler, AzuraJS catches it and sends a structured JSON response automatically:
+
+```typescript
+import { AzuraServer } from "azurats";
+import { HttpError } from "azurats/utils";
+
+const app = new AzuraServer();
+
+app.get("/users/:id", async (req, res) => {
+  const user = await db.findUser(req.params.id);
+
+  if (!user) {
+    throw HttpError.notFound(`User ${req.params.id} not found`);
+  }
+
+  res.json(user);
+});
+```
+
+The client receives:
+
+```json
+{
+  "error": {
+    "statusCode": 404,
+    "message": "User 42 not found"
+  }
+}
+```
+
+## Default Error Handling Behaviour
+
+AzuraJS's built-in error handler works as follows:
+
+1. If `res` has already been sent (`res.sent === true`), the error is silently ignored.
+2. If a custom error handler is registered via `app.onError()`, it receives the error.
+3. If the error is an `HttpError`, the response uses `err.statusCode` and `err.toJSON()`.
+4. For non-`HttpError` errors, the status code is taken from `err.statusCode` or `err.status`, falling back to `500`.
+5. In production, generic errors return a safe message. In debug mode, the stack trace is included.
+
+## Custom Error Handler
+
+Register a global error handler with `app.onError()`:
+
+```typescript
+import { AzuraServer } from "azurats";
+import { HttpError, Logger } from "azurats/utils";
+
+const app = new AzuraServer();
+const log = new Logger({ prefix: "errors" });
+
+app.onError((err, req, res, next) => {
+  // Log the error
+  log.error(`${req.method} ${req.url}:`, err.message);
+
+  if (err instanceof HttpError) {
+    return res.status(err.statusCode).json(err.toJSON());
+  }
+
+  // Unexpected error — don't leak internals
+  res.status(500).json({
+    error: {
+      statusCode: 500,
+      message:
+        process.env.NODE_ENV === "production"
+          ? "Internal server error"
+          : err.message,
+    },
+  });
+});
+```
+
+### ErrorHandler Signature
+
+```typescript
+type ErrorHandler = (
+  err: Error | HttpError,
+  req: AzuraRequest,
+  res: AzuraResponse,
+  next: NextFunction
+) => void | Promise<void>;
+```
+
+## Error Response Format
+
+All `HttpError` responses follow this structure:
+
+```typescript
+{
+  error: {
+    statusCode: number;
+    message: string;
+    details?: any;  // only present if provided
+  }
+}
+```
+
+In debug mode, an additional `stack` field may be included for non-operational errors.
+
+## Validation Error Pattern
+
+Combine `DTOValidator` with `HttpError` for structured validation errors:
+
+```typescript
+import { DTOValidator, HttpError } from "azurats/utils";
+
+app.post("/users", (req, res) => {
+  const result = DTOValidator.validate(req.body, userSchema);
+
+  if (!result.valid) {
+    throw HttpError.badRequest("Validation failed", {
+      errors: result.errors,
+    });
+  }
+
+  // proceed with valid data...
+  res.status(201).json({ user: req.body });
+});
+```
+
+Response:
+
+```json
+{
+  "error": {
+    "statusCode": 400,
+    "message": "Validation failed",
+    "details": {
+      "errors": [
+        { "field": "email", "message": "email is required" },
+        { "field": "age", "message": "age must be at least 13" }
+      ]
+    }
+  }
+}
+```
+
+## Async Error Handling
+
+AzuraJS catches errors from both synchronous and `async` route handlers automatically:
+
+```typescript
+app.get("/data", async (req, res) => {
+  // If this rejects, the error handler receives it
+  const data = await fetchExternalData();
+  res.json(data);
+});
+```
+
+No `try/catch` wrapper is needed unless you want to transform the error before rethrowing.
+
+## Differentiating Operational vs Programmer Errors
+
+```typescript
+app.onError((err, req, res, next) => {
+  if (err instanceof HttpError && err.isOperational) {
+    // Expected error — safe to show to client
+    return res.status(err.statusCode).json(err.toJSON());
+  }
+
+  // Unexpected error — log, alert, return generic message
+  logger.error("Unexpected error:", err);
+  monitoring.captureException(err);
+
+  res.status(500).json({
+    error: {
+      statusCode: 500,
+      message: "Something went wrong",
+    },
+  });
+});
+```
+
+<Callout>
+`HttpError` always sets `isOperational: true`. Use this flag to distinguish intentional HTTP errors from unexpected crashes like `TypeError` or `ReferenceError`.
+</Callout>
+
+## Next Steps
+
+- [Validation](/docs/en/v3/features/validation) — pair validation with structured error responses
+- [Logger](/docs/en/v3/features/logger) — log errors with context
+- [JWT Authentication](/docs/en/v3/features/jwt) — auth-related error handling

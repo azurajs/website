@@ -1,0 +1,168 @@
+---
+title: CORS
+description: Configure Cross-Origin Resource Sharing policies with the CORSPlugin
+category: Features
+icon: lucide:globe
+order: 5
+---
+
+# CORS (Cross-Origin Resource Sharing)
+
+The `CORSPlugin` lets you control which external origins can interact with your API. It handles both simple requests and `OPTIONS` preflight requests automatically.
+
+## Quick Start
+
+```typescript
+import { AzuraServer } from "azurats";
+import { CORSPlugin } from "azurats/plugins";
+
+const app = new AzuraServer();
+
+app.plugin(
+  CORSPlugin({
+    origins: ["https://app.example.com"],
+    credentials: true,
+  })
+);
+
+app.listen(3000);
+```
+
+## Options
+
+| Option | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `origins` | `string \| string[]` | `"*"` | Allowed origins. Use `"*"` to allow all origins, or provide an array of specific origins. |
+| `methods` | `string[]` | `["GET","HEAD","PUT","PATCH","POST","DELETE","OPTIONS"]` | HTTP methods included in `Access-Control-Allow-Methods`. |
+| `allowedHeaders` | `string[]` | `["Content-Type","Authorization","Accept","X-Requested-With"]` | Headers the client is permitted to send. Maps to `Access-Control-Allow-Headers`. |
+| `exposedHeaders` | `string[]` | `[]` | Response headers the browser may read. Maps to `Access-Control-Expose-Headers`. |
+| `credentials` | `boolean` | `false` | When `true`, sets `Access-Control-Allow-Credentials: true` so cookies and auth headers are sent cross-origin. |
+| `maxAge` | `number` | `86400` | How long (in seconds) the browser may cache the preflight response. Maps to `Access-Control-Max-Age`. |
+| `preflightContinue` | `boolean` | `false` | When `false` (default), preflight `OPTIONS` requests are terminated with `204 No Content`. When `true`, the request is passed to the next handler. |
+
+## How It Works
+
+### Simple Requests
+
+For `GET`, `HEAD`, and `POST` requests with standard headers the browser sends the request directly. The plugin adds the appropriate `Access-Control-*` headers to the response.
+
+### Preflight Requests
+
+For requests with custom headers, non-simple methods, or `credentials: true`, the browser sends an `OPTIONS` request first. The plugin:
+
+1. Checks if the `Origin` header matches the configured origins.
+2. Sets `Access-Control-Allow-Origin`, `Access-Control-Allow-Methods`, and `Access-Control-Allow-Headers`.
+3. Responds with `204 No Content` (unless `preflightContinue` is `true`).
+
+```
+Browser                         Server
+  │                               │
+  ├─ OPTIONS /api/data ──────────►│
+  │  Origin: https://app.com      │
+  │  Access-Control-Request-Method│
+  │                               │
+  │◄── 204 No Content ───────────┤
+  │  Access-Control-Allow-Origin  │
+  │  Access-Control-Allow-Methods │
+  │  Access-Control-Max-Age       │
+  │                               │
+  ├─ POST /api/data ─────────────►│
+  │  Origin: https://app.com      │
+  │                               │
+  │◄── 200 OK ───────────────────┤
+  │  Access-Control-Allow-Origin  │
+```
+
+## Examples
+
+### Allow All Origins
+
+```typescript
+app.plugin(CORSPlugin()); // origins defaults to "*"
+```
+
+<Callout>
+Using `origins: "*"` does not allow credentials. Browsers refuse `Access-Control-Allow-Credentials: true` when the origin is a wildcard. Specify exact origins if you need credentials.
+</Callout>
+
+### Multiple Origins
+
+```typescript
+app.plugin(
+  CORSPlugin({
+    origins: [
+      "https://app.example.com",
+      "https://admin.example.com",
+      "http://localhost:5173",
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
+    maxAge: 3600,
+  })
+);
+```
+
+### Exposing Custom Headers
+
+```typescript
+app.plugin(
+  CORSPlugin({
+    origins: ["https://app.example.com"],
+    exposedHeaders: [
+      "X-Total-Count",
+      "X-RateLimit-Remaining",
+      "X-Request-Id",
+    ],
+  })
+);
+```
+
+### Restrict to Specific Methods
+
+```typescript
+app.plugin(
+  CORSPlugin({
+    origins: ["https://app.example.com"],
+    methods: ["GET", "HEAD"], // read-only API
+  })
+);
+```
+
+## Production Configuration
+
+```typescript
+const isProduction = process.env.NODE_ENV === "production";
+
+app.plugin(
+  CORSPlugin({
+    origins: isProduction
+      ? ["https://app.example.com"]
+      : ["http://localhost:5173", "http://localhost:3000"],
+    credentials: true,
+    maxAge: isProduction ? 86400 : 0,
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "Accept",
+      "X-Requested-With",
+    ],
+  })
+);
+```
+
+## Headers Reference
+
+| Response Header | Triggered By | Value |
+| :--- | :--- | :--- |
+| `Access-Control-Allow-Origin` | Every CORS request | The matched origin, or `*` |
+| `Access-Control-Allow-Methods` | Preflight only | Comma-separated `methods` |
+| `Access-Control-Allow-Headers` | Preflight only | Comma-separated `allowedHeaders` |
+| `Access-Control-Expose-Headers` | Non-preflight | Comma-separated `exposedHeaders` |
+| `Access-Control-Allow-Credentials` | When `credentials: true` | `true` |
+| `Access-Control-Max-Age` | Preflight only | `maxAge` value in seconds |
+
+## Next Steps
+
+- [Cookies](/docs/en/v3/features/cookies) — cross-origin cookie handling with `credentials: true`
+- [Security](/docs/en/v3/features/security) — pair CORS with Helmet security headers
+- [Rate Limiting](/docs/en/v3/features/rate-limiting) — protect your cross-origin endpoints

@@ -1,0 +1,216 @@
+---
+title: JWT Authentication
+description: Protect routes with JSON Web Tokens using the JWTPlugin, signJWT, and verifyJWT utilities
+category: Features
+icon: lucide:key-round
+order: 7
+---
+
+# JWT Authentication
+
+The `JWTPlugin` provides route-level JWT protection. Companion utilities `signJWT` and `verifyJWT` (also exported from `azurats/plugins`) let you create and manually verify tokens.
+
+## Quick Start
+
+```typescript
+import { AzuraServer } from "azurats";
+import { JWTPlugin, signJWT, verifyJWT } from "azurats/plugins";
+
+const app = new AzuraServer();
+
+app.plugin(
+  JWTPlugin({
+    secret: process.env.JWT_SECRET!,
+    paths: ["/api"],
+    exclude: ["/api/auth/login", "/api/auth/register"],
+  })
+);
+
+app.listen(3000);
+```
+
+## JWTPlugin Options
+
+| Option | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `secret` | `string` | **required** | HMAC secret used to sign and verify tokens. |
+| `algorithm` | `"HS256" \| "HS384" \| "HS512"` | `"HS256"` | Signing algorithm. |
+| `paths` | `string[]` | `[]` | URL prefixes to protect. An empty array means the plugin runs on **all** routes. |
+| `exclude` | `string[]` | `[]` | URL prefixes to skip even when they match `paths`. |
+| `getToken` | `(req) => string \| null` | See below | Custom function to extract the token from the request. |
+
+### Default Token Resolution
+
+When `getToken` is not provided, the plugin looks for a token in this order:
+
+1. `Authorization: Bearer <token>` header
+2. `?token=<token>` query parameter
+3. `token` cookie
+
+### What Happens After Verification
+
+On success the decoded payload is attached to `req.user`:
+
+```typescript
+app.get("/api/profile", (req, res) => {
+  // req.user is the decoded JWT payload
+  res.json({ userId: req.user.sub, role: req.user.role });
+});
+```
+
+On failure the plugin responds with:
+
+```json
+{ "error": { "statusCode": 401, "message": "Invalid or expired token" } }
+```
+
+## signJWT
+
+Create a signed token.
+
+```typescript
+import { signJWT } from "azurats/plugins";
+
+const token = signJWT(
+  { sub: user.id, role: user.role },
+  process.env.JWT_SECRET!,
+  {
+    algorithm: "HS256",
+    expiresIn: 3600, // seconds
+  }
+);
+```
+
+### signJWT Parameters
+
+| Parameter | Type | Description |
+| :--- | :--- | :--- |
+| `payload` | `Record<string, any>` | Claims to include in the token. |
+| `secret` | `string` | HMAC secret. |
+| `options.algorithm` | `string` | `"HS256"` (default), `"HS384"`, or `"HS512"`. |
+| `options.expiresIn` | `number` | Token lifetime in seconds. Sets the `exp` claim. |
+
+The function automatically adds `iat` (issued at) to the payload.
+
+## verifyJWT
+
+Decode and verify a token. Throws on invalid or expired tokens.
+
+```typescript
+import { verifyJWT } from "azurats/plugins";
+
+try {
+  const payload = verifyJWT(token, process.env.JWT_SECRET!);
+  console.log(payload.sub); // user ID
+} catch (err) {
+  console.error("Token invalid:", err.message);
+}
+```
+
+### verifyJWT Parameters
+
+| Parameter | Type | Description |
+| :--- | :--- | :--- |
+| `token` | `string` | The JWT string. |
+| `secret` | `string` | HMAC secret used during signing. |
+
+Returns the decoded payload object if the signature and expiry are valid.
+
+## Full Login + Protected Route Example
+
+```typescript
+import { AzuraServer } from "azurats";
+import { JWTPlugin, signJWT } from "azurats/plugins";
+import { HttpError } from "azurats/utils";
+
+const app = new AzuraServer();
+
+const SECRET = process.env.JWT_SECRET!;
+
+// Protect everything under /api except auth routes
+app.plugin(
+  JWTPlugin({
+    secret: SECRET,
+    paths: ["/api"],
+    exclude: ["/api/auth/login", "/api/auth/register"],
+  })
+);
+
+// Public: login
+app.post("/api/auth/login", async (req, res) => {
+  const { email, password } = req.body;
+
+  const user = await authenticateUser(email, password);
+  if (!user) {
+    throw HttpError.unauthorized("Invalid credentials");
+  }
+
+  const accessToken = signJWT(
+    { sub: user.id, role: user.role },
+    SECRET,
+    { expiresIn: 900 } // 15 minutes
+  );
+
+  const refreshToken = signJWT(
+    { sub: user.id, type: "refresh" },
+    SECRET,
+    { expiresIn: 7 * 24 * 3600 } // 7 days
+  );
+
+  res.cookie("refreshToken", refreshToken, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "Strict",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    path: "/api/auth/refresh",
+  });
+
+  res.json({ accessToken, user: { id: user.id, email: user.email } });
+});
+
+// Protected: get current user
+app.get("/api/users/me", (req, res) => {
+  res.json({ user: req.user });
+});
+
+// Protected: admin-only
+app.get("/api/admin/dashboard", (req, res) => {
+  if (req.user.role !== "admin") {
+    throw HttpError.forbidden("Admin access required");
+  }
+  res.json({ stats: getDashboardStats() });
+});
+
+app.listen(3000);
+```
+
+## Custom Token Extraction
+
+```typescript
+app.plugin(
+  JWTPlugin({
+    secret: SECRET,
+    getToken: (req) => {
+      // Check a custom header first
+      const apiToken = req.headers["x-api-token"];
+      if (apiToken) return apiToken;
+
+      // Fall back to Bearer
+      const auth = req.headers.authorization;
+      if (auth?.startsWith("Bearer ")) return auth.slice(7);
+
+      return null;
+    },
+  })
+);
+```
+
+<Callout>
+Never hard-code your JWT secret. Use environment variables or a secrets manager. For production systems, consider rotating secrets with dual-verification support.
+</Callout>
+
+## Next Steps
+
+- [Cookies](/docs/en/framework/features/cookies) — store refresh tokens in httpOnly cookies
+- [Rate Limiting](/docs/en/framework/features/rate-limiting) — protect login endpoints from brute-force
+- [Error Handling](/docs/en/framework/features/error-handling) — structured error responses for auth failures

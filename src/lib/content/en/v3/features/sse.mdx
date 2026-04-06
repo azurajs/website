@@ -1,0 +1,200 @@
+---
+title: Server-Sent Events (SSE)
+description: Push real-time updates to clients with the SSEPlugin and SSEManager
+category: Features
+icon: lucide:radio
+order: 12
+---
+
+# Server-Sent Events (SSE)
+
+The `SSEPlugin` opens a persistent HTTP connection on a configurable path and manages connected clients through an `SSEManager`. Clients receive events in real time without polling.
+
+## Quick Start
+
+```typescript
+import { AzuraServer } from "azurats";
+import { SSEPlugin } from "azurats/plugins";
+
+const app = new AzuraServer();
+
+const sse = SSEPlugin({
+  path: "/events",
+  heartbeatInterval: 30_000,
+  retry: 3000,
+  maxClients: 1000,
+});
+
+app.plugin(sse);
+
+// Broadcast to all connected clients
+setInterval(() => {
+  sse.manager.broadcast("time", { now: Date.now() });
+}, 5000);
+
+app.listen(3000);
+```
+
+<Callout>
+`SSEPlugin` returns a plugin handler **with a `manager` property**. Register it with `app.plugin()` and access `sse.manager` for broadcasting and client management.
+</Callout>
+
+## SSEPlugin Options
+
+| Option | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `path` | `string` | **required** | URL path that clients connect to (e.g. `"/events"`). Only `GET` requests on this path are handled. |
+| `heartbeatInterval` | `number` | `30000` | Interval in ms between heartbeat events. Keeps the connection alive through proxies and load balancers. |
+| `retry` | `number` | `3000` | Reconnection delay in ms sent to the client in the `retry:` field. |
+| `maxClients` | `number` | `1000` | Maximum concurrent connections. New connections are rejected when the limit is reached. |
+
+## SSEManager
+
+The `SSEManager` class (also exported from `azurats/plugins`) manages the connected client pool.
+
+### Methods
+
+| Method | Signature | Description |
+| :--- | :--- | :--- |
+| `broadcast` | `(event: string, data: any, id?: string) => void` | Send an event to **all** connected clients. |
+| `getClient` | `(id: string) => SSEClient \| undefined` | Retrieve a specific client by ID. |
+| `getClientCount` | `() => number` | Number of currently connected clients. |
+| `closeAll` | `() => void` | Disconnect every client. |
+
+### SSEClient Interface
+
+Each connected client is represented by an `SSEClient` object:
+
+```typescript
+interface SSEClient {
+  id: string;
+  res: AzuraResponse;
+  send(event: string, data: any, eventId?: string): void;
+  close(): void;
+}
+```
+
+| Property / Method | Description |
+| :--- | :--- |
+| `id` | Unique client identifier (UUID). |
+| `res` | The underlying response object for the connection. |
+| `send(event, data, id?)` | Send an event to this specific client. |
+| `close()` | Close this client's connection. |
+
+## Connection Lifecycle
+
+```
+Client                                Server
+  │                                     │
+  ├─ GET /events ───────────────────────►│
+  │                                     │  SSEPlugin intercepts GET on path
+  │◄── 200 OK ─────────────────────────┤  Content-Type: text/event-stream
+  │    retry: 3000                      │
+  │    event: connected                 │
+  │    data: {"clientId":"abc-123"}     │
+  │                                     │
+  │◄── event: heartbeat ───────────────┤  every heartbeatInterval ms
+  │    data: {"time":1712345678000}     │
+  │                                     │
+  │◄── event: notification ────────────┤  app calls manager.broadcast(...)
+  │    data: {"message":"Hello!"}       │
+  │                                     │
+  │── connection closed ────────────────►│  client removed from manager
+```
+
+## Examples
+
+### Targeted Messages
+
+```typescript
+app.post("/notify/:clientId", (req, res) => {
+  const client = sse.manager.getClient(req.params.clientId);
+
+  if (!client) {
+    return res.status(404).json({ error: "Client not connected" });
+  }
+
+  client.send("private", { message: req.body.message });
+  res.json({ delivered: true });
+});
+```
+
+### Live Dashboard Metrics
+
+```typescript
+const sse = SSEPlugin({ path: "/metrics/stream" });
+app.plugin(sse);
+
+setInterval(() => {
+  sse.manager.broadcast("metrics", {
+    cpu: process.cpuUsage(),
+    memory: process.memoryUsage(),
+    uptime: process.uptime(),
+    clients: sse.manager.getClientCount(),
+  });
+}, 1000);
+```
+
+### Chat Room
+
+```typescript
+const chat = SSEPlugin({ path: "/chat/stream", maxClients: 500 });
+app.plugin(chat);
+
+app.post("/chat/send", (req, res) => {
+  const { username, message } = req.body;
+
+  chat.manager.broadcast("message", {
+    username,
+    message,
+    timestamp: Date.now(),
+  });
+
+  res.json({ sent: true });
+});
+```
+
+## Client-Side Usage
+
+```javascript
+const source = new EventSource("/events");
+
+source.addEventListener("connected", (e) => {
+  const { clientId } = JSON.parse(e.data);
+  console.log("Connected with ID:", clientId);
+});
+
+source.addEventListener("notification", (e) => {
+  const data = JSON.parse(e.data);
+  console.log("Notification:", data.message);
+});
+
+source.addEventListener("heartbeat", () => {
+  // Connection is alive
+});
+
+source.onerror = () => {
+  console.log("Connection lost. Reconnecting...");
+};
+```
+
+<Callout>
+The browser's `EventSource` API automatically reconnects using the `retry` interval sent by the server. No manual reconnection logic is needed for most use cases.
+</Callout>
+
+## Monitoring Active Connections
+
+```typescript
+app.get("/events/stats", (req, res) => {
+  res.json({
+    connectedClients: sse.manager.getClientCount(),
+    maxClients: 1000,
+  });
+});
+```
+
+## Next Steps
+
+- [Health Check](/docs/en/v3/features/health-check) — monitor SSE alongside service health
+- [Proxy](/docs/en/v3/features/proxy) — proxy non-SSE traffic to backend services
+- [CORS](/docs/en/v3/features/cors) — allow cross-origin SSE connections

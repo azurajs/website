@@ -1,0 +1,394 @@
+---
+title: Quick Start
+description: Build your first AzuraJS v3 API from scratch in under 5 minutes with the new AzuraServer API.
+category: Getting Started
+icon: zap
+order: 2
+---
+
+# Quick Start
+
+Follow this step-by-step guide to build a fully functional REST API with AzuraJS v3. By the end, you'll have a working CRUD API with plugins, error handling, and both functional and decorator-based routes.
+
+<Callout type="info" title="Prerequisites">
+  Make sure you've completed the [Installation](/docs/en/v3/getting-started/installation) guide before continuing.
+</Callout>
+
+## Step 1: Create the Configuration File
+
+Create `azura.config.ts` in your project root. This file is auto-loaded by the framework at startup.
+
+```typescript
+import type { AzuraConfig } from "azurats/types";
+
+const config: AzuraConfig = {
+  environment: "development",
+  server: {
+    port: 3000,
+    host: "0.0.0.0",
+  },
+  logging: {
+    level: "debug",
+    requestLogging: true,
+    timestamp: true,
+    colors: true,
+  },
+  debug: true,
+};
+
+export default config;
+```
+
+<Callout type="info" title="Config file formats">
+  AzuraJS supports `azura.config.ts`, `azura.config.js`, `azura.config.mjs`, `azura.config.json`, `azura.config.yaml`, and `azura.config.yml`. The framework searches for them in that order and uses the first one found. You can also pass configuration directly to the `AzuraServer` constructor.
+</Callout>
+
+## Step 2: Create a Controller
+
+Create `src/controllers/UserController.ts`:
+
+```typescript
+import { Controller, Get, Post, Put, Delete, Param, Body, Query } from "azurats/decorators";
+import { HttpError } from "azurats/utils";
+
+interface User {
+  id: number;
+  name: string;
+  email: string;
+}
+
+const users: User[] = [
+  { id: 1, name: "Alice", email: "alice@example.com" },
+  { id: 2, name: "Bob", email: "bob@example.com" },
+];
+
+@Controller("/users")
+export class UserController {
+  @Get("/")
+  findAll(@Query("page") page?: string, @Query("limit") limit?: string) {
+    const p = Number(page) || 1;
+    const l = Number(limit) || 10;
+    const start = (p - 1) * l;
+
+    return {
+      users: users.slice(start, start + l),
+      pagination: { page: p, limit: l, total: users.length },
+    };
+  }
+
+  @Get("/:id")
+  findOne(@Param("id") id: string) {
+    const user = users.find((u) => u.id === Number(id));
+    if (!user) {
+      throw HttpError.notFound(`User with id ${id} not found`);
+    }
+    return user;
+  }
+
+  @Post("/")
+  create(@Body() body: { name: string; email: string }) {
+    if (!body.name || !body.email) {
+      throw HttpError.badRequest("name and email are required");
+    }
+    const user: User = {
+      id: users.length + 1,
+      name: body.name,
+      email: body.email,
+    };
+    users.push(user);
+    return user;
+  }
+
+  @Put("/:id")
+  update(@Param("id") id: string, @Body() body: Partial<User>) {
+    const user = users.find((u) => u.id === Number(id));
+    if (!user) {
+      throw HttpError.notFound(`User with id ${id} not found`);
+    }
+    Object.assign(user, body);
+    return user;
+  }
+
+  @Delete("/:id")
+  remove(@Param("id") id: string) {
+    const index = users.findIndex((u) => u.id === Number(id));
+    if (index === -1) {
+      throw HttpError.notFound(`User with id ${id} not found`);
+    }
+    users.splice(index, 1);
+    return { deleted: true };
+  }
+}
+```
+
+### How It Works
+
+- `@Controller("/users")` sets the base path prefix for all routes in this class.
+- `@Get("/")`, `@Post("/")`, `@Put("/:id")`, `@Delete("/:id")` define HTTP method handlers.
+- `@Param("id")` extracts the `id` route parameter.
+- `@Body()` parses and injects the request body.
+- `@Query("page")` extracts a query string parameter.
+- Return values are automatically serialized to JSON. No need to call `res.json()` manually.
+- Thrown `HttpError` instances are caught and returned as structured JSON error responses.
+
+## Step 3: Create the Main File
+
+Create `src/main.ts`:
+
+```typescript
+import { AzuraServer } from "azurats/core";
+import {
+  CORSPlugin,
+  HelmetPlugin,
+  RateLimitPlugin,
+  RequestIdPlugin,
+  CompressionPlugin,
+  HealthCheckPlugin,
+} from "azurats/plugins";
+import { LoggingMiddleware } from "azurats/middleware";
+import { HttpError } from "azurats/utils";
+import { UserController } from "./controllers/UserController.js";
+
+const app = new AzuraServer({
+  environment: "development",
+  server: { port: 3000 },
+  logging: { level: "debug", requestLogging: true },
+  debug: true,
+});
+
+// ── Plugins ──────────────────────────────────
+app.plugin(RequestIdPlugin());
+app.plugin(HelmetPlugin());
+app.plugin(CORSPlugin({ origins: "*", credentials: false }));
+app.plugin(RateLimitPlugin({ windowMs: 60_000, max: 100 }));
+app.plugin(CompressionPlugin({ threshold: 1024 }));
+app.plugin(LoggingMiddleware());
+app.plugin(
+  HealthCheckPlugin({
+    path: "/health",
+    checks: {
+      memory: () => process.memoryUsage().heapUsed < 500 * 1024 * 1024,
+    },
+  }),
+);
+
+// ── Register Controllers ─────────────────────
+app.register(UserController);
+
+// ── Additional Functional Routes ─────────────
+app.get("/", (req, res) => {
+  res.json({
+    message: "Welcome to AzuraJS v3.0.0",
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// ── Global Error Handler ─────────────────────
+app.onError((err, req, res) => {
+  if (err instanceof HttpError) {
+    res.status(err.statusCode).json(err.toJSON());
+    return;
+  }
+  res.status(500).json({
+    error: { statusCode: 500, message: "Something went wrong" },
+  });
+});
+
+// ── Start ────────────────────────────────────
+app.listen(3000, () => {
+  console.log("Server running on http://localhost:3000");
+});
+```
+
+### What's Happening
+
+1. **Create the server** — `new AzuraServer(config)` initializes the framework with your configuration.
+2. **Register plugins** — `app.plugin()` adds plugins to the request pipeline. Plugins run before route handlers in registration order.
+3. **Register controllers** — `app.register(UserController)` scans the class for decorator metadata and registers all routes.
+4. **Add functional routes** — You can mix decorator-based controllers with `app.get()` / `app.post()` style routes freely.
+5. **Error handling** — `app.onError()` registers a global error handler. `HttpError` instances are automatically caught and serialized when no custom handler is set.
+6. **Start listening** — `app.listen()` starts the HTTP server.
+
+## Step 4: Run the Application
+
+<Tabs items={["tsx", "bun", "compiled"]}>
+<Tab value="tsx">
+```bash
+npx tsx src/main.ts
+```
+</Tab>
+<Tab value="bun">
+```bash
+bun src/main.ts
+```
+</Tab>
+<Tab value="compiled">
+```bash
+npx tsc && node dist/main.js
+```
+</Tab>
+</Tabs>
+
+You should see output like:
+
+```
+╔══════════════════════════════════════╗
+║          AzuraJS v3.0.0             ║
+║   Server running on port 3000       ║
+║   http://0.0.0.0:3000               ║
+╚══════════════════════════════════════╝
+```
+
+## Step 5: Test the API
+
+Open another terminal and test with `curl`:
+
+```bash
+# Root endpoint
+curl http://localhost:3000/
+
+# Health check
+curl http://localhost:3000/health
+
+# List users
+curl http://localhost:3000/users
+
+# List users with pagination
+curl "http://localhost:3000/users?page=1&limit=5"
+
+# Get a single user
+curl http://localhost:3000/users/1
+
+# Create a user
+curl -X POST http://localhost:3000/users \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Charlie", "email": "charlie@example.com"}'
+
+# Update a user
+curl -X PUT http://localhost:3000/users/1 \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Alice Updated"}'
+
+# Delete a user
+curl -X DELETE http://localhost:3000/users/1
+
+# Test error handling (user not found)
+curl http://localhost:3000/users/999
+```
+
+Expected responses:
+
+```json
+// GET /users/1
+{ "id": 1, "name": "Alice", "email": "alice@example.com" }
+
+// GET /users/999
+{ "error": { "statusCode": 404, "message": "User with id 999 not found" } }
+
+// POST /users (missing fields)
+{ "error": { "statusCode": 400, "message": "name and email are required" } }
+
+// GET /health
+{ "status": "healthy", "checks": { "memory": true } }
+```
+
+## Understanding the Plugin Pipeline
+
+When a request comes in, it flows through the framework in this order:
+
+```
+Request → Plugins → Global Middleware → Route Middleware → Route Handler → Response
+```
+
+1. **Plugins** run first (CORS, Helmet, Rate Limit, etc.) and can short-circuit the pipeline.
+2. **Global middleware** registered with `app.use()` runs next.
+3. **Route-specific middleware** attached via `@UseMiddleware()` or inline handlers runs before the route handler.
+4. **The route handler** executes and returns a response.
+5. If any step throws, the **error handler** catches it.
+
+## Adding Middleware to Routes
+
+You can attach middleware to individual routes or entire controllers:
+
+```typescript
+import { Controller, Get, UseMiddleware } from "azurats/decorators";
+import type { AzuraRequest, AzuraResponse, NextFunction } from "azurats/types";
+
+function requireAuth(req: AzuraRequest, res: AzuraResponse, next: NextFunction) {
+  const token = req.headers["authorization"];
+  if (!token) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  next();
+}
+
+@Controller("/admin")
+@UseMiddleware(requireAuth)
+class AdminController {
+  @Get("/dashboard")
+  dashboard() {
+    return { section: "admin", data: {} };
+  }
+
+  @Get("/stats")
+  stats() {
+    return { users: 100, requests: 5000 };
+  }
+}
+```
+
+The `requireAuth` middleware runs before every route in `AdminController`.
+
+## Using Parameter Decorators
+
+AzuraJS provides a rich set of parameter decorators:
+
+```typescript
+import {
+  Controller, Get, Post,
+  Body, Query, Param, Headers, Cookies, Ip, Session, Req, Res,
+} from "azurats/decorators";
+import type { AzuraRequest, AzuraResponse } from "azurats/types";
+
+@Controller("/demo")
+class DemoController {
+  @Get("/info")
+  info(
+    @Headers("user-agent") userAgent: string,
+    @Cookies("session_id") sessionId: string,
+    @Ip() ip: string,
+    @Query() query: Record<string, string>,
+  ) {
+    return { userAgent, sessionId, ip, query };
+  }
+
+  @Post("/echo")
+  echo(@Body() body: unknown, @Req() req: AzuraRequest) {
+    return {
+      body,
+      method: req.method,
+      path: req.pathname,
+    };
+  }
+}
+```
+
+| Decorator | Injects |
+|---|---|
+| `@Body()` | Parsed request body (or a specific field with `@Body("field")`) |
+| `@Query()` | All query parameters (or a specific one with `@Query("key")`) |
+| `@Param()` | All route params (or a specific one with `@Param("id")`) |
+| `@Headers()` | All headers (or a specific one with `@Headers("content-type")`) |
+| `@Cookies()` | All cookies (or a specific one with `@Cookies("session")`) |
+| `@Ip()` | Client IP address |
+| `@Session()` | Session object (when `SessionPlugin` is active) |
+| `@Req()` | The full `AzuraRequest` object |
+| `@Res()` | The full `AzuraResponse` object |
+
+## Next Steps
+
+- [**Configuration**](/docs/en/v3/getting-started/configuration) — Deep dive into the `AzuraConfig` system.
+- [**Usage with JavaScript**](/docs/en/v3/getting-started/usage-with-javascript) — Use AzuraJS without TypeScript.
+- [**Plugins**](/docs/en/v3/plugins) — Explore all 15 built-in plugins in detail.
+- [**Decorators**](/docs/en/v3/decorators) — Full decorator API reference.

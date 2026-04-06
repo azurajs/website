@@ -1,0 +1,262 @@
+---
+title: Extensões de Tipo
+description: Estenda AzuraRequest e AzuraResponse com declaration merging
+category: Avançado
+icon: lucide:puzzle
+order: 3
+---
+
+# Extensões de Tipo 🧬
+
+O AzuraJS exporta as interfaces `AzuraRequest` e `AzuraResponse` a partir de `azurats/types`. Graças ao recurso de **declaration merging** do TypeScript, você pode estender essas interfaces para adicionar propriedades personalizadas — como dados de usuário autenticado, tenant ID ou métodos auxiliares de resposta — com tipagem completa em toda a aplicação.
+
+## Estendendo `AzuraRequest`
+
+Crie um arquivo de declaração de tipos no seu projeto (por exemplo, `src/types/azura.d.ts`) e use `declare module` para adicionar propriedades à interface `AzuraRequest`:
+
+```typescript
+// src/types/azura.d.ts
+declare module "azurats/types" {
+  interface AzuraRequest {
+    user?: {
+      id: string;
+      email: string;
+      roles: string[];
+    };
+    tenantId?: string;
+    requestStartedAt?: number;
+  }
+}
+```
+
+<Callout type="tip" title="Localização do Arquivo">
+  O arquivo `.d.ts` pode estar em qualquer diretório incluído no `tsconfig.json`. A convenção é colocá-lo em `src/types/`. Certifique-se de que o diretório está coberto pelo campo `include` do seu `tsconfig.json`.
+</Callout>
+
+Agora o TypeScript reconhece `req.user`, `req.tenantId` e `req.requestStartedAt` em qualquer handler ou middleware:
+
+```typescript
+import { Controller, Get, Req } from "azurats/decorators";
+import type { AzuraRequest } from "azurats/types";
+
+@Controller("/profile")
+class ProfileController {
+  @Get()
+  getProfile(@Req() req: AzuraRequest) {
+    if (!req.user) {
+      throw new Error("Não autenticado");
+    }
+
+    return {
+      id: req.user.id,
+      email: req.user.email,
+      roles: req.user.roles,
+      tenant: req.tenantId,
+    };
+  }
+}
+```
+
+### Populando Propriedades Customizadas com Middleware
+
+As propriedades declaradas precisam ser populadas em runtime por um middleware:
+
+```typescript
+import type { MiddlewareHandler } from "azurats/types";
+import { verifyJWT } from "azurats/plugins";
+
+const authMiddleware: MiddlewareHandler = async (req, res, next) => {
+  const token = req.headers.authorization?.replace("Bearer ", "");
+
+  if (!token) {
+    res.status(401).json({ error: "Token não fornecido" });
+    return;
+  }
+
+  try {
+    const payload = verifyJWT(token, process.env.JWT_SECRET!);
+    req.user = {
+      id: payload.sub as string,
+      email: payload.email as string,
+      roles: (payload.roles as string[]) ?? [],
+    };
+    next();
+  } catch {
+    res.status(401).json({ error: "Token inválido" });
+  }
+};
+```
+
+## Estendendo `AzuraResponse`
+
+Da mesma forma, você pode adicionar métodos ou propriedades à interface `AzuraResponse`:
+
+```typescript
+// src/types/azura.d.ts
+declare module "azurats/types" {
+  interface AzuraResponse {
+    success(data: unknown, message?: string): void;
+    fail(statusCode: number, error: string, details?: unknown): void;
+  }
+}
+```
+
+Implemente os métodos em um middleware que é registrado antes das rotas:
+
+```typescript
+import type { MiddlewareHandler } from "azurats/types";
+
+const responseHelpers: MiddlewareHandler = (req, res, next) => {
+  res.success = (data, message = "OK") => {
+    res.status(200).json({ success: true, message, data });
+  };
+
+  res.fail = (statusCode, error, details = null) => {
+    res.status(statusCode).json({ success: false, error, details });
+  };
+
+  next();
+};
+```
+
+Uso no controller:
+
+```typescript
+import { Controller, Get, Res } from "azurats/decorators";
+import type { AzuraResponse } from "azurats/types";
+
+@Controller("/data")
+class DataController {
+  @Get()
+  list(@Res() res: AzuraResponse) {
+    const items = [{ id: 1, name: "Item A" }];
+    res.success(items, "Dados carregados com sucesso");
+  }
+}
+```
+
+## Usando `res.locals` para Dados por Requisição
+
+O `AzuraResponse` já possui uma propriedade `locals` tipada como `Record<string, any>`. Ela é ideal para passar dados entre middlewares e handlers sem modificar a interface:
+
+```typescript
+import type { MiddlewareHandler } from "azurats/types";
+
+const timingMiddleware: MiddlewareHandler = (req, res, next) => {
+  res.locals.startTime = Date.now();
+  next();
+};
+
+const logDuration: MiddlewareHandler = (req, res, next) => {
+  res.on("finish", () => {
+    const duration = Date.now() - (res.locals.startTime as number);
+    console.log(`${req.method} ${req.pathname} - ${duration}ms`);
+  });
+  next();
+};
+```
+
+Para tipagem mais forte em `res.locals`, você pode estender a interface:
+
+```typescript
+// src/types/azura.d.ts
+declare module "azurats/types" {
+  interface AzuraResponse {
+    locals: {
+      startTime?: number;
+      requestId?: string;
+      [key: string]: unknown;
+    };
+  }
+}
+```
+
+## Propriedades Nativas de `AzuraRequest`
+
+Antes de criar extensões, verifique se a propriedade já existe nativamente. O `AzuraRequest` já inclui:
+
+| Propriedade | Tipo | Descrição |
+|---|---|---|
+| `pathname` | `string` | Caminho da URL sem query string |
+| `query` | `Record<string, string \| string[]>` | Parâmetros da query string parseados |
+| `params` | `Record<string, string>` | Parâmetros de rota (`:id`, `:slug`) |
+| `body` | `any` | Corpo da requisição parseado |
+| `cookies` | `Record<string, string>` | Cookies parseados do header `Cookie` |
+| `ip` | `string` | IP do cliente (com suporte a proxies) |
+| `protocol` | `"http" \| "https"` | Protocolo da requisição |
+| `secure` | `boolean` | `true` se o protocolo é HTTPS |
+| `hostname` | `string` | Hostname extraído do header `Host` |
+| `requestId` | `string \| undefined` | ID único (quando `RequestIdPlugin` está ativo) |
+| `session` | `Record<string, any> \| undefined` | Dados de sessão (quando `SessionPlugin` está ativo) |
+| `user` | `any \| undefined` | Dados do usuário (quando `JWTPlugin` está ativo) |
+| `startTime` | `bigint` | Timestamp de alta resolução do início da requisição |
+| `raw` | `IncomingMessage` | Objeto `IncomingMessage` original do Node.js |
+
+## Exemplo Completo
+
+Combinando tudo — declaração de tipos, middleware de autenticação e controller tipado:
+
+```typescript
+// src/types/azura.d.ts
+declare module "azurats/types" {
+  interface AzuraRequest {
+    user?: {
+      id: string;
+      email: string;
+      roles: string[];
+    };
+    tenantId?: string;
+  }
+
+  interface AzuraResponse {
+    success(data: unknown): void;
+    locals: {
+      startTime?: number;
+      [key: string]: unknown;
+    };
+  }
+}
+```
+
+```typescript
+// src/index.ts
+import { AzuraServer } from "azurats/core";
+import { Controller, Get, Req, Res, UseMiddleware } from "azurats/decorators";
+import { CORSPlugin, JWTPlugin } from "azurats/plugins";
+import type { AzuraRequest, AzuraResponse, MiddlewareHandler } from "azurats/types";
+
+const responseHelpers: MiddlewareHandler = (req, res, next) => {
+  res.success = (data) => res.status(200).json({ ok: true, data });
+  next();
+};
+
+const tenantResolver: MiddlewareHandler = (req, res, next) => {
+  req.tenantId = req.headers["x-tenant-id"] as string | undefined;
+  next();
+};
+
+@Controller("/api")
+@UseMiddleware(tenantResolver)
+class ApiController {
+  @Get("/me")
+  me(@Req() req: AzuraRequest, @Res() res: AzuraResponse) {
+    res.success({
+      user: req.user,
+      tenant: req.tenantId,
+    });
+  }
+}
+
+const app = new AzuraServer();
+app.use(responseHelpers);
+app.plugin(CORSPlugin({ origin: "*" }));
+app.plugin(JWTPlugin({ secret: process.env.JWT_SECRET! }));
+app.register(ApiController);
+app.listen(3000);
+```
+
+## Próximos Passos 📖
+
+- [🔌 **Middleware**](/docs/pt/v3/conceitos/middleware): Entenda como middlewares podem popular as propriedades estendidas.
+- [🚨 **Tratamento de Erros**](/docs/pt/v3/recursos/error-handling): Veja como usar `HttpError` para respostas de erro consistentes.
+- [🖥️ **Servidores Customizados**](/docs/pt/v3/avancado/servidores-customizados): Configure HTTPS, timeouts e graceful shutdown.

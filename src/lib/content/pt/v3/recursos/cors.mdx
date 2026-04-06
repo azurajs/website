@@ -1,0 +1,245 @@
+---
+title: CORS
+description: Cross-Origin Resource Sharing no AzuraJS v3 — CORSPlugin com suporte a preflight, múltiplas origens e credenciais
+category: Recursos
+icon: lucide:globe
+order: 5
+---
+
+# CORS
+
+O **CORSPlugin** do AzuraJS v3 gerencia headers de Cross-Origin Resource Sharing, incluindo tratamento automático de requisições preflight (OPTIONS). Zero dependências externas.
+
+## Início Rápido
+
+```typescript
+import { AzuraServer } from "azurats";
+import { CORSPlugin } from "azurats/plugins";
+
+const app = new AzuraServer();
+
+app.plugin(CORSPlugin({
+  origins: "https://meusite.com.br",
+  credentials: true,
+}));
+
+app.get("/api/dados", (req, res) => {
+  res.json({ data: "Olá do backend!" });
+});
+
+app.listen(3000);
+```
+
+## Opções do CORSPlugin
+
+```typescript
+interface CORSOptions {
+  origins?: string | string[] | ((origin: string) => boolean);
+  methods?: string[];
+  allowedHeaders?: string[];
+  exposedHeaders?: string[];
+  credentials?: boolean;
+  maxAge?: number;
+  preflightContinue?: boolean;
+}
+```
+
+| Opção | Tipo | Padrão | Descrição |
+| :--- | :--- | :--- | :--- |
+| `origins` | `string \| string[] \| function` | `"*"` | Origens permitidas |
+| `methods` | `string[]` | `["GET","POST","PUT","DELETE","PATCH","HEAD","OPTIONS"]` | Métodos HTTP permitidos |
+| `allowedHeaders` | `string[]` | `["Content-Type","Authorization","Accept","X-Requested-With"]` | Headers de requisição permitidos |
+| `exposedHeaders` | `string[]` | `[]` | Headers expostos ao navegador |
+| `credentials` | `boolean` | `false` | Permitir cookies e Authorization |
+| `maxAge` | `number` | `86400` | Cache de preflight em segundos (24h) |
+| `preflightContinue` | `boolean` | `false` | Passar preflight para o próximo handler |
+
+## Configurações de Origem
+
+### Permitir Todas as Origens
+
+```typescript
+app.plugin(CORSPlugin({ origins: "*" }));
+```
+
+Quando `origins` é `"*"` e `credentials` é `false`, o header retornado é `Access-Control-Allow-Origin: *`.
+
+### Origem Única
+
+```typescript
+app.plugin(CORSPlugin({
+  origins: "https://meusite.com.br",
+}));
+```
+
+### Múltiplas Origens
+
+```typescript
+app.plugin(CORSPlugin({
+  origins: [
+    "https://meusite.com.br",
+    "https://admin.meusite.com.br",
+    "http://localhost:5173",
+  ],
+}));
+```
+
+O AzuraJS verifica se a origem da requisição está na lista e retorna essa origem específica no header `Access-Control-Allow-Origin`, junto com `Vary: Origin`.
+
+### Função Customizada
+
+Para lógica dinâmica de validação de origem:
+
+```typescript
+app.plugin(CORSPlugin({
+  origins: (origin: string) => {
+    return origin.endsWith(".meusite.com.br") ||
+           origin === "http://localhost:5173";
+  },
+}));
+```
+
+## Requisições Preflight (OPTIONS)
+
+Quando o navegador envia uma requisição preflight, o CORSPlugin automaticamente:
+
+1. Define `Access-Control-Allow-Methods` com os métodos configurados
+2. Define `Access-Control-Allow-Headers` com os headers configurados
+3. Define `Access-Control-Max-Age` com o tempo de cache configurado
+4. Retorna status `204 No Content` e encerra a requisição
+
+```typescript
+app.plugin(CORSPlugin({
+  origins: ["https://meusite.com.br"],
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Custom-Header"],
+  maxAge: 3600, // cache preflight por 1 hora
+}));
+```
+
+Se `preflightContinue` for `true`, a requisição OPTIONS continua para o próximo handler ao invés de ser respondida automaticamente:
+
+```typescript
+app.plugin(CORSPlugin({
+  origins: "*",
+  preflightContinue: true,
+}));
+
+app.options("/api/custom", (req, res) => {
+  res.status(204).send("");
+});
+```
+
+## Credenciais
+
+Para permitir cookies e headers de autorização em requisições cross-origin:
+
+```typescript
+app.plugin(CORSPlugin({
+  origins: ["https://meusite.com.br"],
+  credentials: true,
+}));
+```
+
+<Callout>
+Quando `credentials` é `true`, o header `Access-Control-Allow-Origin` **nunca** pode ser `*`. O AzuraJS automaticamente substitui `*` pela origem real da requisição quando credenciais estão habilitadas.
+</Callout>
+
+O header `Access-Control-Allow-Credentials: true` é adicionado à resposta.
+
+## Headers Expostos
+
+Por padrão, o navegador só tem acesso a um conjunto limitado de headers de resposta. Use `exposedHeaders` para expor headers customizados:
+
+```typescript
+app.plugin(CORSPlugin({
+  origins: ["https://meusite.com.br"],
+  exposedHeaders: [
+    "X-Total-Count",
+    "X-Page-Count",
+    "X-Request-Id",
+  ],
+}));
+```
+
+Isso permite que o JavaScript no frontend acesse esses headers via `response.headers.get("X-Total-Count")`.
+
+## Headers Aplicados
+
+Para cada requisição com uma origem permitida, o CORSPlugin define:
+
+| Header | Quando |
+| :--- | :--- |
+| `Access-Control-Allow-Origin` | Sempre (se origem é permitida) |
+| `Access-Control-Allow-Credentials` | Quando `credentials: true` |
+| `Access-Control-Expose-Headers` | Quando `exposedHeaders` tem itens |
+| `Vary: Origin` | Quando a origem específica (não `*`) é retornada |
+| `Access-Control-Allow-Methods` | Em requisições OPTIONS |
+| `Access-Control-Allow-Headers` | Em requisições OPTIONS |
+| `Access-Control-Max-Age` | Em requisições OPTIONS |
+
+## Exemplos Práticos
+
+### API com Frontend SPA
+
+```typescript
+const app = new AzuraServer();
+
+app.plugin(CORSPlugin({
+  origins: [
+    process.env.FRONTEND_URL!,
+    ...(process.env.NODE_ENV === "development"
+      ? ["http://localhost:5173", "http://localhost:3000"]
+      : []),
+  ],
+  credentials: true,
+  exposedHeaders: ["X-Total-Count"],
+}));
+```
+
+### API Pública
+
+```typescript
+app.plugin(CORSPlugin({
+  origins: "*",
+  methods: ["GET", "HEAD"],
+  maxAge: 86400,
+}));
+```
+
+### Microserviços Internos
+
+Para serviços que não são acessados diretamente pelo navegador, o CORS pode ser desabilitado simplesmente não registrando o plugin. Caso precise de CORS restrito entre serviços:
+
+```typescript
+app.plugin(CORSPlugin({
+  origins: (origin) => {
+    const internalDomains = [
+      "users-service.internal",
+      "orders-service.internal",
+    ];
+    return internalDomains.some((d) => origin.includes(d));
+  },
+  credentials: true,
+}));
+```
+
+### Configuração por Ambiente
+
+```typescript
+function getCorsConfig(): CORSOptions {
+  if (process.env.NODE_ENV === "production") {
+    return {
+      origins: [process.env.FRONTEND_URL!],
+      credentials: true,
+      maxAge: 86400,
+    };
+  }
+  return {
+    origins: "*",
+    credentials: false,
+  };
+}
+
+app.plugin(CORSPlugin(getCorsConfig()));
+```

@@ -1,0 +1,168 @@
+---
+title: Modular Imports
+description: Optimize your bundle with tree-shakeable sub-path imports in AzuraJS v3
+category: Advanced
+icon: lucide:box
+order: 1
+---
+
+# Modular Imports
+
+AzuraJS v3 ships as a fully modular package with dedicated sub-path exports. Every public API is reachable through a granular import path, giving bundlers the information they need to eliminate unused code at build time.
+
+## Import Map
+
+The table below lists every available import path, what it exposes, and when you should reach for it.
+
+| Import Path | Key Exports | Purpose |
+|---|---|---|
+| `azurats` | Everything below, re-exported | Convenience root — pulls in the entire surface |
+| `azurats/core` | `AzuraServer`, `Router` | Server instantiation and low-level routing |
+| `azurats/plugins` | `CORSPlugin`, `RateLimitPlugin`, `HelmetPlugin`, `JWTPlugin`, `SessionPlugin`, `CompressionPlugin`, `StaticPlugin`, `ETagPlugin`, `RequestIdPlugin`, `TimeoutPlugin`, `HealthCheckPlugin`, `CircuitBreakerPlugin`, `ProxyPlugin`, `SSEPlugin`, `MultipartPlugin` | All 15 first-party plugins |
+| `azurats/decorators` | `Controller`, `Get`, `Post`, `Put`, `Delete`, `Patch`, `Head`, `Options`, `Body`, `Query`, `Param`, `Headers`, `Cookies`, `Req`, `Res`, `NextFunc`, `Ip`, `Session`, `UseMiddleware`, `applyDecorators`, `Meta` | Decorator-based routing and parameter injection |
+| `azurats/types` | `AzuraRequest`, `AzuraResponse`, `NextFunction`, `MiddlewareHandler`, `RouteHandler`, `ErrorHandler`, `HttpMethod`, `HttpStatus`, `HttpStatusText`, `HttpStatusCode`, `CookieOptions`, plugin option types | TypeScript interfaces, enums, and HTTP status constants |
+| `azurats/utils` | `Logger`, `HttpError`, `DTOValidator`, `SchemaValidator`, `resolveIp`, `parseQueryString`, `parseCookies`, `parseBody`, `parseUrl`, `serializeCookie`, `clearCookieHeader` | Standalone utilities and validators |
+| `azurats/config` | `ConfigModule` | Configuration loading (JSON, YAML, TS/JS) and singleton access |
+| `azurats/middleware` | `LoggingMiddleware` | Built-in middleware factories |
+
+## Root Import vs Sub-Path Imports
+
+### Root Import
+
+The root path re-exports everything from every sub-module:
+
+```typescript
+import { AzuraServer, CORSPlugin, Controller, Get, HttpStatus } from "azurats";
+```
+
+This is convenient for prototyping, but it prevents the bundler from knowing which sub-modules are truly unused.
+
+### Sub-Path Imports (Recommended)
+
+Import directly from the sub-path that owns the symbol:
+
+```typescript
+import { AzuraServer } from "azurats/core";
+import { CORSPlugin, RateLimitPlugin } from "azurats/plugins";
+import { Controller, Get, Param } from "azurats/decorators";
+import { HttpStatus } from "azurats/types";
+import { Logger, HttpError } from "azurats/utils";
+import { ConfigModule } from "azurats/config";
+import { LoggingMiddleware } from "azurats/middleware";
+```
+
+<Callout>
+Sub-path imports are resolved through the `exports` field in `package.json`. Both ESM (`import`) and CJS (`require`) are supported, with dedicated `.d.ts` type declarations for each entry point.
+</Callout>
+
+## Tree-Shaking in Practice
+
+Because each sub-path maps to a separate entry file, bundlers like **esbuild**, **Rollup**, and **webpack** can statically analyse which modules are actually referenced and drop the rest.
+
+```typescript
+// Only the core server and two plugins end up in your bundle
+import { AzuraServer } from "azurats/core";
+import { CORSPlugin, HelmetPlugin } from "azurats/plugins";
+
+const app = new AzuraServer();
+app.plugin(CORSPlugin({ origins: "*" }));
+app.plugin(HelmetPlugin());
+
+app.get("/", (req, res) => res.json({ status: "ok" }));
+app.listen(3000);
+```
+
+With the code above, none of the decorator system, config module, validators, or the remaining 13 plugins are included in the final output.
+
+### Measuring the Difference
+
+You can verify tree-shaking by checking the output with `tsup`, `esbuild`, or your bundler of choice:
+
+```bash
+npx esbuild src/index.ts --bundle --minify --analyze
+```
+
+Look for the `azurats/plugins/*` entries — only `CORSPlugin.js` and `HelmetPlugin.js` should appear.
+
+## TypeScript Resolution
+
+AzuraJS declares `typesVersions` alongside `exports` so that every sub-path resolves its types automatically, even in older TypeScript versions that do not fully support the `exports` field:
+
+```json
+{
+  "typesVersions": {
+    "*": {
+      "core": ["dist/core/index.d.ts"],
+      "plugins": ["dist/plugins/index.d.ts"],
+      "decorators": ["dist/decorators/index.d.ts"],
+      "types": ["dist/types/index.d.ts"],
+      "utils": ["dist/utils/index.d.ts"],
+      "config": ["dist/config/index.d.ts"],
+      "middleware": ["dist/middleware/index.d.ts"]
+    }
+  }
+}
+```
+
+<Callout>
+If your editor does not resolve sub-path types, make sure `moduleResolution` is set to `"Bundler"` or `"NodeNext"` in your `tsconfig.json`.
+</Callout>
+
+## Recommended Project Layout
+
+A typical import structure for a production application:
+
+```typescript
+// src/index.ts
+import { AzuraServer } from "azurats/core";
+import { CORSPlugin, HelmetPlugin, RateLimitPlugin, CompressionPlugin } from "azurats/plugins";
+import { LoggingMiddleware } from "azurats/middleware";
+import { HttpError } from "azurats/utils";
+
+const app = new AzuraServer({
+  environment: "production",
+  server: { port: 8080 },
+});
+
+app.plugin(CORSPlugin({ origins: ["https://example.com"] }));
+app.plugin(HelmetPlugin());
+app.plugin(RateLimitPlugin({ windowMs: 60_000, max: 100 }));
+app.plugin(CompressionPlugin({ threshold: 1024 }));
+app.plugin(LoggingMiddleware());
+
+app.onError((err, req, res) => {
+  if (err instanceof HttpError) {
+    res.status(err.statusCode).json(err.toJSON());
+    return;
+  }
+  res.status(500).json({ error: { statusCode: 500, message: "Internal Server Error" } });
+});
+
+app.listen();
+```
+
+```typescript
+// src/controllers/UserController.ts
+import { Controller, Get, Post, Param, Body, Res } from "azurats/decorators";
+import type { AzuraResponse } from "azurats/types";
+import { HttpError } from "azurats/utils";
+
+@Controller("/api/users")
+export class UserController {
+  @Get("/:id")
+  getUser(@Param("id") id: string, @Res() res: AzuraResponse) {
+    if (!id) throw HttpError.badRequest("Missing user id");
+    res.json({ id, name: `User ${id}` });
+  }
+
+  @Post()
+  createUser(@Body() body: { name: string; email: string }, @Res() res: AzuraResponse) {
+    res.status(201).json({ id: Date.now(), ...body });
+  }
+}
+```
+
+## Next Steps
+
+- [**TypeScript Support**](/docs/en/v3/advanced/typescript-support) — Leverage full type safety across the framework.
+- [**Plugins**](/docs/en/v3/features/plugins) — Deep dive into the 15 built-in plugins.

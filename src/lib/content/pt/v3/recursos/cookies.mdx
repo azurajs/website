@@ -1,0 +1,275 @@
+---
+title: Cookies
+description: Gerenciamento completo de cookies no AzuraJS v3 — definir, ler e limpar cookies com tipagem segura
+category: Recursos
+icon: lucide:cookie
+order: 3
+---
+
+# Cookies
+
+O AzuraJS v3 oferece suporte nativo a cookies através de métodos integrados no objeto `res` (resposta) e parsing automático no objeto `req` (requisição). Não é necessário instalar nenhuma dependência adicional.
+
+## Lendo Cookies
+
+Os cookies da requisição são automaticamente parseados e disponibilizados em `req.cookies` como um `Record<string, string>`:
+
+```typescript
+import { AzuraServer } from "azurats";
+
+const app = new AzuraServer();
+
+app.get("/profile", (req, res) => {
+  const sessionId = req.cookies.sessionId;
+  const theme = req.cookies.theme ?? "light";
+
+  res.json({ sessionId, theme });
+});
+
+app.listen(3000);
+```
+
+O parsing ocorre automaticamente durante o processamento de cada requisição utilizando o header `Cookie`.
+
+## Definindo Cookies
+
+Use `res.cookie(name, value, options?)` para definir um cookie na resposta:
+
+```typescript
+app.post("/login", (req, res) => {
+  const { username } = req.body;
+
+  res.cookie("sessionId", "abc123", {
+    httpOnly: true,
+    secure: true,
+    sameSite: "Strict",
+    maxAge: 86400, // 1 dia em segundos
+    path: "/",
+  });
+
+  res.json({ message: "Login realizado com sucesso" });
+});
+```
+
+O método `res.cookie()` retorna `this`, permitindo encadeamento:
+
+```typescript
+app.post("/preferences", (req, res) => {
+  res
+    .cookie("theme", "dark", { maxAge: 31536000 })
+    .cookie("lang", "pt-BR", { maxAge: 31536000 })
+    .json({ message: "Preferências salvas" });
+});
+```
+
+### Múltiplos Cookies
+
+Quando múltiplos cookies são definidos, o AzuraJS gerencia automaticamente o header `Set-Cookie` como um array:
+
+```typescript
+app.post("/setup", (req, res) => {
+  res.cookie("token", "jwt-token-here", {
+    httpOnly: true,
+    secure: true,
+    sameSite: "Strict",
+  });
+
+  res.cookie("preferences", JSON.stringify({ theme: "dark" }), {
+    maxAge: 2592000, // 30 dias
+  });
+
+  res.json({ ok: true });
+});
+```
+
+## Removendo Cookies
+
+Use `res.clearCookie(name, options?)` para remover um cookie:
+
+```typescript
+app.post("/logout", (req, res) => {
+  res.clearCookie("sessionId", {
+    path: "/",
+    httpOnly: true,
+    secure: true,
+  });
+
+  res.json({ message: "Logout realizado" });
+});
+```
+
+<Callout>
+Ao limpar um cookie, passe as mesmas opções `path`, `domain`, `secure` e `sameSite` usadas ao defini-lo. Caso contrário, o navegador pode não reconhecer que se trata do mesmo cookie.
+</Callout>
+
+## Interface CookieOptions
+
+Todas as opções disponíveis ao definir ou limpar cookies:
+
+```typescript
+interface CookieOptions {
+  maxAge?: number;     // tempo de vida em segundos
+  expires?: Date;      // data de expiração absoluta
+  path?: string;       // caminho do cookie (padrão: "/")
+  domain?: string;     // domínio do cookie
+  secure?: boolean;    // transmitir apenas via HTTPS
+  httpOnly?: boolean;  // inacessível via JavaScript (padrão: true)
+  sameSite?: "Strict" | "Lax" | "None";
+  signed?: boolean;    // cookie assinado
+}
+```
+
+### Detalhes das Opções
+
+| Opção | Padrão | Descrição |
+| :--- | :--- | :--- |
+| `maxAge` | — | Duração em segundos. Define o header `Max-Age` |
+| `expires` | — | Data absoluta de expiração. Define o header `Expires` |
+| `path` | `"/"` | Restringe o cookie a um caminho específico |
+| `domain` | — | Domínio para o qual o cookie é válido |
+| `secure` | `false` | Cookie enviado apenas em conexões HTTPS |
+| `httpOnly` | `true` | Impede acesso via `document.cookie` no navegador |
+| `sameSite` | — | Controla envio de cookies em requisições cross-site |
+
+## Serialização de Cookies
+
+O AzuraJS exporta funções utilitárias de baixo nível para serialização de cookies:
+
+```typescript
+import { serializeCookie, clearCookieHeader } from "azurats/utils";
+
+const header = serializeCookie("token", "abc123", {
+  httpOnly: true,
+  secure: true,
+  maxAge: 3600,
+  path: "/",
+  sameSite: "Strict",
+});
+// "token=abc123; Max-Age=3600; Path=/; Secure; HttpOnly; SameSite=Strict"
+
+const clearHeader = clearCookieHeader("token", { path: "/" });
+// "token=; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/; HttpOnly"
+```
+
+Essas funções são úteis quando você precisa manipular cookies fora do ciclo de vida padrão do request/response, como em plugins customizados.
+
+## Exemplos Práticos
+
+### Autenticação com Cookie
+
+```typescript
+import { AzuraServer } from "azurats";
+import { signJWT, verifyJWT } from "azurats/plugins";
+import { HttpError } from "azurats/utils";
+
+const app = new AzuraServer();
+const JWT_SECRET = process.env.JWT_SECRET!;
+
+app.post("/auth/login", (req, res) => {
+  const { email, password } = req.body;
+
+  // ... validar credenciais ...
+
+  const token = signJWT({ userId: 1, email }, JWT_SECRET, {
+    expiresIn: "7d",
+  });
+
+  res.cookie("auth_token", token, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "Strict",
+    maxAge: 604800, // 7 dias
+    path: "/",
+  });
+
+  res.json({ message: "Autenticado" });
+});
+
+app.get("/auth/me", (req, res) => {
+  const token = req.cookies.auth_token;
+  if (!token) throw HttpError.unauthorized("Não autenticado");
+
+  try {
+    const payload = verifyJWT(token, JWT_SECRET);
+    res.json({ user: payload });
+  } catch {
+    res.clearCookie("auth_token", { path: "/" });
+    throw HttpError.unauthorized("Token inválido");
+  }
+});
+
+app.post("/auth/logout", (req, res) => {
+  res.clearCookie("auth_token", {
+    path: "/",
+    httpOnly: true,
+    secure: true,
+    sameSite: "Strict",
+  });
+  res.json({ message: "Deslogado" });
+});
+```
+
+### Preferências do Usuário
+
+```typescript
+app.get("/settings", (req, res) => {
+  const theme = req.cookies.theme ?? "light";
+  const locale = req.cookies.locale ?? "pt-BR";
+  const fontSize = req.cookies.fontSize ?? "16";
+
+  res.json({ theme, locale, fontSize: Number(fontSize) });
+});
+
+app.put("/settings", (req, res) => {
+  const { theme, locale, fontSize } = req.body;
+  const oneYear = 31536000;
+
+  if (theme) res.cookie("theme", theme, { maxAge: oneYear });
+  if (locale) res.cookie("locale", locale, { maxAge: oneYear });
+  if (fontSize) res.cookie("fontSize", String(fontSize), { maxAge: oneYear });
+
+  res.json({ message: "Configurações salvas" });
+});
+```
+
+### Consentimento de Cookies (LGPD)
+
+```typescript
+app.post("/consent", (req, res) => {
+  const { analytics, marketing } = req.body;
+
+  res.cookie("cookie_consent", JSON.stringify({
+    analytics: !!analytics,
+    marketing: !!marketing,
+    timestamp: Date.now(),
+  }), {
+    maxAge: 31536000,
+    path: "/",
+    sameSite: "Lax",
+  });
+
+  res.json({ message: "Consentimento registrado" });
+});
+
+app.get("/consent", (req, res) => {
+  const consent = req.cookies.cookie_consent;
+  if (!consent) {
+    res.json({ hasConsent: false });
+    return;
+  }
+
+  try {
+    res.json({ hasConsent: true, ...JSON.parse(consent) });
+  } catch {
+    res.json({ hasConsent: false });
+  }
+});
+```
+
+## Boas Práticas
+
+1. **Sempre use `httpOnly: true`** para cookies com tokens de autenticação — isso impede acesso via JavaScript no cliente.
+2. **Use `secure: true`** em produção para garantir transmissão apenas via HTTPS.
+3. **Defina `sameSite`** para prevenir ataques CSRF: `"Strict"` para máxima proteção, `"Lax"` para navegação normal.
+4. **Prefira `maxAge`** sobre `expires` — é relativo e não depende do relógio do servidor.
+5. **Passe as mesmas opções** ao limpar um cookie que você usou ao defini-lo.

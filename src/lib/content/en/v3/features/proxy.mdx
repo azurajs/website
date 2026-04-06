@@ -1,0 +1,179 @@
+---
+title: Proxy
+description: Reverse proxy and API gateway forwarding with the ProxyPlugin
+category: Features
+icon: lucide:arrow-right-left
+order: 11
+---
+
+# Proxy
+
+The `ProxyPlugin` forwards incoming requests to an upstream server, acting as a reverse proxy or API gateway. It supports path rewriting, custom headers, timeouts, and lifecycle hooks.
+
+## Quick Start
+
+```typescript
+import { AzuraServer } from "azurats";
+import { ProxyPlugin } from "azurats/plugins";
+
+const app = new AzuraServer();
+
+app.plugin(
+  ProxyPlugin({
+    target: "http://backend-service:4000",
+  })
+);
+
+app.listen(3000);
+```
+
+All requests are now forwarded to `http://backend-service:4000`.
+
+## Options
+
+| Option | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `target` | `string` | **required** | Upstream URL to forward requests to. Supports `http://` and `https://`. |
+| `pathRewrite` | `Record<string, string>` | `{}` | Map of regex patterns to replacements applied to the request path before forwarding. |
+| `changeOrigin` | `boolean` | `true` | Rewrite the `Host` header to match the target URL. |
+| `timeout` | `number` | `30000` | Upstream request timeout in milliseconds. |
+| `headers` | `Record<string, string>` | `{}` | Additional headers to send with the proxied request. |
+| `onProxyReq` | `(proxyReq, req) => void` | — | Hook called before the upstream request is sent. Allows modifying headers or the request body. |
+| `onProxyRes` | `(proxyRes, req, res) => void` | — | Hook called when the upstream response arrives. Allows modifying response headers. |
+
+## How It Works
+
+1. The plugin receives the incoming request.
+2. The path is rewritten according to `pathRewrite` rules.
+3. An HTTP(S) request is made to `target` with the rewritten path, original method, headers, and body.
+4. `onProxyReq` fires before the request is sent.
+5. The upstream response is piped back to the client.
+6. `onProxyRes` fires when the upstream headers arrive.
+
+For `GET` and `HEAD` requests, no body is forwarded. For all other methods, the original request body is piped to the upstream.
+
+## Examples
+
+### Microservice Gateway
+
+```typescript
+import { AzuraServer } from "azurats";
+import { ProxyPlugin } from "azurats/plugins";
+
+const gateway = new AzuraServer();
+
+// User service
+gateway.plugin(
+  ProxyPlugin({
+    target: "http://users-service:4001",
+    pathRewrite: { "^/api/users": "/users" },
+    headers: { "X-Gateway": "azura" },
+  })
+);
+```
+
+### Path Rewriting
+
+```typescript
+app.plugin(
+  ProxyPlugin({
+    target: "http://api-v2:5000",
+    pathRewrite: {
+      "^/api/v1/(.*)": "/v2/$1",   // /api/v1/users → /v2/users
+      "^/legacy":      "/compat",   // /legacy/foo   → /compat/foo
+    },
+  })
+);
+```
+
+### Adding Authentication Headers
+
+```typescript
+app.plugin(
+  ProxyPlugin({
+    target: "http://internal-api:8080",
+    onProxyReq: (proxyReq, req) => {
+      proxyReq.setHeader("X-Internal-Token", process.env.INTERNAL_TOKEN!);
+      proxyReq.setHeader("X-Forwarded-For", req.ip);
+    },
+  })
+);
+```
+
+### Modifying Upstream Responses
+
+```typescript
+app.plugin(
+  ProxyPlugin({
+    target: "http://backend:4000",
+    onProxyRes: (proxyRes, req, res) => {
+      // Remove internal headers before sending to client
+      delete proxyRes.headers["x-internal-debug"];
+
+      // Add tracing header
+      res.header("X-Proxy-By", "azura-gateway");
+    },
+  })
+);
+```
+
+### Timeout Handling
+
+```typescript
+app.plugin(
+  ProxyPlugin({
+    target: "http://slow-service:9000",
+    timeout: 5000, // fail fast after 5s
+  })
+);
+```
+
+When the timeout is exceeded, the plugin aborts the upstream request and responds with a `504 Gateway Timeout`.
+
+## API Gateway Pattern
+
+```typescript
+import { AzuraServer } from "azurats";
+import {
+  ProxyPlugin,
+  CORSPlugin,
+  RateLimitPlugin,
+  HelmetPlugin,
+  RequestIdPlugin,
+  JWTPlugin,
+} from "azurats/plugins";
+
+const gateway = new AzuraServer();
+
+// Global plugins
+gateway.plugin(HelmetPlugin());
+gateway.plugin(CORSPlugin({ origins: ["https://app.example.com"], credentials: true }));
+gateway.plugin(RequestIdPlugin());
+gateway.plugin(RateLimitPlugin({ windowMs: 60_000, max: 500 }));
+gateway.plugin(JWTPlugin({ secret: process.env.JWT_SECRET!, paths: ["/api"] }));
+
+// Route to backend services
+gateway.plugin(
+  ProxyPlugin({
+    target: "http://users:4001",
+    pathRewrite: { "^/api/users": "" },
+    onProxyReq: (proxyReq, req) => {
+      if (req.user) {
+        proxyReq.setHeader("X-User-Id", req.user.sub);
+      }
+    },
+  })
+);
+
+gateway.listen(3000);
+```
+
+<Callout>
+The plugin selects `http` or `https` based on the `target` URL scheme. For HTTPS targets, the request is made with Node.js's built-in `https` module.
+</Callout>
+
+## Next Steps
+
+- [SSE](/docs/en/v3/features/sse) — proxy alongside real-time streams
+- [Health Check](/docs/en/v3/features/health-check) — monitor upstream service health
+- [Rate Limiting](/docs/en/v3/features/rate-limiting) — rate-limit proxied endpoints

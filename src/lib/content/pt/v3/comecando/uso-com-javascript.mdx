@@ -1,0 +1,611 @@
+---
+title: Uso com JavaScript
+description: Como usar o AzuraJS v3 sem TypeScript utilizando a API funcional estilo Express.
+category: Começando
+icon: lucide:file-code
+order: 4
+---
+
+# Uso com JavaScript
+
+Embora o AzuraJS seja projetado como um framework TypeScript-first, ele funciona perfeitamente com **JavaScript puro**. A API de roteamento funcional (`app.get()`, `app.post()`, etc.) oferece uma experiência semelhante ao Express que não requer decorators, anotações de tipo e nenhuma etapa de build (ao usar Node.js com ESM ou Bun).
+
+<Callout type="info" title="Decorators requerem TypeScript">
+  A API de controllers baseada em decorators (`@Controller`, `@Get`, `@Post`, etc.) requer TypeScript com `experimentalDecorators` habilitado. Se você deseja usar apenas JavaScript, utilize a **API de roteamento funcional** descrita nesta página.
+</Callout>
+
+## Configuração
+
+### Pré-requisitos
+
+- **Node.js 18+** ou **Bun 1.0+**
+- Sem TypeScript, sem ferramentas de build necessárias
+
+### Instalação
+
+<Tabs items={["npm", "yarn", "pnpm", "bun"]}>
+<Tab value="npm">
+```bash
+npm install azurats
+```
+</Tab>
+<Tab value="yarn">
+```bash
+yarn add azurats
+```
+</Tab>
+<Tab value="pnpm">
+```bash
+pnpm add azurats
+```
+</Tab>
+<Tab value="bun">
+```bash
+bun add azurats
+```
+</Tab>
+</Tabs>
+
+### Package.json
+
+Defina `"type": "module"` no seu `package.json` para usar importações ESM:
+
+```json
+{
+  "name": "my-azura-app",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node src/main.js",
+    "dev": "node --watch src/main.js"
+  },
+  "dependencies": {
+    "azurats": "^3.0.0"
+  }
+}
+```
+
+<Callout type="info" title="Modo --watch do Node.js">
+  Node.js 18.11+ inclui a flag `--watch` nativa que reinicia automaticamente o processo quando arquivos são alterados. Nenhuma dependência de desenvolvimento adicional é necessária.
+</Callout>
+
+## Exemplo Básico
+
+Crie `src/main.js`:
+
+```javascript
+import { AzuraServer, CORSPlugin, HelmetPlugin, RateLimitPlugin, HttpError } from "azurats";
+
+const app = new AzuraServer({
+  environment: "development",
+  server: { port: 3000 },
+  logging: { level: "debug", requestLogging: true },
+  debug: true,
+});
+
+// ── Plugins ──────────────────────────────────
+app.plugin(CORSPlugin({ origins: "*" }));
+app.plugin(HelmetPlugin());
+app.plugin(RateLimitPlugin({ windowMs: 60_000, max: 100 }));
+
+// ── Rotas ────────────────────────────────────
+app.get("/", (req, res) => {
+  res.json({
+    message: "Hello from AzuraJS v3!",
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// ── Iniciar ──────────────────────────────────
+app.listen(3000, () => {
+  console.log("Server running on http://localhost:3000");
+});
+```
+
+Execute:
+
+```bash
+node src/main.js
+```
+
+Pronto — sem compilação, sem etapa de build.
+
+## Exemplo de API CRUD
+
+Aqui está um exemplo CRUD completo usando a API de roteamento funcional:
+
+```javascript
+import {
+  AzuraServer,
+  CORSPlugin,
+  HelmetPlugin,
+  RateLimitPlugin,
+  RequestIdPlugin,
+  CompressionPlugin,
+  HealthCheckPlugin,
+  HttpError,
+} from "azurats";
+
+const app = new AzuraServer({
+  environment: "development",
+  server: { port: 3000 },
+  logging: { level: "debug", requestLogging: true },
+});
+
+// ── Plugins ──────────────────────────────────
+app.plugin(RequestIdPlugin());
+app.plugin(HelmetPlugin());
+app.plugin(CORSPlugin({ origins: "*", credentials: false }));
+app.plugin(RateLimitPlugin({ windowMs: 60_000, max: 100 }));
+app.plugin(CompressionPlugin({ threshold: 1024 }));
+app.plugin(
+  HealthCheckPlugin({
+    path: "/health",
+    checks: {
+      memory: () => process.memoryUsage().heapUsed < 500 * 1024 * 1024,
+    },
+  }),
+);
+
+// ── Armazenamento de dados em memória ────────
+let nextId = 3;
+const users = [
+  { id: 1, name: "Alice", email: "alice@example.com" },
+  { id: 2, name: "Bob", email: "bob@example.com" },
+];
+
+// ── Rotas ────────────────────────────────────
+
+// Raiz
+app.get("/", (req, res) => {
+  res.json({
+    message: "Welcome to AzuraJS v3.0.0",
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Listar usuários com paginação
+app.get("/users", (req, res) => {
+  const page = Number(req.query.page) || 1;
+  const limit = Number(req.query.limit) || 10;
+  const start = (page - 1) * limit;
+
+  res.json({
+    users: users.slice(start, start + limit),
+    pagination: { page, limit, total: users.length },
+  });
+});
+
+// Buscar um único usuário
+app.get("/users/:id", (req, res) => {
+  const user = users.find((u) => u.id === Number(req.params.id));
+  if (!user) {
+    throw HttpError.notFound("User not found");
+  }
+  res.json(user);
+});
+
+// Criar usuário
+app.post("/users", async (req, res) => {
+  const { name, email } = req.body ?? {};
+  if (!name || !email) {
+    throw HttpError.badRequest("name and email are required");
+  }
+
+  const user = { id: nextId++, name, email };
+  users.push(user);
+  res.status(201).json(user);
+});
+
+// Atualizar usuário
+app.put("/users/:id", async (req, res) => {
+  const user = users.find((u) => u.id === Number(req.params.id));
+  if (!user) {
+    throw HttpError.notFound("User not found");
+  }
+
+  const body = req.body ?? {};
+  if (body.name) user.name = body.name;
+  if (body.email) user.email = body.email;
+
+  res.json(user);
+});
+
+// Deletar usuário
+app.delete("/users/:id", (req, res) => {
+  const index = users.findIndex((u) => u.id === Number(req.params.id));
+  if (index === -1) {
+    throw HttpError.notFound("User not found");
+  }
+  users.splice(index, 1);
+  res.status(204).send("");
+});
+
+// ── Handler de Erros ─────────────────────────
+app.onError((err, req, res) => {
+  if (err instanceof HttpError) {
+    res.status(err.statusCode).json(err.toJSON());
+    return;
+  }
+  console.error("Unhandled error:", err);
+  res.status(500).json({
+    error: { statusCode: 500, message: "Internal Server Error" },
+  });
+});
+
+// ── Iniciar ──────────────────────────────────
+app.listen(3000, () => {
+  console.log("Server running on http://localhost:3000");
+});
+```
+
+## Referência da API de Roteamento
+
+A API de roteamento funcional espelha o padrão do Express:
+
+```javascript
+app.get(path, ...handlers);
+app.post(path, ...handlers);
+app.put(path, ...handlers);
+app.delete(path, ...handlers);
+app.patch(path, ...handlers);
+app.head(path, ...handlers);
+app.options(path, ...handlers);
+app.all(path, ...handlers);     // corresponde a todos os métodos HTTP
+```
+
+### Parâmetros de Rota
+
+Use a sintaxe `:param` para segmentos dinâmicos:
+
+```javascript
+app.get("/users/:id", (req, res) => {
+  console.log(req.params.id); // "42" para /users/42
+});
+
+app.get("/posts/:postId/comments/:commentId", (req, res) => {
+  console.log(req.params.postId);    // "10"
+  console.log(req.params.commentId); // "5"
+});
+```
+
+### Parâmetros de Query
+
+Acesse parâmetros da query string através de `req.query`:
+
+```javascript
+// GET /search?q=hello&page=2
+app.get("/search", (req, res) => {
+  console.log(req.query.q);    // "hello"
+  console.log(req.query.page); // "2"
+});
+```
+
+### Corpo da Requisição
+
+O corpo é automaticamente parseado para requisições `POST`, `PUT`, `PATCH` e `DELETE`:
+
+```javascript
+app.post("/data", async (req, res) => {
+  console.log(req.body); // corpo JSON parseado
+  res.json({ received: req.body });
+});
+```
+
+### Propriedades da Requisição
+
+Cada handler de rota recebe `req` (AzuraRequest) e `res` (AzuraResponse):
+
+```javascript
+app.get("/debug", (req, res) => {
+  res.json({
+    method: req.method,          // "GET"
+    path: req.pathname,          // "/debug"
+    query: req.query,            // { key: "value" }
+    params: req.params,          // {}
+    headers: req.headers,        // { host: "localhost:3000", ... }
+    cookies: req.cookies,        // { session: "abc123" }
+    ip: req.ip,                  // "127.0.0.1"
+    protocol: req.protocol,      // "http"
+    secure: req.secure,          // false
+    hostname: req.hostname,      // "localhost"
+  });
+});
+```
+
+### Métodos de Resposta
+
+| Método | Descrição |
+|---|---|
+| `res.json(data)` | Envia uma resposta JSON com `Content-Type: application/json`. |
+| `res.send(body)` | Envia uma resposta em texto puro ou Buffer. |
+| `res.html(body)` | Envia uma resposta HTML com `Content-Type: text/html`. |
+| `res.status(code)` | Define o código de status HTTP. Encadeável. |
+| `res.redirect(url, code?)` | Redireciona para outra URL (padrão 302). |
+| `res.header(name, value)` | Define um header de resposta. Encadeável. |
+| `res.type(contentType)` | Define o header `Content-Type`. Encadeável. |
+| `res.cookie(name, value, opts?)` | Define um cookie. Encadeável. |
+| `res.clearCookie(name, opts?)` | Remove um cookie. Encadeável. |
+| `res.attachment(filename?)` | Define `Content-Disposition` como attachment. Encadeável. |
+
+Exemplo com encadeamento:
+
+```javascript
+app.get("/download", (req, res) => {
+  res.status(200)
+    .header("X-Custom", "value")
+    .type("text/csv")
+    .attachment("data.csv")
+    .send("id,name\n1,Alice\n2,Bob");
+});
+```
+
+## Middleware
+
+Em JavaScript, middleware funciona da mesma forma — funções com assinatura `(req, res, next)`:
+
+```javascript
+function logger(req, res, next) {
+  console.log(`${req.method} ${req.pathname}`);
+  next();
+}
+
+function requireApiKey(req, res, next) {
+  const key = req.headers["x-api-key"];
+  if (key !== "my-secret-key") {
+    res.status(401).json({ error: "Invalid API key" });
+    return;
+  }
+  next();
+}
+
+// Middleware global
+app.use(logger);
+
+// Middleware específico de rota (passe antes do handler)
+app.get("/protected", requireApiKey, (req, res) => {
+  res.json({ secret: "data" });
+});
+```
+
+## Middleware Inline por Rota
+
+Passe múltiplos handlers para qualquer rota — todos exceto o último são tratados como middleware:
+
+```javascript
+const validate = (req, res, next) => {
+  if (!req.body?.name) {
+    throw HttpError.badRequest("name is required");
+  }
+  next();
+};
+
+const audit = (req, res, next) => {
+  console.log(`Audit: ${req.method} ${req.pathname} by ${req.ip}`);
+  next();
+};
+
+app.post("/users", validate, audit, async (req, res) => {
+  res.status(201).json({ id: Date.now(), ...req.body });
+});
+```
+
+## Tratamento de Erros
+
+AzuraJS fornece a classe `HttpError` para erros HTTP estruturados:
+
+```javascript
+import { HttpError } from "azurats";
+
+// Métodos estáticos de fábrica
+throw HttpError.badRequest("Invalid input");         // 400
+throw HttpError.unauthorized("Login required");       // 401
+throw HttpError.forbidden("Access denied");           // 403
+throw HttpError.notFound("Resource not found");       // 404
+throw HttpError.conflict("Resource already exists");  // 409
+
+// Ou crie com um código de status customizado
+throw new HttpError(422, "Validation failed");
+```
+
+Registre um handler de erros global:
+
+```javascript
+app.onError((err, req, res) => {
+  if (err instanceof HttpError) {
+    res.status(err.statusCode).json(err.toJSON());
+    return;
+  }
+
+  console.error(err);
+  res.status(500).json({
+    error: { statusCode: 500, message: "Internal Server Error" },
+  });
+});
+```
+
+O método `err.toJSON()` retorna:
+
+```json
+{
+  "error": {
+    "statusCode": 404,
+    "message": "Resource not found"
+  }
+}
+```
+
+## Usando Plugins
+
+Todos os 15 plugins integrados funcionam de forma idêntica em JavaScript:
+
+```javascript
+import {
+  AzuraServer,
+  CORSPlugin,
+  HelmetPlugin,
+  RateLimitPlugin,
+  JWTPlugin,
+  SessionPlugin,
+  CompressionPlugin,
+  StaticPlugin,
+  ETagPlugin,
+  RequestIdPlugin,
+  TimeoutPlugin,
+  HealthCheckPlugin,
+  CircuitBreakerPlugin,
+  SSEPlugin,
+  ProxyPlugin,
+  MultipartPlugin,
+} from "azurats";
+
+const app = new AzuraServer();
+
+// Segurança
+app.plugin(HelmetPlugin());
+app.plugin(CORSPlugin({ origins: ["https://mysite.com"] }));
+
+// Performance
+app.plugin(CompressionPlugin({ threshold: 512 }));
+app.plugin(ETagPlugin());
+
+// Rate limiting
+app.plugin(RateLimitPlugin({ windowMs: 60_000, max: 100 }));
+
+// Rastreamento de requisições
+app.plugin(RequestIdPlugin());
+app.plugin(TimeoutPlugin({ timeout: 10_000 }));
+
+// Arquivos estáticos
+app.plugin(StaticPlugin({ root: "./public", prefix: "/static" }));
+
+// Health check
+app.plugin(HealthCheckPlugin({ path: "/health" }));
+```
+
+## Exemplo de Autenticação JWT
+
+```javascript
+import { AzuraServer, JWTPlugin, signJWT, verifyJWT, HttpError } from "azurats";
+
+const app = new AzuraServer();
+const JWT_SECRET = "my-super-secret-key";
+
+app.plugin(JWTPlugin({ secret: JWT_SECRET }));
+
+// Login — emitir um token
+app.post("/login", async (req, res) => {
+  const { username, password } = req.body ?? {};
+
+  if (username !== "admin" || password !== "password") {
+    throw HttpError.unauthorized("Invalid credentials");
+  }
+
+  const token = signJWT({ sub: username, role: "admin" }, JWT_SECRET, {
+    expiresIn: "1h",
+  });
+
+  res.json({ token });
+});
+
+// Rota protegida
+app.get("/profile", (req, res) => {
+  const authHeader = req.headers["authorization"];
+  if (!authHeader?.startsWith("Bearer ")) {
+    throw HttpError.unauthorized("Missing token");
+  }
+
+  const token = authHeader.slice(7);
+  const payload = verifyJWT(token, JWT_SECRET);
+
+  if (!payload) {
+    throw HttpError.unauthorized("Invalid token");
+  }
+
+  res.json({ user: payload.sub, role: payload.role });
+});
+
+app.listen(3000);
+```
+
+## Dicas de Tipo com JSDoc
+
+Mesmo sem TypeScript, você pode obter IntelliSense no editor usando comentários JSDoc:
+
+```javascript
+/** @type {import('azurats/types').AzuraConfig} */
+const config = {
+  server: { port: 3000 },
+  logging: { level: "debug" },
+};
+
+/**
+ * @param {import('azurats/types').AzuraRequest} req
+ * @param {import('azurats/types').AzuraResponse} res
+ */
+function handler(req, res) {
+  res.json({ hello: "world" });
+}
+
+const app = new AzuraServer(config);
+app.get("/", handler);
+app.listen(3000);
+```
+
+Isso oferece autocomplete, documentação de parâmetros e verificação de tipos em editores como VS Code — sem necessidade de compilação TypeScript.
+
+## Arquivo de Config em JavaScript
+
+Crie `azura.config.js` na raiz do projeto:
+
+```javascript
+/** @type {import('azurats/types').AzuraConfig} */
+export default {
+  environment: "development",
+  server: {
+    port: Number(process.env.PORT) || 3000,
+    host: "0.0.0.0",
+  },
+  logging: {
+    level: "debug",
+    requestLogging: true,
+  },
+  debug: true,
+};
+```
+
+## Suporte a CommonJS
+
+Se seu projeto usa CommonJS (`"type"` não definido ou definido como `"commonjs"` no package.json), use `require`:
+
+```javascript
+const {
+  AzuraServer,
+  CORSPlugin,
+  HelmetPlugin,
+  HttpError,
+} = require("azurats");
+
+const app = new AzuraServer({
+  server: { port: 3000 },
+});
+
+app.plugin(CORSPlugin({ origins: "*" }));
+app.plugin(HelmetPlugin());
+
+app.get("/", (req, res) => {
+  res.json({ message: "Hello from CJS!" });
+});
+
+app.listen(3000);
+```
+
+<Callout type="warning" title="ESM recomendado">
+  Embora CommonJS seja suportado, recomendamos **ESM** (`"type": "module"`) para novos projetos. ESM habilita tree-shaking, top-level await e é o formato de módulo padrão para JavaScript moderno.
+</Callout>
+
+## Próximos Passos
+
+- [**Início Rápido**](/docs/pt/v3/comecando/inicio-rapido) — O guia completo de início rápido com decorators e controllers.
+- [**Configuração**](/docs/pt/v3/comecando/configuracao) — Aprenda sobre o sistema de arquivos de configuração.
+- [**Plugins**](/docs/pt/v3/recursos/plugins) — Explore todos os 15 plugins integrados.

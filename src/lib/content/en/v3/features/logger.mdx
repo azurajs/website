@@ -1,0 +1,154 @@
+---
+title: Logger
+description: Structured logging with the built-in Logger class and LoggingMiddleware for request timing
+category: Features
+icon: lucide:scroll-text
+order: 4
+---
+
+# Logger
+
+AzuraJS includes a built-in `Logger` class and a `LoggingMiddleware` that adds response-time tracking to every request.
+
+## Logger Class
+
+Import the singleton `logger` instance or create your own:
+
+```typescript
+import { Logger, logger } from "azurats/utils";
+
+// Use the pre-configured singleton
+logger.info("Server starting");
+
+// Or create a custom instance
+const log = new Logger({
+  level: "debug",
+  prefix: "my-app",
+  timestamp: true,
+  colors: true,
+});
+```
+
+### Constructor Options
+
+| Option | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `level` | `LogLevel` | `"info"` | Minimum severity to output. Messages below this level are suppressed. |
+| `prefix` | `string` | `"azura"` | Label prepended to every log line. |
+| `timestamp` | `boolean` | `true` | Prepend an ISO timestamp. |
+| `colors` | `boolean` | Auto (TTY) | ANSI color output. Defaults to `true` when stdout is a TTY. |
+
+### Log Levels
+
+Levels are ordered by severity. Setting a level silences everything below it.
+
+| Level | Value | Description |
+| :--- | :---: | :--- |
+| `debug` | 0 | Verbose diagnostic information |
+| `info` | 1 | General operational messages |
+| `warn` | 2 | Potential issues that deserve attention |
+| `error` | 3 | Errors that require action |
+| `silent` | 4 | Suppresses all output |
+
+### Methods
+
+```typescript
+const log = new Logger({ level: "debug" });
+
+log.debug("Cache miss for key:", cacheKey);
+log.info("User %s logged in", userId);
+log.warn("Deprecated endpoint hit:", req.url);
+log.error("Database connection failed:", err.message);
+```
+
+All methods accept `(message: string, ...args: any[])` and format the output using Node.js `util.format` style interpolation.
+
+### Changing the Level at Runtime
+
+```typescript
+log.setLevel("warn"); // only warn and error from now on
+```
+
+### Request Logging
+
+The logger exposes a `request` method used internally by the server to log incoming requests:
+
+```typescript
+log.request("GET", "/api/users", 200, durationInBigint);
+```
+
+### Banner
+
+`log.banner(port, host)` prints a startup banner. This is called automatically when `app.listen()` succeeds.
+
+## LoggingMiddleware
+
+`LoggingMiddleware` from `azurats/middleware` is a plugin-compatible handler that measures response time and attaches an `X-Response-Time` header.
+
+```typescript
+import { AzuraServer } from "azurats";
+import { LoggingMiddleware } from "azurats/middleware";
+
+const app = new AzuraServer();
+
+app.plugin(LoggingMiddleware());
+
+app.get("/hello", (req, res) => {
+  res.json({ message: "Hello!" });
+});
+
+app.listen(3000);
+```
+
+### What It Does
+
+1. Records `process.hrtime.bigint()` at request start.
+2. Intercepts `res.end` to compute the elapsed time.
+3. Sets the `X-Response-Time` header (e.g. `4.23ms`).
+4. Logs the request via the server's logger instance.
+
+### Sample Output
+
+```
+[2026-04-04T12:00:00.000Z] [azura] GET /api/users 200 4.23ms
+[2026-04-04T12:00:00.050Z] [azura] POST /api/users 201 12.87ms
+```
+
+## Custom Logger Integration
+
+You can integrate the built-in logger with external systems:
+
+```typescript
+import { Logger } from "azurats/utils";
+
+const log = new Logger({ level: "debug", prefix: "api" });
+
+app.get("/orders", async (req, res) => {
+  log.debug("Fetching orders for user:", req.user?.id);
+
+  try {
+    const orders = await getOrders(req.user.id);
+    log.info("Returned %d orders", orders.length);
+    res.json(orders);
+  } catch (err) {
+    log.error("Order fetch failed:", err.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+```
+
+## Environment-Based Configuration
+
+```typescript
+const log = new Logger({
+  level: process.env.NODE_ENV === "production" ? "warn" : "debug",
+  timestamp: true,
+  colors: process.env.NODE_ENV !== "production",
+  prefix: process.env.SERVICE_NAME ?? "azura",
+});
+```
+
+## Next Steps
+
+- [Error Handling](/docs/en/v3/features/error-handling) — log errors with structured context
+- [Health Check](/docs/en/v3/features/health-check) — monitor service health alongside logs

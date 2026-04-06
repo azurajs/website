@@ -1,0 +1,307 @@
+---
+title: Proxy
+description: Proxy reverso no AzuraJS v3 — ProxyPlugin com pathRewrite, changeOrigin, timeout e hooks
+category: Recursos
+icon: lucide:arrow-right-left
+order: 11
+---
+
+# Proxy
+
+O **ProxyPlugin** implementa proxy reverso para encaminhar requisições a serviços backend. Ideal para API gateways, agregação de microsserviços e balanceamento de carga. Construído com `node:http` e `node:https`, sem dependências externas.
+
+## Início Rápido
+
+```typescript
+import { AzuraServer } from "azurats";
+import { ProxyPlugin } from "azurats/plugins";
+
+const app = new AzuraServer();
+
+app.plugin(ProxyPlugin({
+  target: "http://api-backend:4000",
+}));
+
+app.listen(3000);
+// GET /users → proxy → http://api-backend:4000/users
+```
+
+## Opções
+
+```typescript
+interface ProxyOptions {
+  target: string;
+  pathRewrite?: Record<string, string>;
+  changeOrigin?: boolean;
+  timeout?: number;
+  headers?: Record<string, string>;
+  onProxyReq?: (proxyReq: any, req: AzuraRequest) => void;
+  onProxyRes?: (proxyRes: any, res: AzuraResponse) => void;
+}
+```
+
+| Opção | Tipo | Padrão | Descrição |
+| :--- | :--- | :--- | :--- |
+| `target` | `string` | — | **Obrigatório.** URL do servidor de destino |
+| `pathRewrite` | `Record<string, string>` | `{}` | Reescrita de caminhos via regex |
+| `changeOrigin` | `boolean` | `true` | Alterar header `Host` para o target |
+| `timeout` | `number` | `30000` | Timeout em milissegundos |
+| `headers` | `Record<string, string>` | `{}` | Headers adicionais na requisição proxy |
+| `onProxyReq` | `function` | — | Hook executado antes de enviar ao target |
+| `onProxyRes` | `function` | — | Hook executado ao receber resposta do target |
+
+## Path Rewrite
+
+Reescreva caminhos usando expressões regulares:
+
+```typescript
+app.plugin(ProxyPlugin({
+  target: "http://users-service:4001",
+  pathRewrite: {
+    "^/api/users": "/users",
+  },
+}));
+// GET /api/users/123 → http://users-service:4001/users/123
+```
+
+Múltiplas regras de reescrita:
+
+```typescript
+app.plugin(ProxyPlugin({
+  target: "http://backend:4000",
+  pathRewrite: {
+    "^/api/v2": "/v2",
+    "^/api/v1": "/v1",
+    "^/api": "",
+  },
+}));
+// GET /api/v2/users → http://backend:4000/v2/users
+// GET /api/v1/users → http://backend:4000/v1/users
+// GET /api/health → http://backend:4000/health
+```
+
+## Change Origin
+
+Quando `changeOrigin: true` (padrão), o header `Host` é alterado para o hostname do target:
+
+```typescript
+app.plugin(ProxyPlugin({
+  target: "https://api.example.com",
+  changeOrigin: true, // Host: api.example.com
+}));
+```
+
+Isso é necessário para a maioria dos backends que validam o header `Host`.
+
+## Headers Customizados
+
+Adicione headers extras às requisições encaminhadas:
+
+```typescript
+app.plugin(ProxyPlugin({
+  target: "http://internal-service:4000",
+  headers: {
+    "X-Gateway-Id": "azura-gateway-01",
+    "X-Forwarded-By": "AzuraJS",
+  },
+}));
+```
+
+## Hooks
+
+### onProxyReq
+
+Executado antes de enviar a requisição ao target. Permite modificar a requisição proxy:
+
+```typescript
+app.plugin(ProxyPlugin({
+  target: "http://backend:4000",
+  onProxyReq: (proxyReq, req) => {
+    proxyReq.setHeader("X-Real-IP", req.ip);
+    proxyReq.setHeader("X-Forwarded-For", req.ip);
+    proxyReq.setHeader("X-Request-Id", req.requestId ?? "");
+  },
+}));
+```
+
+### onProxyRes
+
+Executado ao receber a resposta do target. Permite modificar headers da resposta:
+
+```typescript
+app.plugin(ProxyPlugin({
+  target: "http://backend:4000",
+  onProxyRes: (proxyRes, res) => {
+    res.setHeader("X-Proxy-By", "AzuraJS");
+
+    // Log do status
+    console.log(`Proxy response: ${proxyRes.statusCode}`);
+  },
+}));
+```
+
+## Timeout
+
+Configure o timeout para evitar que requisições fiquem pendentes indefinidamente:
+
+```typescript
+app.plugin(ProxyPlugin({
+  target: "http://slow-service:4000",
+  timeout: 10_000, // 10 segundos
+}));
+```
+
+Quando o timeout é atingido, o plugin retorna:
+
+```json
+{
+  "error": {
+    "statusCode": 504,
+    "message": "Gateway Timeout"
+  }
+}
+```
+
+## Tratamento de Erros
+
+Quando o target está indisponível ou retorna erro de conexão:
+
+```json
+{
+  "error": {
+    "statusCode": 502,
+    "message": "Bad Gateway",
+    "details": "connect ECONNREFUSED 127.0.0.1:4000"
+  }
+}
+```
+
+## HTTPS
+
+O plugin detecta automaticamente se o target usa HTTPS e utiliza o módulo `node:https`:
+
+```typescript
+app.plugin(ProxyPlugin({
+  target: "https://api.example.com",
+  changeOrigin: true,
+}));
+```
+
+## Query Strings
+
+Query strings são preservadas automaticamente:
+
+```typescript
+// GET /api/users?page=2&limit=10
+// → http://backend:4000/api/users?page=2&limit=10
+```
+
+## Body Forwarding
+
+Para métodos que possuem body (POST, PUT, PATCH, DELETE), o plugin faz streaming do corpo da requisição usando `req.pipe(proxyReq)`:
+
+```typescript
+app.plugin(ProxyPlugin({
+  target: "http://backend:4000",
+}));
+
+// POST /api/users com body JSON
+// → encaminhado via streaming para http://backend:4000/api/users
+```
+
+Para métodos GET e HEAD, o proxy é finalizado sem corpo.
+
+## Exemplos Práticos
+
+### API Gateway com Microsserviços
+
+```typescript
+import { AzuraServer } from "azurats";
+import {
+  ProxyPlugin,
+  HelmetPlugin,
+  CORSPlugin,
+  RateLimitPlugin,
+  RequestIdPlugin,
+} from "azurats/plugins";
+
+const app = new AzuraServer();
+
+app.plugin(HelmetPlugin());
+app.plugin(CORSPlugin({ origins: [process.env.FRONTEND_URL!] }));
+app.plugin(RequestIdPlugin());
+app.plugin(RateLimitPlugin({ windowMs: 60_000, max: 1000 }));
+
+// Serviço de usuários
+app.plugin(ProxyPlugin({
+  target: "http://users-service:4001",
+  pathRewrite: { "^/api/users": "/users" },
+  onProxyReq: (proxyReq, req) => {
+    proxyReq.setHeader("X-Request-Id", req.requestId ?? "");
+  },
+}));
+
+// Serviço de pedidos
+app.plugin(ProxyPlugin({
+  target: "http://orders-service:4002",
+  pathRewrite: { "^/api/orders": "/orders" },
+  timeout: 15_000,
+}));
+
+// Serviço de pagamentos (timeout maior)
+app.plugin(ProxyPlugin({
+  target: "http://payments-service:4003",
+  pathRewrite: { "^/api/payments": "/payments" },
+  timeout: 60_000,
+}));
+
+app.listen(3000);
+```
+
+### Proxy com Autenticação
+
+```typescript
+import { JWTPlugin, ProxyPlugin } from "azurats/plugins";
+
+const app = new AzuraServer();
+
+// Autenticação antes do proxy
+app.plugin(JWTPlugin({
+  secret: process.env.JWT_SECRET!,
+  exclude: ["/auth"],
+}));
+
+app.plugin(ProxyPlugin({
+  target: "http://backend:4000",
+  onProxyReq: (proxyReq, req) => {
+    // Encaminhar dados do usuário autenticado
+    if (req.user) {
+      proxyReq.setHeader("X-User-Id", req.user.userId);
+      proxyReq.setHeader("X-User-Role", req.user.role);
+    }
+  },
+}));
+
+app.listen(3000);
+```
+
+### Proxy para API Externa
+
+```typescript
+app.plugin(ProxyPlugin({
+  target: "https://api.github.com",
+  pathRewrite: { "^/github": "" },
+  changeOrigin: true,
+  headers: {
+    "Authorization": `token ${process.env.GITHUB_TOKEN}`,
+    "Accept": "application/vnd.github.v3+json",
+    "User-Agent": "MeuApp/1.0",
+  },
+  timeout: 10_000,
+}));
+// GET /github/repos/azurajs/azura → https://api.github.com/repos/azurajs/azura
+```
+
+<Callout>
+O ProxyPlugin encaminha **todas** as requisições que chegam ao servidor. Para proxy seletivo, registre o plugin como middleware de rota ou combine com lógica de roteamento personalizada.
+</Callout>

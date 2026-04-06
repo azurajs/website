@@ -1,0 +1,422 @@
+---
+title: Decorators
+description: Complete reference for all AzuraJS v3 decorators — routes, parameters, middleware, and metadata
+category: Core Concepts
+icon: lucide:tag
+order: 3
+---
+
+# Decorators 🏷️
+
+Decorators are the declarative backbone of AzuraJS. They let you define routes, inject request data, attach middleware, and set metadata — all without boilerplate. AzuraJS v3 provides three categories of decorators: **route decorators**, **parameter decorators**, and **utility decorators**.
+
+<Callout type="info" title="TypeScript Configuration">
+  Decorators require two compiler options in your `tsconfig.json`:
+
+```json
+{
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+  }
+}
+```
+</Callout>
+
+## Import
+
+All decorators are available from the `azurats/decorators` submodule:
+
+```typescript
+import {
+  Controller,
+  Get, Post, Put, Delete, Patch, Head, Options,
+  Body, Query, Param, Req, Res, Headers, Cookies, Ip, Session, NextFunc,
+  UseMiddleware,
+  applyDecorators,
+  Meta,
+} from "azurats/decorators";
+```
+
+## Route Decorators
+
+### `@Controller(prefix?)`
+
+Marks a class as a controller. The optional `prefix` string is prepended to every method route in the class.
+
+| Argument | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `prefix` | `string` | `""` | Base path for all routes in the controller |
+
+```typescript
+@Controller("/api/v1/users")
+export class UserController {
+  // All routes here start with /api/v1/users
+}
+```
+
+### HTTP Method Decorators
+
+These method decorators map class methods to HTTP endpoints. Each accepts an optional `path` argument relative to the controller prefix.
+
+| Decorator | HTTP Method | Example Route |
+| :--- | :--- | :--- |
+| `@Get(path?)` | `GET` | `GET /users` |
+| `@Post(path?)` | `POST` | `POST /users` |
+| `@Put(path?)` | `PUT` | `PUT /users/:id` |
+| `@Delete(path?)` | `DELETE` | `DELETE /users/:id` |
+| `@Patch(path?)` | `PATCH` | `PATCH /users/:id` |
+| `@Head(path?)` | `HEAD` | `HEAD /users` |
+| `@Options(path?)` | `OPTIONS` | `OPTIONS /users` |
+
+```typescript
+@Controller("/posts")
+export class PostController {
+  @Get()
+  list() {
+    return { posts: [] };
+  }
+
+  @Get("/:id")
+  findOne(@Param("id") id: string) {
+    return { id };
+  }
+
+  @Post()
+  create(@Body() data: any) {
+    return { created: data };
+  }
+
+  @Put("/:id")
+  update(@Param("id") id: string, @Body() data: any) {
+    return { id, updated: data };
+  }
+
+  @Patch("/:id")
+  patch(@Param("id") id: string, @Body() data: any) {
+    return { id, patched: data };
+  }
+
+  @Delete("/:id")
+  remove(@Param("id") id: string) {
+    return { deleted: id };
+  }
+}
+```
+
+## Parameter Decorators
+
+Parameter decorators inject request data directly into method arguments. This eliminates manual parsing and produces clean, testable handler signatures.
+
+### Overview
+
+| Decorator | Injects | Argument |
+| :--- | :--- | :--- |
+| `@Req()` | Full `AzuraRequest` object | — |
+| `@Res()` | Full `AzuraResponse` object | — |
+| `@NextFunc()` | The `next` callback function | — |
+| `@Body()` | Entire parsed request body | — |
+| `@Body("field")` | Specific body field | Field name |
+| `@Query()` | All query parameters | — |
+| `@Query("key")` | Specific query parameter | Query key |
+| `@Param()` | All route parameters | — |
+| `@Param("name")` | Specific route parameter | Param name |
+| `@Headers()` | All request headers | — |
+| `@Headers("name")` | Specific header value | Header name |
+| `@Cookies()` | All cookies | — |
+| `@Cookies("name")` | Specific cookie value | Cookie name |
+| `@Ip()` | Client IP address | — |
+| `@Session()` | Session object | — |
+
+### `@Body(field?)`
+
+Injects the parsed request body, or a specific field from it.
+
+```typescript
+@Post()
+create(@Body() data: any) {
+  return { received: data };
+}
+
+@Post("/login")
+login(@Body("email") email: string, @Body("password") password: string) {
+  return { email };
+}
+```
+
+### `@Query(key?)`
+
+Injects query string parameters from the URL.
+
+```typescript
+@Get("/search")
+search(@Query("q") query: string, @Query("limit") limit?: string) {
+  return { query, limit: Number(limit) || 10 };
+}
+
+@Get("/filter")
+filter(@Query() allParams: Record<string, string>) {
+  return allParams;
+}
+```
+
+### `@Param(name?)`
+
+Injects route parameters defined with the `:name` syntax.
+
+```typescript
+@Get("/:userId/posts/:postId")
+getPost(
+  @Param("userId") userId: string,
+  @Param("postId") postId: string,
+) {
+  return { userId, postId };
+}
+
+@Get("/:id")
+getById(@Param() allParams: Record<string, string>) {
+  return allParams;
+}
+```
+
+### `@Headers(name?)`
+
+Injects request headers. Header names are case-insensitive.
+
+```typescript
+@Get("/info")
+info(
+  @Headers("authorization") auth: string,
+  @Headers("user-agent") userAgent: string,
+) {
+  return { auth: !!auth, userAgent };
+}
+```
+
+### `@Cookies(name?)`
+
+Injects parsed cookie values.
+
+```typescript
+@Get("/preferences")
+prefs(@Cookies("theme") theme: string, @Cookies("lang") lang: string) {
+  return { theme: theme || "light", lang: lang || "en" };
+}
+```
+
+### `@Req()` and `@Res()`
+
+Inject the raw request and response objects for full control.
+
+```typescript
+import type { AzuraRequest, AzuraResponse } from "azurats/types";
+
+@Get("/raw")
+rawAccess(@Req() req: AzuraRequest, @Res() res: AzuraResponse) {
+  res.status(200).json({
+    method: req.method,
+    pathname: req.pathname,
+    ip: req.ip,
+  });
+}
+```
+
+<Callout type="warn" title="Return Value with @Res()">
+  When you inject `@Res()` and send a response manually (e.g. `res.json()`), make sure your method does not also return a value. Otherwise AzuraJS will attempt auto-serialization and the response will conflict.
+</Callout>
+
+### `@Ip()`
+
+Injects the client's resolved IP address.
+
+```typescript
+@Get("/whoami")
+whoami(@Ip() ip: string) {
+  return { ip };
+}
+```
+
+### `@Session()`
+
+Injects the session object. Requires the `SessionPlugin` to be active.
+
+```typescript
+@Get("/dashboard")
+dashboard(@Session() session: Record<string, any>) {
+  return { user: session.user, views: session.views };
+}
+```
+
+### `@NextFunc()`
+
+Injects the `next` function. Useful in rare cases where a controller method needs to call the next middleware.
+
+```typescript
+@Get("/passthrough")
+passthrough(@NextFunc() next: Function) {
+  next();
+}
+```
+
+## Utility Decorators
+
+### `@UseMiddleware(...middlewares)`
+
+Attaches one or more middleware functions to a controller (class-level) or a specific route (method-level). Controller middleware runs before route middleware.
+
+```typescript
+import type { AzuraRequest, AzuraResponse, NextFunction } from "azurats/types";
+
+const logRequest = (req: AzuraRequest, res: AzuraResponse, next: NextFunction) => {
+  console.log(`${req.method} ${req.pathname}`);
+  next();
+};
+
+const requireAdmin = (req: AzuraRequest, res: AzuraResponse, next: NextFunction) => {
+  if (req.user?.role !== "admin") {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+  next();
+};
+
+@UseMiddleware(logRequest)
+@Controller("/api/admin")
+export class AdminController {
+  @Get("/stats")
+  stats() {
+    return { users: 100 };
+  }
+
+  @UseMiddleware(requireAdmin)
+  @Delete("/users/:id")
+  deleteUser(@Param("id") id: string) {
+    return { deleted: id };
+  }
+}
+```
+
+In this example, `logRequest` runs on every route in the controller, while `requireAdmin` only runs on `DELETE /api/admin/users/:id`.
+
+### `@Meta(key, value)`
+
+Attaches arbitrary metadata to a route. Metadata is stored on the route definition and can be accessed by middleware, plugins, or introspection tools (e.g. Swagger generation).
+
+```typescript
+@Controller("/api/posts")
+export class PostController {
+  @Meta("summary", "List all posts")
+  @Meta("tags", ["posts"])
+  @Get()
+  list() {
+    return { posts: [] };
+  }
+
+  @Meta("deprecated", true)
+  @Get("/legacy")
+  legacy() {
+    return { warning: "Use /api/posts instead" };
+  }
+}
+```
+
+### `applyDecorators(...decorators)`
+
+Composes multiple decorators into a single decorator. This is powerful for creating reusable decorator bundles.
+
+```typescript
+import { applyDecorators, UseMiddleware, Meta, Get } from "azurats/decorators";
+
+function PublicEndpoint(path: string) {
+  return applyDecorators(
+    Get(path),
+    Meta("public", true),
+    Meta("rateLimit", 100),
+  );
+}
+
+function ProtectedEndpoint(path: string) {
+  return applyDecorators(
+    Get(path),
+    UseMiddleware(requireAuth),
+    Meta("public", false),
+  );
+}
+
+@Controller("/api")
+export class ApiController {
+  @PublicEndpoint("/status")
+  status() {
+    return { ok: true };
+  }
+
+  @ProtectedEndpoint("/profile")
+  profile(@Req() req: AzuraRequest) {
+    return { user: req.user };
+  }
+}
+```
+
+## How Decorator Resolution Works
+
+Understanding the resolution pipeline helps you reason about execution order and parameter injection.
+
+### 1. Registration Phase
+
+When you call `app.register(Controller)`:
+
+1. AzuraJS reads the `@Controller` metadata to determine the route prefix.
+2. It scans every method on the class prototype for `@Get`/`@Post`/etc. metadata.
+3. For each decorated method, it reads `@UseMiddleware` metadata (class-level + method-level).
+4. It reads `@Param`/`@Body`/`@Query`/etc. metadata to build a parameter resolution map.
+5. Routes are added to the radix tree router with their handlers, middleware, and metadata.
+
+### 2. Request Phase
+
+When a request arrives:
+
+1. Global plugins execute first (in registration order).
+2. Global middleware executes next (in registration order).
+3. The router matches the request to a route.
+4. Controller-level middleware runs.
+5. Route-level middleware runs.
+6. Parameter decorators resolve `req`/`res`/body/query/params into the method arguments.
+7. The handler method is called with the resolved arguments.
+8. If the method returns a value, it is auto-serialized (JSON for objects, plain text for strings).
+
+```
+Request → Plugins → Global Middleware → Router Match
+       → Controller Middleware → Route Middleware
+       → Param Resolution → Handler → Auto-Serialize Response
+```
+
+## Decorator Quick Reference
+
+| Decorator | Target | Purpose |
+| :--- | :--- | :--- |
+| `@Controller(prefix?)` | Class | Define a controller with route prefix |
+| `@Get(path?)` | Method | Map to GET endpoint |
+| `@Post(path?)` | Method | Map to POST endpoint |
+| `@Put(path?)` | Method | Map to PUT endpoint |
+| `@Delete(path?)` | Method | Map to DELETE endpoint |
+| `@Patch(path?)` | Method | Map to PATCH endpoint |
+| `@Head(path?)` | Method | Map to HEAD endpoint |
+| `@Options(path?)` | Method | Map to OPTIONS endpoint |
+| `@Body(field?)` | Parameter | Inject request body |
+| `@Query(key?)` | Parameter | Inject query parameters |
+| `@Param(name?)` | Parameter | Inject route parameters |
+| `@Headers(name?)` | Parameter | Inject request headers |
+| `@Cookies(name?)` | Parameter | Inject cookies |
+| `@Req()` | Parameter | Inject AzuraRequest |
+| `@Res()` | Parameter | Inject AzuraResponse |
+| `@NextFunc()` | Parameter | Inject next function |
+| `@Ip()` | Parameter | Inject client IP |
+| `@Session()` | Parameter | Inject session object |
+| `@UseMiddleware(...)` | Class / Method | Attach middleware |
+| `@Meta(key, value)` | Method | Attach route metadata |
+| `applyDecorators(...)` | Class / Method | Compose multiple decorators |
+
+## Next Steps
+
+- [**Controllers**](/docs/en/v3/concepts/controllers) — See decorators in action within full controller classes.
+- [**Middleware**](/docs/en/v3/concepts/middleware) — Understand how `@UseMiddleware` integrates with the execution pipeline.
+- [**Request & Response**](/docs/en/v3/concepts/http) — Deep dive into the objects injected by `@Req()` and `@Res()`.

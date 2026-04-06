@@ -1,0 +1,386 @@
+---
+title: Middleware & Plugins
+description: Learn how middleware and plugins intercept requests in AzuraJS v3, and how they differ
+category: Core Concepts
+icon: lucide:plug
+order: 4
+---
+
+# Middleware & Plugins 🔌
+
+AzuraJS v3 has two distinct interception mechanisms: **plugins** and **middleware**. Both run before your route handler, but they have different signatures, scopes, and execution phases. Understanding when to use each is key to building well-structured applications.
+
+## Middleware vs Plugins
+
+| | Plugins | Middleware |
+| :--- | :--- | :--- |
+| **Signature** | `(ctx, next) => void` | `(req, res, next) => void` |
+| **Context** | Receives `{ req, res }` as a single object | Receives `req`, `res` as separate arguments |
+| **Registration** | `app.plugin(handler)` | `app.use(handler)` |
+| **Execution phase** | Runs **first**, before all middleware | Runs **after** plugins, before route handlers |
+| **Use case** | Cross-cutting concerns (CORS, helmet, rate limiting, compression) | Request-level logic (auth, logging, validation) |
+| **Scope** | Global only | Global, controller, or route |
+
+<Callout type="info" title="Key Distinction">
+  Plugins use a context-based pattern `(ctx, next)` while middleware uses the classic Express-style `(req, res, next)`. AzuraJS distinguishes them by function arity: functions with 2 or fewer parameters are treated as plugins; functions with 3 parameters are middleware.
+</Callout>
+
+## Execution Order
+
+When a request arrives, AzuraJS processes interceptors in this exact order:
+
+```
+1. Global Plugins       (registered via app.plugin(), in order)
+2. Global Middleware     (registered via app.use(), in order)
+3. Route Matching        (radix tree lookup)
+4. Controller Middleware (@UseMiddleware on class)
+5. Route Middleware      (@UseMiddleware on method, or inline handlers)
+6. Route Handler         (the controller method or final handler)
+```
+
+At any point, a plugin or middleware can short-circuit the chain by sending a response without calling `next()`.
+
+## Plugins
+
+Plugins use the `(ctx, next) => void` signature where `ctx` is a `PluginContext` containing `{ req, res }`. They are ideal for framework-level features that wrap every request.
+
+### Writing a Custom Plugin
+
+```typescript
+import type { PluginContext, NextFunction } from "azurats/types";
+
+const timingPlugin = (ctx: PluginContext, next: NextFunction) => {
+  const start = Date.now();
+
+  ctx.res.on("finish", () => {
+    const duration = Date.now() - start;
+    console.log(`${ctx.req.method} ${ctx.req.pathname} - ${duration}ms`);
+  });
+
+  next();
+};
+```
+
+### Registering Plugins
+
+Register plugins using `app.plugin()`. They execute in registration order.
+
+```typescript
+import { AzuraServer } from "azurats";
+import { CORSPlugin, HelmetPlugin, RateLimitPlugin } from "azurats/plugins";
+
+const app = new AzuraServer();
+
+app.plugin(HelmetPlugin());
+app.plugin(CORSPlugin({ origins: "*", credentials: false }));
+app.plugin(RateLimitPlugin({ windowMs: 60_000, max: 100 }));
+app.plugin(timingPlugin);
+
+app.listen();
+```
+
+### Built-in Plugins
+
+AzuraJS ships with a comprehensive set of production-ready plugins:
+
+| Plugin | Import | Purpose |
+| :--- | :--- | :--- |
+| `CORSPlugin` | `azurats/plugins` | Cross-Origin Resource Sharing |
+| `HelmetPlugin` | `azurats/plugins` | Security headers |
+| `RateLimitPlugin` | `azurats/plugins` | Request rate limiting |
+| `CompressionPlugin` | `azurats/plugins` | Response compression (gzip, deflate, br) |
+| `RequestIdPlugin` | `azurats/plugins` | Unique request ID generation |
+| `HealthCheckPlugin` | `azurats/plugins` | Health check endpoint |
+| `JWTPlugin` | `azurats/plugins` | JWT authentication |
+| `SessionPlugin` | `azurats/plugins` | Server-side sessions |
+| `StaticPlugin` | `azurats/plugins` | Static file serving |
+| `ETagPlugin` | `azurats/plugins` | ETag caching |
+| `TimeoutPlugin` | `azurats/plugins` | Request timeout |
+| `CircuitBreakerPlugin` | `azurats/plugins` | Circuit breaker pattern |
+| `ProxyPlugin` | `azurats/plugins` | Reverse proxy |
+| `SSEPlugin` | `azurats/plugins` | Server-Sent Events |
+| `MultipartPlugin` | `azurats/plugins` | Multipart/form-data upload |
+
+### Plugin Factory Pattern
+
+Every built-in plugin follows the factory pattern — a function that accepts options and returns a `PluginHandler`:
+
+```typescript
+import { CORSPlugin } from "azurats/plugins";
+
+const cors = CORSPlugin({
+  origins: ["https://example.com", "https://app.example.com"],
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true,
+  maxAge: 86400,
+});
+
+app.plugin(cors);
+```
+
+You can follow this same pattern for your own plugins:
+
+```typescript
+interface MyPluginOptions {
+  header: string;
+  value: string;
+}
+
+function MyPlugin(options: MyPluginOptions): PluginHandler {
+  return (ctx, next) => {
+    ctx.res.setHeader(options.header, options.value);
+    next();
+  };
+}
+
+app.plugin(MyPlugin({ header: "X-Powered-By", value: "AzuraJS" }));
+```
+
+## Middleware
+
+Middleware uses the classic `(req, res, next) => void` signature. Middleware can be applied globally, per controller, or per route.
+
+### Writing Middleware
+
+```typescript
+import type { AzuraRequest, AzuraResponse, NextFunction } from "azurats/types";
+
+const loggerMiddleware = (req: AzuraRequest, res: AzuraResponse, next: NextFunction) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.pathname}`);
+  next();
+};
+```
+
+### Global Middleware
+
+Register global middleware with `app.use()`. It runs on every request, after all plugins.
+
+```typescript
+const app = new AzuraServer();
+
+app.use(loggerMiddleware);
+app.use(authMiddleware);
+```
+
+<Callout type="warn" title="Registration Order Matters">
+  Both plugins and middleware execute in the exact order they are registered. Place security middleware (auth, rate limiting) before business logic middleware (logging, metrics).
+</Callout>
+
+### Controller Middleware
+
+Use `@UseMiddleware` at the class level to apply middleware to every route in a controller:
+
+```typescript
+import { Controller, Get, UseMiddleware } from "azurats/decorators";
+import type { AzuraRequest, AzuraResponse, NextFunction } from "azurats/types";
+
+const requireAuth = (req: AzuraRequest, res: AzuraResponse, next: NextFunction) => {
+  if (!req.headers.authorization) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  next();
+};
+
+@UseMiddleware(requireAuth)
+@Controller("/api/admin")
+export class AdminController {
+  @Get("/dashboard")
+  dashboard() {
+    return { stats: {} };
+  }
+
+  @Get("/users")
+  users() {
+    return { users: [] };
+  }
+}
+```
+
+Both `/api/admin/dashboard` and `/api/admin/users` will require authentication.
+
+### Route Middleware
+
+Use `@UseMiddleware` at the method level to apply middleware to a specific route only:
+
+```typescript
+import { Controller, Get, Delete, UseMiddleware } from "azurats/decorators";
+
+const requireSuperAdmin = (req: AzuraRequest, res: AzuraResponse, next: NextFunction) => {
+  if (req.user?.role !== "super_admin") {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+  next();
+};
+
+@UseMiddleware(requireAuth)
+@Controller("/api/users")
+export class UserController {
+  @Get()
+  list() {
+    return { users: [] };
+  }
+
+  @UseMiddleware(requireSuperAdmin)
+  @Delete("/:id")
+  remove(@Param("id") id: string) {
+    return { deleted: id };
+  }
+}
+```
+
+Here, `requireAuth` runs on all routes, but `requireSuperAdmin` only runs on `DELETE /api/users/:id`.
+
+### Express-Style Route Middleware
+
+When using express-style routing, pass middleware handlers before the final handler:
+
+```typescript
+app.get("/public", (req, res) => {
+  res.json({ data: "open" });
+});
+
+app.delete("/users/:id", requireAuth, requireSuperAdmin, (req, res) => {
+  res.status(204).send("");
+});
+```
+
+## Async Middleware and Plugins
+
+Both middleware and plugins fully support `async/await`. Always call `next()` (or `await next()`) to ensure the chain continues.
+
+<Tabs items={["Async Plugin", "Async Middleware"]}>
+  <Tab value="Async Plugin">
+```typescript
+const asyncPlugin = async (ctx, next) => {
+  const token = ctx.req.headers.authorization?.split(" ")[1];
+  if (token) {
+    ctx.req.user = await verifyToken(token);
+  }
+  next();
+};
+
+app.plugin(asyncPlugin);
+```
+  </Tab>
+  <Tab value="Async Middleware">
+```typescript
+const asyncMiddleware = async (req, res, next) => {
+  const session = await loadSession(req.cookies.sid);
+  req.session = session;
+  next();
+};
+
+app.use(asyncMiddleware);
+```
+  </Tab>
+</Tabs>
+
+## Short-Circuiting the Chain
+
+Both plugins and middleware can stop the chain by sending a response without calling `next()`:
+
+```typescript
+const maintenanceMode = (ctx, next) => {
+  if (process.env.MAINTENANCE === "true") {
+    ctx.res.status(503).json({
+      error: "Service temporarily unavailable",
+      retryAfter: 300,
+    });
+    return;
+  }
+  next();
+};
+
+app.plugin(maintenanceMode);
+```
+
+## Error Handling in Middleware
+
+If a middleware or plugin throws an error (or passes one to `next(err)`), AzuraJS catches it and routes it to the error handler:
+
+```typescript
+const riskyMiddleware = async (req, res, next) => {
+  try {
+    await someRiskyOperation();
+    next();
+  } catch (err) {
+    next(err);
+  }
+};
+
+app.onError((err, req, res) => {
+  console.error("Error caught:", err);
+  res.status(500).json({ error: "Internal Server Error" });
+});
+```
+
+## Complete Example
+
+Here is a full application demonstrating the interplay of plugins, global middleware, controller middleware, and route middleware:
+
+```typescript
+import { AzuraServer } from "azurats";
+import { Controller, Get, Post, UseMiddleware, Body, Param } from "azurats/decorators";
+import { CORSPlugin, HelmetPlugin, RateLimitPlugin, RequestIdPlugin } from "azurats/plugins";
+import type { AzuraRequest, AzuraResponse, NextFunction } from "azurats/types";
+
+// --- Plugins (run first) ---
+const app = new AzuraServer({ server: { port: 3000 } });
+app.plugin(RequestIdPlugin());
+app.plugin(HelmetPlugin());
+app.plugin(CORSPlugin({ origins: "*" }));
+app.plugin(RateLimitPlugin({ windowMs: 60_000, max: 200 }));
+
+// --- Global Middleware (run second) ---
+app.use((req: AzuraRequest, res: AzuraResponse, next: NextFunction) => {
+  console.log(`[${req.requestId}] ${req.method} ${req.pathname}`);
+  next();
+});
+
+// --- Controller with scoped middleware ---
+const authenticate = (req: AzuraRequest, res: AzuraResponse, next: NextFunction) => {
+  const token = req.headers.authorization;
+  if (!token) return res.status(401).json({ error: "No token" });
+  req.user = { id: 1, role: "admin" };
+  next();
+};
+
+const requireRole = (role: string) => {
+  return (req: AzuraRequest, res: AzuraResponse, next: NextFunction) => {
+    if (req.user?.role !== role) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    next();
+  };
+};
+
+@UseMiddleware(authenticate)
+@Controller("/api/posts")
+class PostController {
+  @Get()
+  list() {
+    return { posts: [] };
+  }
+
+  @Post()
+  create(@Body() data: any) {
+    return { post: data };
+  }
+
+  @UseMiddleware(requireRole("admin"))
+  @Post("/publish/:id")
+  publish(@Param("id") id: string) {
+    return { published: id };
+  }
+}
+
+app.register(PostController);
+app.listen();
+```
+
+## Next Steps
+
+- [**Controllers**](/docs/en/v3/concepts/controllers) — Structure your middleware within controller classes.
+- [**Decorators**](/docs/en/v3/concepts/decorators) — Full reference for `@UseMiddleware` and all other decorators.
+- [**Plugins**](/docs/en/v3/features/plugins) — Detailed guide on built-in plugin configuration.
+- [**Error Handling**](/docs/en/v3/features/error-handling) — Centralized error handling strategies.

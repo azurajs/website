@@ -1,0 +1,290 @@
+---
+title: Rate Limiting
+description: Rate limiting no AzuraJS v3 — RateLimitPlugin com sliding window, headers informativos e controle por IP
+category: Recursos
+icon: lucide:gauge
+order: 6
+---
+
+# Rate Limiting
+
+O **RateLimitPlugin** protege sua API contra abuso limitando o número de requisições por cliente em uma janela de tempo. Utiliza um algoritmo de **sliding window** com armazenamento em memória e limpeza automática.
+
+## Início Rápido
+
+```typescript
+import { AzuraServer } from "azurats";
+import { RateLimitPlugin } from "azurats/plugins";
+
+const app = new AzuraServer();
+
+app.plugin(RateLimitPlugin({
+  windowMs: 60_000, // 1 minuto
+  max: 100,         // 100 requisições por janela
+}));
+
+app.get("/api/dados", (req, res) => {
+  res.json({ data: "Olá!" });
+});
+
+app.listen(3000);
+```
+
+## Opções
+
+```typescript
+interface RateLimitOptions {
+  windowMs?: number;
+  max?: number;
+  message?: string | object;
+  statusCode?: number;
+  keyGenerator?: (req: AzuraRequest) => string;
+  skipSuccessfulRequests?: boolean;
+  skipFailedRequests?: boolean;
+  store?: RateLimitStore;
+}
+```
+
+| Opção | Tipo | Padrão | Descrição |
+| :--- | :--- | :--- | :--- |
+| `windowMs` | `number` | `60000` | Duração da janela em milissegundos |
+| `max` | `number` | `100` | Máximo de requisições por janela |
+| `message` | `string \| object` | `{ error: { statusCode: 429, message: "Too many requests..." } }` | Resposta quando o limite é excedido |
+| `statusCode` | `number` | `429` | Status code da resposta de limite excedido |
+| `keyGenerator` | `function` | `(req) => req.ip` | Função que gera a chave de identificação |
+| `skipSuccessfulRequests` | `boolean` | `false` | Não contar requisições com status < 400 |
+| `skipFailedRequests` | `boolean` | `false` | Não contar requisições com status >= 400 |
+| `store` | `RateLimitStore` | MemoryStore interno | Store customizado para contadores |
+
+## Headers de Resposta
+
+O plugin adiciona automaticamente três headers informativos a **todas** as respostas:
+
+| Header | Descrição | Exemplo |
+| :--- | :--- | :--- |
+| `X-RateLimit-Limit` | Limite máximo configurado | `100` |
+| `X-RateLimit-Remaining` | Requisições restantes na janela atual | `95` |
+| `X-RateLimit-Reset` | Timestamp Unix (segundos) de quando a janela será resetada | `1704067200` |
+
+Quando o limite é excedido, um header adicional é incluído:
+
+| Header | Descrição | Exemplo |
+| :--- | :--- | :--- |
+| `Retry-After` | Segundos até a janela expirar | `60` |
+
+## Sliding Window
+
+O `MemoryStore` interno utiliza um algoritmo de sliding window:
+
+1. Cada chave (IP por padrão) tem um contador e um tempo de reset
+2. Na primeira requisição, o contador inicia em 1 e o reset é definido como `now + windowMs`
+3. Requisições subsequentes incrementam o contador
+4. Quando o tempo de reset é atingido, o contador é reiniciado
+5. Uma rotina de limpeza periódica remove entradas expiradas
+
+## Geração de Chave Customizada
+
+Por padrão, o rate limiting é por IP. Você pode customizar a chave de identificação:
+
+### Por Usuário Autenticado
+
+```typescript
+app.plugin(RateLimitPlugin({
+  windowMs: 60_000,
+  max: 200,
+  keyGenerator: (req) => {
+    return req.user?.id ?? req.ip;
+  },
+}));
+```
+
+### Por Rota + IP
+
+```typescript
+app.plugin(RateLimitPlugin({
+  windowMs: 60_000,
+  max: 50,
+  keyGenerator: (req) => `${req.ip}:${req.pathname}`,
+}));
+```
+
+### Por API Key
+
+```typescript
+app.plugin(RateLimitPlugin({
+  windowMs: 60_000,
+  max: 1000,
+  keyGenerator: (req) => {
+    const apiKey = req.headers["x-api-key"] as string;
+    return apiKey ?? req.ip;
+  },
+}));
+```
+
+## Mensagem Customizada
+
+### Objeto JSON
+
+```typescript
+app.plugin(RateLimitPlugin({
+  windowMs: 60_000,
+  max: 100,
+  message: {
+    error: {
+      statusCode: 429,
+      message: "Muitas requisições. Tente novamente em 1 minuto.",
+      retryAfter: 60,
+    },
+  },
+}));
+```
+
+### Texto Simples
+
+```typescript
+app.plugin(RateLimitPlugin({
+  windowMs: 60_000,
+  max: 100,
+  message: "Limite de requisições excedido. Aguarde antes de tentar novamente.",
+}));
+```
+
+## Ignorando Requisições
+
+### Ignorar Requisições Bem-Sucedidas
+
+Não contar requisições que retornam status < 400 (útil para limitar apenas tentativas de login falhadas):
+
+```typescript
+app.plugin(RateLimitPlugin({
+  windowMs: 900_000, // 15 minutos
+  max: 5,
+  skipSuccessfulRequests: true,
+  message: {
+    error: {
+      statusCode: 429,
+      message: "Muitas tentativas de login. Tente em 15 minutos.",
+    },
+  },
+}));
+```
+
+### Ignorar Requisições com Erro
+
+Não contar requisições que retornam status >= 400:
+
+```typescript
+app.plugin(RateLimitPlugin({
+  windowMs: 60_000,
+  max: 100,
+  skipFailedRequests: true,
+}));
+```
+
+## Exemplos Práticos
+
+### Rate Limiting por Camada
+
+Aplique limites diferentes para diferentes partes da API usando múltiplas instâncias do plugin como middleware de rota:
+
+```typescript
+import { AzuraServer } from "azurats";
+import { RateLimitPlugin } from "azurats/plugins";
+
+const app = new AzuraServer();
+
+const generalLimiter = RateLimitPlugin({
+  windowMs: 60_000,
+  max: 100,
+});
+
+const authLimiter = RateLimitPlugin({
+  windowMs: 900_000, // 15 minutos
+  max: 5,
+  skipSuccessfulRequests: true,
+  message: {
+    error: {
+      statusCode: 429,
+      message: "Muitas tentativas. Aguarde 15 minutos.",
+    },
+  },
+});
+
+const uploadLimiter = RateLimitPlugin({
+  windowMs: 3600_000, // 1 hora
+  max: 10,
+  message: {
+    error: {
+      statusCode: 429,
+      message: "Limite de uploads atingido. Tente em 1 hora.",
+    },
+  },
+});
+
+app.plugin(generalLimiter);
+
+app.post("/auth/login", (ctx, next) => {
+  authLimiter(ctx, next);
+}, (req, res) => {
+  // lógica de login
+});
+
+app.post("/upload", (ctx, next) => {
+  uploadLimiter(ctx, next);
+}, (req, res) => {
+  // lógica de upload
+});
+```
+
+### API com Planos de Uso
+
+```typescript
+const PLAN_LIMITS: Record<string, number> = {
+  free: 100,
+  pro: 1000,
+  enterprise: 10000,
+};
+
+app.plugin(RateLimitPlugin({
+  windowMs: 3600_000,
+  max: 10000, // limite máximo absoluto
+  keyGenerator: (req) => {
+    const plan = req.user?.plan ?? "free";
+    const limit = PLAN_LIMITS[plan] ?? 100;
+    return `${req.user?.id ?? req.ip}:${plan}`;
+  },
+}));
+```
+
+### Resposta com Headers de Rate Limit no Frontend
+
+```javascript
+const response = await fetch("/api/data");
+
+const limit = response.headers.get("X-RateLimit-Limit");
+const remaining = response.headers.get("X-RateLimit-Remaining");
+const reset = response.headers.get("X-RateLimit-Reset");
+
+if (response.status === 429) {
+  const retryAfter = response.headers.get("Retry-After");
+  console.log(`Limite excedido. Tente novamente em ${retryAfter}s`);
+}
+
+console.log(`Requisições restantes: ${remaining}/${limit}`);
+```
+
+## Interface RateLimitStore
+
+Para stores customizados (ex: Redis), implemente a interface:
+
+```typescript
+interface RateLimitStore {
+  increment(key: string): Promise<{ totalHits: number; resetTime: Date }>;
+  decrement(key: string): Promise<void>;
+  resetKey(key: string): Promise<void>;
+}
+```
+
+<Callout>
+O `MemoryStore` interno é adequado para instâncias únicas. Para aplicações com múltiplos processos ou containers, use um store externo como Redis.
+</Callout>

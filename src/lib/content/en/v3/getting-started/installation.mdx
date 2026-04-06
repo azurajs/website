@@ -1,0 +1,247 @@
+---
+title: Installation
+description: Install AzuraJS v3 and configure your TypeScript project with the recommended settings.
+category: Getting Started
+icon: download
+order: 1
+---
+
+# Installation
+
+This guide walks you through installing AzuraJS v3 and setting up a TypeScript project from scratch.
+
+## Prerequisites
+
+Before you begin, make sure you have:
+
+- **Node.js 18+** or **Bun 1.0+** — AzuraJS v3 requires a modern runtime.
+- **TypeScript 5.0+** — Required for decorator support and the latest language features.
+- **A package manager** — npm, yarn, pnpm, or bun.
+
+<Callout type="warning" title="Node.js version">
+  AzuraJS v3 uses native Node.js APIs (`node:http`, `node:fs`, `node:crypto`, etc.) and requires **Node.js 18 or later**. Earlier versions are not supported.
+</Callout>
+
+## Install the Package
+
+<Tabs items={["npm", "yarn", "pnpm", "bun"]}>
+<Tab value="npm">
+```bash
+npm install azurats
+```
+</Tab>
+<Tab value="yarn">
+```bash
+yarn add azurats
+```
+</Tab>
+<Tab value="pnpm">
+```bash
+pnpm add azurats
+```
+</Tab>
+<Tab value="bun">
+```bash
+bun add azurats
+```
+</Tab>
+</Tabs>
+
+That's it — AzuraJS has **zero dependencies**, so there's nothing else to install.
+
+## TypeScript Configuration
+
+Create a `tsconfig.json` in your project root with the following recommended settings:
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "lib": ["ES2022"],
+    "outDir": "dist",
+    "rootDir": "src",
+    "strict": true,
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+}
+```
+
+<Callout type="warning" title="Decorators">
+  The `experimentalDecorators` and `emitDecoratorMetadata` flags are **required** if you want to use decorator-based controllers (`@Controller`, `@Get`, `@Post`, etc.). If you only use the Express-style functional API (`app.get()`, `app.post()`), you can omit these flags.
+</Callout>
+
+## Package.json Setup
+
+Make sure your `package.json` includes the `"type": "module"` field for ESM support:
+
+```json
+{
+  "name": "my-azura-app",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "tsc",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "azurats": "^3.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.4.0"
+  }
+}
+```
+
+<Callout type="info" title="tsx for development">
+  We recommend **tsx** as the development runner. It executes TypeScript directly without a separate build step, supports watch mode, and handles ESM/CJS seamlessly.
+</Callout>
+
+## Recommended Project Structure
+
+Here is the recommended directory layout for an AzuraJS v3 project:
+
+```
+my-azura-app/
+├── src/
+│   ├── controllers/          # Decorator-based controllers
+│   │   ├── UserController.ts
+│   │   └── AuthController.ts
+│   ├── middleware/            # Custom middleware functions
+│   │   └── auth.ts
+│   ├── services/             # Business logic
+│   │   └── UserService.ts
+│   ├── validators/           # DTO schemas and validation
+│   │   └── UserDTO.ts
+│   └── main.ts               # Application entry point
+├── azura.config.ts            # AzuraJS configuration file (optional)
+├── tsconfig.json
+├── package.json
+└── README.md
+```
+
+### Directory Breakdown
+
+| Directory | Purpose |
+|---|---|
+| `src/controllers/` | Classes decorated with `@Controller` that define routes and handlers. |
+| `src/middleware/` | Custom middleware functions for auth, logging, validation, etc. |
+| `src/services/` | Business logic decoupled from HTTP concerns. |
+| `src/validators/` | DTO schemas used with `DTOValidator` or `SchemaValidator`. |
+| `src/main.ts` | Entry point — creates the `AzuraServer`, registers plugins and controllers, starts listening. |
+| `azura.config.ts` | Optional config file auto-loaded by the framework. |
+
+## Modular Imports
+
+AzuraJS v3 supports tree-shakeable modular imports. Instead of importing everything from the root package, you can import from specific sub-modules:
+
+```typescript
+// Root import — everything available
+import { AzuraServer, CORSPlugin, Controller, Get } from "azurats";
+
+// Or modular imports — only what you need
+import { AzuraServer } from "azurats/core";
+import { CORSPlugin, HelmetPlugin } from "azurats/plugins";
+import { Controller, Get, Post, Body } from "azurats/decorators";
+import { HttpError, Logger } from "azurats/utils";
+import { ConfigModule } from "azurats/config";
+import { LoggingMiddleware } from "azurats/middleware";
+import type { AzuraConfig, AzuraRequest, AzuraResponse } from "azurats/types";
+```
+
+| Module | Contents |
+|---|---|
+| `azurats/core` | `AzuraServer`, `Router` |
+| `azurats/plugins` | All 15 built-in plugins, `signJWT`, `verifyJWT` |
+| `azurats/decorators` | `Controller`, `Get`, `Post`, `Put`, `Delete`, `Patch`, `Body`, `Query`, `Param`, `Headers`, `Cookies`, `Ip`, `Session`, `Req`, `Res`, `Meta`, `UseMiddleware`, `applyDecorators` |
+| `azurats/types` | `AzuraConfig`, `AzuraRequest`, `AzuraResponse`, `HttpStatus`, and all plugin option types |
+| `azurats/utils` | `HttpError`, `Logger`, `DTOValidator`, `SchemaValidator`, parser utilities |
+| `azurats/config` | `ConfigModule` |
+| `azurats/middleware` | `LoggingMiddleware` |
+
+## Runtime Support
+
+<Tabs items={["Node.js", "Bun"]}>
+<Tab value="Node.js">
+AzuraJS runs natively on Node.js 18+. No polyfills or adapters needed.
+
+```bash
+# Development
+npx tsx watch src/main.ts
+
+# Production
+node dist/main.js
+```
+</Tab>
+<Tab value="Bun">
+AzuraJS runs on Bun with no extra setup. Bun's built-in TypeScript support means you can skip the build step entirely.
+
+```bash
+# Development & Production
+bun run src/main.ts
+
+# With watch mode
+bun --watch src/main.ts
+```
+</Tab>
+</Tabs>
+
+## Verify Installation
+
+Create a minimal `src/main.ts` to verify everything is working:
+
+```typescript
+import { AzuraServer } from "azurats";
+
+const app = new AzuraServer({
+  server: { port: 3000 },
+});
+
+app.get("/", (req, res) => {
+  res.json({ status: "ok", framework: "AzuraJS v3.0.0" });
+});
+
+app.listen(3000, () => {
+  console.log("AzuraJS is running on http://localhost:3000");
+});
+```
+
+Run it:
+
+<Tabs items={["tsx", "bun"]}>
+<Tab value="tsx">
+```bash
+npx tsx src/main.ts
+```
+</Tab>
+<Tab value="bun">
+```bash
+bun src/main.ts
+```
+</Tab>
+</Tabs>
+
+Visit `http://localhost:3000` — you should see:
+
+```json
+{ "status": "ok", "framework": "AzuraJS v3.0.0" }
+```
+
+## Next Steps
+
+- [**Quick Start**](/docs/en/v3/getting-started/quick-start) — Build a full CRUD API step by step.
+- [**Configuration**](/docs/en/v3/getting-started/configuration) — Learn about the `AzuraConfig` system.

@@ -1,0 +1,422 @@
+---
+title: Request & Response
+description: Referência completa das interfaces AzuraRequest e AzuraResponse no AzuraJS v3
+category: Conceitos Principais
+icon: lucide:arrow-left-right
+order: 5
+---
+
+# Request & Response 💬
+
+Toda interação HTTP no AzuraJS flui através de dois objetos aprimorados: `AzuraRequest` e `AzuraResponse`. Eles estendem os nativos `IncomingMessage` e `ServerResponse` do Node.js com um rico conjunto de propriedades e métodos projetados para o desenvolvimento moderno de APIs.
+
+```typescript
+import type { AzuraRequest, AzuraResponse } from "azurats/types";
+```
+
+## Ciclo de Vida da Requisição
+
+Compreender o ciclo de vida completo de uma requisição ajuda a raciocinar sobre quando os dados estão disponíveis e quando as respostas são enviadas.
+
+```
+Requisição HTTP Recebida
+  │
+  ├─ 1. URL parseada → pathname, query populados
+  ├─ 2. Request estendido → cookies, ip, protocol, hostname, startTime
+  ├─ 3. Plugins executam (ctx.req, ctx.res)
+  ├─ 4. Middleware global executa (req, res, next)
+  ├─ 5. Router faz correspondência da rota → params populados
+  ├─ 6. Body parseado (para POST/PUT/PATCH/DELETE)
+  ├─ 7. Middleware do controller executa
+  ├─ 8. Middleware da rota executa
+  ├─ 9. Decorators de parâmetro resolvem argumentos
+  ├─ 10. Handler da rota executa
+  ├─ 11. Valor de retorno auto-serializado (se não enviado manualmente)
+  │
+  └─ Resposta enviada ao cliente
+```
+
+<Callout type="info" title="Parsing Lazy do Body">
+  Corpos de requisição só são parseados para métodos que tipicamente carregam payloads (`POST`, `PUT`, `PATCH`, `DELETE`). Requisições `GET`, `HEAD` e `OPTIONS` pulam o parsing de body inteiramente para máxima performance.
+</Callout>
+
+## `AzuraRequest`
+
+A interface `AzuraRequest` estende o `IncomingMessage` do Node.js com acesso estruturado a todos os dados da requisição.
+
+### Propriedades
+
+| Propriedade | Tipo | Descrição |
+| :--- | :--- | :--- |
+| `pathname` | `string` | O caminho da URL sem query string (ex: `/api/users/42`) |
+| `query` | `Record<string, string \| string[]>` | Parâmetros da query string parseados |
+| `params` | `Record<string, string>` | Parâmetros de rota extraídos do padrão da URL |
+| `body` | `any` | Corpo da requisição parseado (JSON, form data). Disponível após a fase de parsing |
+| `cookies` | `Record<string, string>` | Pares chave-valor de cookies parseados |
+| `ip` | `string` | Endereço IP resolvido do cliente (respeita `X-Forwarded-For`, `X-Real-IP`) |
+| `protocol` | `"http" \| "https"` | O protocolo da conexão |
+| `secure` | `boolean` | `true` se a conexão usa HTTPS |
+| `hostname` | `string` | O hostname do cabeçalho `Host` |
+| `requestId` | `string \| undefined` | Identificador único da requisição (requer `RequestIdPlugin`) |
+| `startTime` | `bigint` | Timestamp de alta resolução de quando a requisição foi recebida |
+| `session` | `Record<string, any> \| undefined` | Dados de sessão (requer `SessionPlugin`) |
+| `user` | `any \| undefined` | Dados do usuário, tipicamente definidos por middleware de auth ou `JWTPlugin` |
+| `raw` | `IncomingMessage` | Referência ao `IncomingMessage` original do Node.js |
+
+Adicionalmente, todas as propriedades padrão do `IncomingMessage` estão disponíveis:
+
+| Propriedade | Tipo | Descrição |
+| :--- | :--- | :--- |
+| `method` | `string` | O método HTTP (`GET`, `POST`, etc.) |
+| `url` | `string` | A URL bruta da requisição incluindo query string |
+| `headers` | `IncomingHttpHeaders` | Todos os cabeçalhos da requisição |
+| `httpVersion` | `string` | Versão HTTP (`1.1`, `2.0`) |
+| `socket` | `Socket` | O socket de rede subjacente |
+
+### Exemplos de Uso
+
+```typescript
+app.get("/debug", (req, res) => {
+  res.json({
+    pathname: req.pathname,
+    method: req.method,
+    query: req.query,
+    ip: req.ip,
+    protocol: req.protocol,
+    secure: req.secure,
+    hostname: req.hostname,
+    requestId: req.requestId,
+    userAgent: req.headers["user-agent"],
+    cookies: req.cookies,
+  });
+});
+```
+
+#### Trabalhando com Parâmetros de Rota
+
+```typescript
+app.get("/users/:userId/posts/:postId", (req, res) => {
+  const { userId, postId } = req.params;
+  res.json({ userId, postId });
+});
+```
+
+#### Trabalhando com Parâmetros de Query
+
+```typescript
+app.get("/search", (req, res) => {
+  const query = req.query.q as string;
+  const page = Number(req.query.page) || 1;
+  const limit = Number(req.query.limit) || 20;
+  res.json({ query, page, limit });
+});
+```
+
+#### Trabalhando com o Corpo da Requisição
+
+```typescript
+app.post("/users", async (req, res) => {
+  const { name, email } = req.body;
+  res.status(201).json({ id: Date.now(), name, email });
+});
+```
+
+#### Trabalhando com Cookies
+
+```typescript
+app.get("/preferences", (req, res) => {
+  const theme = req.cookies.theme || "light";
+  const lang = req.cookies.lang || "en";
+  res.json({ theme, lang });
+});
+```
+
+#### Trabalhando com Sessão e Usuário
+
+```typescript
+app.get("/profile", (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: "Not authenticated" });
+  }
+  res.json({
+    user: req.user,
+    session: req.session,
+  });
+});
+```
+
+## `AzuraResponse`
+
+A interface `AzuraResponse` estende o `ServerResponse` do Node.js com uma API fluente para construir e enviar respostas.
+
+### Propriedades
+
+| Propriedade | Tipo | Descrição |
+| :--- | :--- | :--- |
+| `locals` | `Record<string, any>` | Dados compartilhados entre middleware e handlers na mesma requisição |
+| `sent` | `boolean` | Se a resposta já foi enviada |
+| `statusCode` | `number` | O código de status HTTP (herdado de `ServerResponse`) |
+| `headersSent` | `boolean` | Se os cabeçalhos já foram enviados (herdado de `ServerResponse`) |
+
+### Métodos
+
+#### `res.status(code)`
+
+Define o código de status HTTP. Retorna `this` para encadeamento.
+
+```typescript
+res.status(201).json({ created: true });
+res.status(204).send("");
+res.status(404).json({ error: "Not found" });
+```
+
+#### `res.json(data)`
+
+Envia uma resposta JSON. Define automaticamente `Content-Type: application/json` e `Content-Length`.
+
+```typescript
+res.json({ users: [], total: 0 });
+res.json([1, 2, 3]);
+res.status(200).json({ ok: true });
+```
+
+#### `res.send(body)`
+
+Envia uma resposta de texto puro ou Buffer. Define `Content-Type` como `text/plain` para strings ou `application/octet-stream` para Buffers se nenhum content type estiver definido.
+
+```typescript
+res.send("Hello, World!");
+res.send(Buffer.from("binary data"));
+res.status(200).send("OK");
+```
+
+#### `res.html(body)`
+
+Envia uma resposta HTML. Define `Content-Type: text/html; charset=utf-8`.
+
+```typescript
+res.html("<h1>Welcome</h1><p>This is AzuraJS</p>");
+res.status(200).html("<!DOCTYPE html><html>...</html>");
+```
+
+#### `res.redirect(url, code?)`
+
+Redireciona o cliente para uma nova URL. O padrão é HTTP 302 (Found).
+
+```typescript
+res.redirect("/login");
+res.redirect("https://example.com", 301);
+res.redirect("/dashboard", 303);
+```
+
+#### `res.cookie(name, value, options?)`
+
+Define um cookie de resposta. Retorna `this` para encadeamento. Suporta todas as opções padrão de cookie.
+
+```typescript
+res.cookie("token", "abc123", {
+  httpOnly: true,
+  secure: true,
+  sameSite: "Strict",
+  maxAge: 86400,
+  path: "/",
+});
+
+res.cookie("theme", "dark").json({ ok: true });
+```
+
+**Opções de Cookie:**
+
+| Opção | Tipo | Descrição |
+| :--- | :--- | :--- |
+| `maxAge` | `number` | Idade máxima em segundos |
+| `expires` | `Date` | Data de expiração |
+| `path` | `string` | Caminho do cookie (padrão: `/`) |
+| `domain` | `string` | Domínio do cookie |
+| `secure` | `boolean` | Apenas HTTPS |
+| `httpOnly` | `boolean` | Inacessível ao JavaScript |
+| `sameSite` | `"Strict" \| "Lax" \| "None"` | Política SameSite |
+
+#### `res.clearCookie(name, options?)`
+
+Remove um cookie definindo-o para expirar imediatamente. Retorna `this` para encadeamento.
+
+```typescript
+res.clearCookie("token");
+res.clearCookie("session", { path: "/", domain: "example.com" });
+```
+
+#### `res.header(name, value)`
+
+Define um cabeçalho de resposta. Retorna `this` para encadeamento.
+
+```typescript
+res.header("X-Request-Id", "abc-123");
+res.header("Cache-Control", "no-store");
+res.header("X-Custom", "value").json({ data: [] });
+```
+
+#### `res.type(contentType)`
+
+Define o cabeçalho `Content-Type`. Retorna `this` para encadeamento.
+
+```typescript
+res.type("application/xml").send("<root><item>1</item></root>");
+res.type("text/csv").send("id,name\n1,Alice");
+```
+
+#### `res.attachment(filename?)`
+
+Define o cabeçalho `Content-Disposition` como `attachment`, opcionalmente com um nome de arquivo. Retorna `this` para encadeamento.
+
+```typescript
+res.attachment("report.csv").send(csvData);
+res.attachment().send(binaryData);
+```
+
+### Referência Rápida dos Métodos
+
+| Método | Retorna | Descrição |
+| :--- | :--- | :--- |
+| `status(code)` | `AzuraResponse` | Definir código de status HTTP |
+| `json(data)` | `void` | Enviar resposta JSON |
+| `send(body)` | `void` | Enviar resposta de texto ou Buffer |
+| `html(body)` | `void` | Enviar resposta HTML |
+| `redirect(url, code?)` | `void` | Redirecionar cliente (padrão 302) |
+| `cookie(name, val, opts?)` | `AzuraResponse` | Definir um cookie |
+| `clearCookie(name, opts?)` | `AzuraResponse` | Remover um cookie |
+| `header(name, value)` | `AzuraResponse` | Definir um cabeçalho de resposta |
+| `type(contentType)` | `AzuraResponse` | Definir Content-Type |
+| `attachment(filename?)` | `AzuraResponse` | Definir Content-Disposition |
+
+## Usando `res.locals` para Dados por Requisição
+
+O objeto `res.locals` permite compartilhar dados entre middleware e o handler da rota dentro de uma única requisição:
+
+```typescript
+const loadUser = async (req: AzuraRequest, res: AzuraResponse, next: NextFunction) => {
+  const userId = req.headers["x-user-id"];
+  res.locals.user = await findUser(userId);
+  next();
+};
+
+app.get("/profile", loadUser, (req, res) => {
+  res.json({ user: res.locals.user });
+});
+```
+
+## Prevenindo Respostas Duplicadas
+
+O AzuraJS rastreia se uma resposta foi enviada via `res.sent`. Uma vez que um método de resposta é chamado (`json`, `send`, `html`, `redirect`), chamadas subsequentes são silenciosamente ignoradas.
+
+```typescript
+app.get("/safe", (req, res) => {
+  res.json({ first: true });
+  res.json({ second: true }); // silenciosamente ignorado, res.sent já é true
+});
+```
+
+Você pode verificar `res.sent` em middleware para evitar enviar respostas duplicadas:
+
+```typescript
+const safeMiddleware = (req, res, next) => {
+  next();
+  if (!res.sent) {
+    res.status(404).json({ error: "Not found" });
+  }
+};
+```
+
+## Exemplo Completo de Request/Response
+
+```typescript
+import { AzuraServer } from "azurats";
+import { Controller, Get, Post, Put, Delete, Param, Body, Query, Req, Res, Ip, Cookies } from "azurats/decorators";
+import type { AzuraRequest, AzuraResponse } from "azurats/types";
+
+@Controller("/api/users")
+class UserController {
+  @Get()
+  list(@Query("page") page: string, @Query("limit") limit: string) {
+    return {
+      users: [],
+      pagination: {
+        page: Number(page) || 1,
+        limit: Number(limit) || 20,
+      },
+    };
+  }
+
+  @Get("/:id")
+  findOne(@Param("id") id: string, @Req() req: AzuraRequest) {
+    return {
+      user: { id },
+      meta: {
+        requestId: req.requestId,
+        ip: req.ip,
+      },
+    };
+  }
+
+  @Post()
+  create(@Body() data: any, @Res() res: AzuraResponse, @Ip() ip: string) {
+    const user = { id: Date.now(), ...data, createdFrom: ip };
+    res.status(201).json({ user });
+  }
+
+  @Put("/:id")
+  update(@Param("id") id: string, @Body() data: any) {
+    return { user: { id, ...data, updatedAt: new Date().toISOString() } };
+  }
+
+  @Delete("/:id")
+  remove(@Param("id") id: string, @Res() res: AzuraResponse) {
+    res.status(204).send("");
+  }
+
+  @Get("/preferences")
+  prefs(@Cookies("theme") theme: string, @Res() res: AzuraResponse) {
+    res.cookie("lastVisit", new Date().toISOString(), { httpOnly: true });
+    res.json({ theme: theme || "system" });
+  }
+}
+
+const app = new AzuraServer({ server: { port: 3000 } });
+app.register(UserController);
+app.listen();
+```
+
+## Tipos TypeScript
+
+Todos os tipos de request/response estão disponíveis em `azurats/types`:
+
+```typescript
+import type {
+  AzuraRequest,
+  AzuraResponse,
+  NextFunction,
+  MiddlewareHandler,
+  RouteHandler,
+  ErrorHandler,
+  HttpMethod,
+  CookieOptions,
+} from "azurats/types";
+```
+
+| Tipo | Descrição |
+| :--- | :--- |
+| `AzuraRequest` | Objeto de requisição estendido |
+| `AzuraResponse` | Objeto de resposta estendido |
+| `NextFunction` | `(err?: Error \| unknown) => void` |
+| `MiddlewareHandler` | `(req, res, next) => void \| Promise<void>` |
+| `RouteHandler` | `(req, res, ...args) => any \| Promise<any>` |
+| `ErrorHandler` | `(err, req, res, next) => void \| Promise<void>` |
+| `HttpMethod` | `"GET" \| "POST" \| "PUT" \| "DELETE" \| "PATCH" \| "HEAD" \| "OPTIONS"` |
+| `CookieOptions` | Opções de configuração de cookie |
+
+## Próximos Passos
+
+- [**Controllers**](/docs/pt/v3/conceitos/controllers) — Use `@Req()` e `@Res()` dentro de métodos do controller.
+- [**Decorators**](/docs/pt/v3/conceitos/decorators) — Referência completa dos decorators de injeção de parâmetros.
+- [**Middleware**](/docs/pt/v3/conceitos/middleware) — Aprenda como middleware interage com objetos de request e response.
+- [**Tratamento de Erros**](/docs/pt/v3/recursos/error-handling) — Tratamento centralizado de erros com `app.onError()`.

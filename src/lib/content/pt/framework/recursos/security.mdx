@@ -1,0 +1,334 @@
+---
+title: Segurança (Helmet)
+description: Headers de segurança no AzuraJS v3 — HelmetPlugin com CSP, HSTS, X-Frame-Options, Referrer-Policy e mais
+category: Recursos
+icon: lucide:shield
+order: 8
+---
+
+# Segurança (Helmet)
+
+O **HelmetPlugin** protege sua aplicação definindo headers HTTP de segurança automaticamente. Ele cobre Content Security Policy, HSTS, X-Frame-Options, Referrer-Policy, Cross-Origin policies e muito mais — tudo sem dependências externas.
+
+## Início Rápido
+
+```typescript
+import { AzuraServer } from "azurats";
+import { HelmetPlugin } from "azurats/plugins";
+
+const app = new AzuraServer();
+
+app.plugin(HelmetPlugin());
+
+app.get("/", (req, res) => {
+  res.json({ message: "Servidor protegido!" });
+});
+
+app.listen(3000);
+```
+
+Com as opções padrão, o HelmetPlugin define 9 headers de segurança automaticamente.
+
+## Opções
+
+```typescript
+interface HelmetOptions {
+  contentSecurityPolicy?: false | Record<string, string[]>;
+  crossOriginEmbedderPolicy?: boolean;
+  crossOriginOpenerPolicy?: boolean | { policy: string };
+  crossOriginResourcePolicy?: boolean | { policy: string };
+  dnsPrefetchControl?: boolean | { allow: boolean };
+  frameguard?: boolean | { action: "deny" | "sameorigin" };
+  hsts?: boolean | { maxAge: number; includeSubDomains?: boolean; preload?: boolean };
+  ieNoOpen?: boolean;
+  noSniff?: boolean;
+  referrerPolicy?: boolean | { policy: string | string[] };
+  xssFilter?: boolean;
+  permissionsPolicy?: Record<string, string[]>;
+}
+```
+
+## Headers Padrão
+
+Quando invocado sem opções (`HelmetPlugin()`), os seguintes headers são definidos:
+
+| Header | Valor Padrão | Proteção |
+| :--- | :--- | :--- |
+| `X-Content-Type-Options` | `nosniff` | Impede MIME-type sniffing |
+| `X-XSS-Protection` | `0` | Desabilita filtro XSS legado (recomendado) |
+| `X-Download-Options` | `noopen` | Impede IE de abrir downloads no contexto do site |
+| `X-Frame-Options` | `SAMEORIGIN` | Previne clickjacking |
+| `X-DNS-Prefetch-Control` | `off` | Desabilita DNS prefetch |
+| `Strict-Transport-Security` | `max-age=15552000; includeSubDomains` | Força HTTPS (180 dias) |
+| `Cross-Origin-Embedder-Policy` | `require-corp` | Isolamento cross-origin |
+| `Cross-Origin-Opener-Policy` | `same-origin` | Isolamento de janela |
+| `Cross-Origin-Resource-Policy` | `same-origin` | Impede carregamento cross-origin |
+| `Referrer-Policy` | `no-referrer` | Não enviar Referer header |
+
+## Content Security Policy (CSP)
+
+A CSP controla quais recursos o navegador pode carregar:
+
+```typescript
+app.plugin(HelmetPlugin({
+  contentSecurityPolicy: {
+    "default-src": ["'self'"],
+    "script-src": ["'self'", "https://cdn.example.com"],
+    "style-src": ["'self'", "'unsafe-inline'"],
+    "img-src": ["'self'", "data:", "https:"],
+    "font-src": ["'self'", "https://fonts.gstatic.com"],
+    "connect-src": ["'self'", "https://api.example.com"],
+    "frame-ancestors": ["'none'"],
+    "base-uri": ["'self'"],
+    "form-action": ["'self'"],
+  },
+}));
+```
+
+O header resultante:
+
+```
+Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.example.com; style-src 'self' 'unsafe-inline'; ...
+```
+
+Para desabilitar a CSP:
+
+```typescript
+app.plugin(HelmetPlugin({
+  contentSecurityPolicy: false,
+}));
+```
+
+## HSTS (HTTP Strict Transport Security)
+
+Força o navegador a usar HTTPS em todas as requisições futuras:
+
+```typescript
+app.plugin(HelmetPlugin({
+  hsts: {
+    maxAge: 31536000,        // 1 ano
+    includeSubDomains: true, // incluir subdomínios
+    preload: true,           // elegível para lista de preload
+  },
+}));
+// Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+```
+
+Valores padrão: `maxAge: 15552000` (180 dias), `includeSubDomains: true`, `preload: false`.
+
+Para desabilitar:
+
+```typescript
+app.plugin(HelmetPlugin({ hsts: false }));
+```
+
+<Callout>
+Use `preload: true` apenas se **todos** os seus subdomínios suportam HTTPS. Uma vez incluído na lista de preload dos navegadores, a remoção é um processo demorado.
+</Callout>
+
+## X-Frame-Options (Frameguard)
+
+Protege contra clickjacking controlando quem pode embutir sua página em `<iframe>`:
+
+```typescript
+// Permitir apenas mesma origem (padrão)
+app.plugin(HelmetPlugin({
+  frameguard: { action: "sameorigin" },
+}));
+
+// Bloquear completamente
+app.plugin(HelmetPlugin({
+  frameguard: { action: "deny" },
+}));
+
+// Desabilitar
+app.plugin(HelmetPlugin({
+  frameguard: false,
+}));
+```
+
+## Referrer-Policy
+
+Controla quais informações de referência são enviadas:
+
+```typescript
+app.plugin(HelmetPlugin({
+  referrerPolicy: {
+    policy: "strict-origin-when-cross-origin",
+  },
+}));
+```
+
+Valores comuns: `"no-referrer"`, `"no-referrer-when-downgrade"`, `"origin"`, `"strict-origin-when-cross-origin"`.
+
+Para múltiplas políticas (fallback):
+
+```typescript
+app.plugin(HelmetPlugin({
+  referrerPolicy: {
+    policy: ["no-referrer", "strict-origin-when-cross-origin"],
+  },
+}));
+// Referrer-Policy: no-referrer, strict-origin-when-cross-origin
+```
+
+## Cross-Origin Policies
+
+### Cross-Origin-Embedder-Policy
+
+```typescript
+app.plugin(HelmetPlugin({
+  crossOriginEmbedderPolicy: true,  // require-corp (padrão)
+  crossOriginEmbedderPolicy: false, // desabilitar
+}));
+```
+
+### Cross-Origin-Opener-Policy
+
+```typescript
+app.plugin(HelmetPlugin({
+  crossOriginOpenerPolicy: { policy: "same-origin" },       // padrão
+  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
+  crossOriginOpenerPolicy: { policy: "unsafe-none" },
+}));
+```
+
+### Cross-Origin-Resource-Policy
+
+```typescript
+app.plugin(HelmetPlugin({
+  crossOriginResourcePolicy: { policy: "same-origin" },  // padrão
+  crossOriginResourcePolicy: { policy: "same-site" },
+  crossOriginResourcePolicy: { policy: "cross-origin" }, // menos restritivo
+}));
+```
+
+## DNS Prefetch Control
+
+```typescript
+app.plugin(HelmetPlugin({
+  dnsPrefetchControl: { allow: false }, // padrão: off
+  dnsPrefetchControl: { allow: true },  // on
+}));
+```
+
+## Permissions-Policy
+
+Controla quais APIs do navegador sua página pode utilizar:
+
+```typescript
+app.plugin(HelmetPlugin({
+  permissionsPolicy: {
+    camera: ["'none'"],
+    microphone: ["'none'"],
+    geolocation: ["'self'"],
+    "interest-cohort": ["'none'"], // bloquear FLoC
+    fullscreen: ["'self'"],
+    payment: ["'self'", "https://pagamentos.example.com"],
+  },
+}));
+// Permissions-Policy: camera=(none), microphone=(none), geolocation=(self), ...
+```
+
+## Exemplos Práticos
+
+### Configuração para Produção
+
+```typescript
+app.plugin(HelmetPlugin({
+  contentSecurityPolicy: {
+    "default-src": ["'self'"],
+    "script-src": ["'self'"],
+    "style-src": ["'self'", "'unsafe-inline'"],
+    "img-src": ["'self'", "data:", "https:"],
+    "connect-src": ["'self'", "https://api.meusite.com.br"],
+    "frame-ancestors": ["'none'"],
+    "base-uri": ["'self'"],
+    "form-action": ["'self'"],
+    "upgrade-insecure-requests": [],
+  },
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true,
+  },
+  frameguard: { action: "deny" },
+  referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+  permissionsPolicy: {
+    camera: ["'none'"],
+    microphone: ["'none'"],
+    geolocation: ["'none'"],
+  },
+}));
+```
+
+### API REST (sem CSP, pois não serve HTML)
+
+```typescript
+app.plugin(HelmetPlugin({
+  contentSecurityPolicy: false,
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+  },
+  frameguard: { action: "deny" },
+  crossOriginResourcePolicy: { policy: "same-origin" },
+}));
+```
+
+### Configuração para Desenvolvimento
+
+```typescript
+const isProduction = process.env.NODE_ENV === "production";
+
+app.plugin(HelmetPlugin({
+  contentSecurityPolicy: isProduction ? {
+    "default-src": ["'self'"],
+    "script-src": ["'self'"],
+  } : false,
+  hsts: isProduction ? {
+    maxAge: 31536000,
+    includeSubDomains: true,
+  } : false,
+  crossOriginEmbedderPolicy: isProduction,
+}));
+```
+
+### Aplicação com CDN
+
+```typescript
+app.plugin(HelmetPlugin({
+  contentSecurityPolicy: {
+    "default-src": ["'self'"],
+    "script-src": ["'self'", "https://cdn.jsdelivr.net"],
+    "style-src": ["'self'", "https://cdn.jsdelivr.net", "'unsafe-inline'"],
+    "img-src": ["'self'", "data:", "https://images.unsplash.com"],
+    "font-src": ["'self'", "https://fonts.gstatic.com"],
+  },
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+}));
+```
+
+## Desabilitando Headers Individuais
+
+Qualquer proteção pode ser desabilitada passando `false`:
+
+```typescript
+app.plugin(HelmetPlugin({
+  noSniff: false,
+  xssFilter: false,
+  ieNoOpen: false,
+  dnsPrefetchControl: false,
+  crossOriginEmbedderPolicy: false,
+  crossOriginOpenerPolicy: false,
+  crossOriginResourcePolicy: false,
+  referrerPolicy: false,
+  frameguard: false,
+  hsts: false,
+}));
+```
+
+<Callout>
+O HelmetPlugin pré-computa todos os headers durante a inicialização. Em runtime, apenas itera sobre um array de pares `[nome, valor]`, garantindo overhead mínimo por requisição.
+</Callout>

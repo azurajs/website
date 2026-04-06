@@ -1,0 +1,410 @@
+---
+title: Servidores Customizados
+description: Configure HTTPS, timeouts, error handlers e graceful shutdown no AzuraJS
+category: Avançado
+icon: lucide:server
+order: 4
+---
+
+# Servidores Customizados 🖥️
+
+O AzuraJS v3 oferece controle total sobre a configuração do servidor HTTP/HTTPS. Através do objeto `AzuraConfig`, você pode habilitar HTTPS com certificados TLS, ajustar timeouts de conexão, definir error handlers personalizados e implementar graceful shutdown — tudo de forma tipada e declarativa.
+
+## Servidor HTTPS
+
+O AzuraJS suporta HTTPS nativamente via a propriedade `server.https` na configuração. Basta fornecer os caminhos para os arquivos de chave privada e certificado:
+
+```typescript
+import { AzuraServer } from "azurats/core";
+
+const app = new AzuraServer({
+  server: {
+    port: 443,
+    host: "0.0.0.0",
+    https: {
+      key: "/etc/ssl/private/server.key",
+      cert: "/etc/ssl/certs/server.crt",
+    },
+  },
+});
+
+app.get("/", (req, res) => {
+  res.json({ secure: req.secure, protocol: req.protocol });
+});
+
+await app.listen();
+```
+
+### HTTPS com Certificado CA
+
+Para cenários com certificado de autoridade intermediária (CA chain), adicione a propriedade `ca`:
+
+```typescript
+const app = new AzuraServer({
+  server: {
+    port: 443,
+    https: {
+      key: "/etc/ssl/private/server.key",
+      cert: "/etc/ssl/certs/server.crt",
+      ca: "/etc/ssl/certs/ca-bundle.crt",
+    },
+  },
+});
+```
+
+### Certificados para Desenvolvimento
+
+Para desenvolvimento local, você pode gerar certificados autoassinados com `mkcert` ou `openssl`:
+
+```bash
+# Usando mkcert (recomendado para desenvolvimento)
+mkcert -install
+mkcert localhost 127.0.0.1 ::1
+
+# Usando openssl
+openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes
+```
+
+```typescript
+const app = new AzuraServer({
+  environment: "development",
+  server: {
+    port: 3443,
+    https: {
+      key: "./localhost+2-key.pem",
+      cert: "./localhost+2.pem",
+    },
+  },
+});
+```
+
+<Callout type="warning" title="Certificados em Produção">
+  Nunca use certificados autoassinados em produção. Use certificados emitidos por uma autoridade certificadora confiável, como Let's Encrypt, ou configure TLS termination no seu reverse proxy (nginx, Caddy).
+</Callout>
+
+## Configuração de Timeouts
+
+O `ServerConfig` expõe quatro propriedades de timeout para controle fino do comportamento do servidor:
+
+```typescript
+import { AzuraServer } from "azurats/core";
+
+const app = new AzuraServer({
+  server: {
+    port: 3000,
+    keepAliveTimeout: 72000,
+    headersTimeout: 75000,
+    requestTimeout: 30000,
+    maxHeaderSize: 16384,
+  },
+});
+```
+
+| Propriedade | Padrão | Descrição |
+|---|---|---|
+| `keepAliveTimeout` | `72000` (72s) | Tempo máximo (ms) que o servidor mantém uma conexão keep-alive aberta sem atividade |
+| `headersTimeout` | `75000` (75s) | Tempo máximo (ms) para o cliente enviar os headers HTTP completos. Deve ser maior que `keepAliveTimeout` |
+| `requestTimeout` | `30000` (30s) | Tempo máximo (ms) para receber a requisição completa (headers + body) |
+| `maxHeaderSize` | Node.js padrão | Tamanho máximo (bytes) dos headers HTTP permitidos |
+
+### Tuning para Diferentes Cenários
+
+**API de alta performance (respostas rápidas):**
+
+```typescript
+const app = new AzuraServer({
+  server: {
+    keepAliveTimeout: 5000,
+    headersTimeout: 10000,
+    requestTimeout: 10000,
+  },
+});
+```
+
+**Upload de arquivos grandes:**
+
+```typescript
+const app = new AzuraServer({
+  server: {
+    keepAliveTimeout: 120000,
+    headersTimeout: 125000,
+    requestTimeout: 300000, // 5 minutos
+  },
+});
+```
+
+**Proxy reverso (nginx na frente):**
+
+```typescript
+const app = new AzuraServer({
+  server: {
+    keepAliveTimeout: 65000,
+    headersTimeout: 66000,
+  },
+});
+```
+
+<Callout type="tip" title="Regra dos Timeouts">
+  Mantenha `headersTimeout` sempre maior que `keepAliveTimeout`. Se `headersTimeout` for menor, conexões keep-alive podem ser encerradas prematuramente pelo Node.js antes mesmo de receberem a próxima requisição.
+</Callout>
+
+## Error Handler Customizado
+
+O método `onError()` registra um handler global de erros que intercepta qualquer exceção não tratada durante o processamento de requisições:
+
+```typescript
+import { AzuraServer } from "azurats/core";
+import { HttpError } from "azurats/utils";
+import type { ErrorHandler } from "azurats/types";
+
+const app = new AzuraServer({ environment: "production" });
+
+app.onError((err, req, res, next) => {
+  if (err instanceof HttpError) {
+    res.status(err.statusCode).json({
+      error: err.message,
+      code: err.statusCode,
+    });
+    return;
+  }
+
+  console.error(`[${new Date().toISOString()}] ${req.method} ${req.pathname}`, err);
+
+  res.status(500).json({
+    error: "Erro interno do servidor",
+    requestId: req.requestId,
+  });
+});
+```
+
+### Error Handler com Logging Estruturado
+
+```typescript
+import { AzuraServer } from "azurats/core";
+import { HttpError, Logger } from "azurats/utils";
+
+const logger = new Logger({ level: "error", timestamp: true });
+const app = new AzuraServer();
+
+app.onError((err, req, res, next) => {
+  const statusCode = err instanceof HttpError
+    ? err.statusCode
+    : (err as any)?.statusCode ?? 500;
+
+  const message = err instanceof Error ? err.message : "Erro desconhecido";
+
+  logger.error(JSON.stringify({
+    method: req.method,
+    path: req.pathname,
+    statusCode,
+    message,
+    ip: req.ip,
+    userAgent: req.headers["user-agent"],
+  }));
+
+  if (res.sent) return;
+
+  res.status(statusCode).json({
+    error: {
+      statusCode,
+      message: statusCode >= 500 ? "Erro interno do servidor" : message,
+    },
+  });
+});
+```
+
+### Error Handler por Ambiente
+
+```typescript
+const app = new AzuraServer({ environment: "development", debug: true });
+
+app.onError((err, req, res, next) => {
+  const isDev = process.env.NODE_ENV !== "production";
+  const statusCode = err instanceof HttpError ? err.statusCode : 500;
+  const message = err instanceof Error ? err.message : "Erro interno";
+
+  res.status(statusCode).json({
+    error: {
+      statusCode,
+      message,
+      ...(isDev && err instanceof Error ? { stack: err.stack } : {}),
+    },
+  });
+});
+```
+
+Quando `debug: true` e `environment: "development"`, o error handler padrão do AzuraJS já inclui o stack trace na resposta JSON. O `onError` sobrescreve esse comportamento.
+
+## Graceful Shutdown
+
+O método `close()` do `AzuraServer` encerra o servidor HTTP de forma limpa, aguardando que as conexões ativas sejam finalizadas:
+
+```typescript
+import { AzuraServer } from "azurats/core";
+
+const app = new AzuraServer({ server: { port: 3000 } });
+
+app.get("/health", (req, res) => res.json({ status: "ok" }));
+
+const server = await app.listen();
+
+async function shutdown(signal: string) {
+  console.log(`\n${signal} recebido. Encerrando servidor...`);
+
+  await app.close();
+  console.log("Servidor encerrado com sucesso.");
+  process.exit(0);
+}
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
+```
+
+### Shutdown com Timeout de Segurança
+
+Em produção, é importante definir um timeout máximo para o shutdown, evitando que conexões travadas impeçam o encerramento:
+
+```typescript
+const SHUTDOWN_TIMEOUT = 10_000; // 10 segundos
+
+async function shutdown(signal: string) {
+  console.log(`${signal} recebido. Iniciando graceful shutdown...`);
+
+  const forceExit = setTimeout(() => {
+    console.error("Shutdown forçado — timeout excedido.");
+    process.exit(1);
+  }, SHUTDOWN_TIMEOUT);
+
+  try {
+    await app.close();
+    clearTimeout(forceExit);
+    console.log("Todas as conexões encerradas.");
+    process.exit(0);
+  } catch (err) {
+    console.error("Erro durante shutdown:", err);
+    clearTimeout(forceExit);
+    process.exit(1);
+  }
+}
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
+```
+
+### Shutdown com Cleanup de Recursos
+
+```typescript
+import { AzuraServer } from "azurats/core";
+
+const app = new AzuraServer();
+let dbConnection: any;
+
+app.get("/", (req, res) => res.json({ status: "running" }));
+
+const server = await app.listen(3000);
+
+async function shutdown(signal: string) {
+  console.log(`${signal} recebido.`);
+
+  // 1. Parar de aceitar novas conexões
+  await app.close();
+
+  // 2. Fechar conexões com banco de dados
+  if (dbConnection) {
+    await dbConnection.close();
+    console.log("Conexão com banco encerrada.");
+  }
+
+  // 3. Liberar outros recursos (filas, caches, etc.)
+  console.log("Cleanup completo. Encerrando processo.");
+  process.exit(0);
+}
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
+```
+
+## Configuração Completa de Produção
+
+Um exemplo combinando HTTPS, timeouts otimizados, error handler e graceful shutdown:
+
+```typescript
+import { AzuraServer } from "azurats/core";
+import { Controller, Get, Param } from "azurats/decorators";
+import { CORSPlugin, HelmetPlugin, RateLimitPlugin } from "azurats/plugins";
+import { HttpError } from "azurats/utils";
+
+@Controller("/api/v1")
+class AppController {
+  @Get("/health")
+  health() {
+    return { status: "ok", timestamp: Date.now() };
+  }
+
+  @Get("/users/:id")
+  getUser(@Param("id") id: string) {
+    if (!id) throw HttpError.badRequest("ID é obrigatório");
+    return { id, name: "Usuário " + id };
+  }
+}
+
+const app = new AzuraServer({
+  environment: "production",
+  server: {
+    port: Number(process.env.PORT) || 443,
+    host: "0.0.0.0",
+    https: {
+      key: process.env.TLS_KEY_PATH!,
+      cert: process.env.TLS_CERT_PATH!,
+      ca: process.env.TLS_CA_PATH,
+    },
+    keepAliveTimeout: 65000,
+    headersTimeout: 66000,
+    requestTimeout: 30000,
+  },
+  logging: {
+    enabled: true,
+    level: "warn",
+    requestLogging: true,
+  },
+  debug: false,
+});
+
+app.plugin(CORSPlugin({ origin: process.env.ALLOWED_ORIGINS?.split(",") ?? [] }));
+app.plugin(HelmetPlugin());
+app.plugin(RateLimitPlugin({ windowMs: 60000, max: 100 }));
+
+app.onError((err, req, res) => {
+  const statusCode = err instanceof HttpError ? err.statusCode : 500;
+  const message = err instanceof HttpError ? err.message : "Erro interno do servidor";
+
+  res.status(statusCode).json({
+    error: { statusCode, message, requestId: req.requestId },
+  });
+});
+
+app.register(AppController);
+
+const server = await app.listen();
+
+const SHUTDOWN_TIMEOUT = 15_000;
+
+async function shutdown(signal: string) {
+  console.log(`${signal} — graceful shutdown iniciado`);
+
+  const forceExit = setTimeout(() => process.exit(1), SHUTDOWN_TIMEOUT);
+
+  await app.close();
+  clearTimeout(forceExit);
+  process.exit(0);
+}
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
+```
+
+## Próximos Passos 📖
+
+- [⚙️ **Configuração**](/docs/pt/v3/comecando/configuracao): Veja todas as opções disponíveis no `azura.config.ts`.
+- [⚡ **Modo Cluster**](/docs/pt/v3/recursos/cluster-mode): Escale seu servidor para múltiplos processos com o modo cluster.
+- [🚨 **Tratamento de Erros**](/docs/pt/v3/recursos/error-handling): Aprofunde-se no sistema de error handling com `HttpError`.

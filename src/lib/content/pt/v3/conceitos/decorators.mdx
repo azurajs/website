@@ -1,0 +1,422 @@
+---
+title: Decorators
+description: Referência completa de todos os decorators do AzuraJS v3 — rotas, parâmetros, middleware e metadados
+category: Conceitos Principais
+icon: lucide:at-sign
+order: 3
+---
+
+# Decorators 🏷️
+
+Decorators são a base declarativa do AzuraJS. Eles permitem definir rotas, injetar dados de requisição, anexar middleware e definir metadados — tudo sem boilerplate. O AzuraJS v3 oferece três categorias de decorators: **decorators de rota**, **decorators de parâmetro** e **decorators utilitários**.
+
+<Callout type="info" title="Configuração do TypeScript">
+  Decorators requerem duas opções de compilador no seu `tsconfig.json`:
+
+```json
+{
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+  }
+}
+```
+</Callout>
+
+## Import
+
+Todos os decorators estão disponíveis no submódulo `azurats/decorators`:
+
+```typescript
+import {
+  Controller,
+  Get, Post, Put, Delete, Patch, Head, Options,
+  Body, Query, Param, Req, Res, Headers, Cookies, Ip, Session, NextFunc,
+  UseMiddleware,
+  applyDecorators,
+  Meta,
+} from "azurats/decorators";
+```
+
+## Decorators de Rota
+
+### `@Controller(prefix?)`
+
+Marca uma classe como controller. A string `prefix` opcional é adicionada antes de toda rota de método na classe.
+
+| Argumento | Tipo | Padrão | Descrição |
+| :--- | :--- | :--- | :--- |
+| `prefix` | `string` | `""` | Caminho base para todas as rotas no controller |
+
+```typescript
+@Controller("/api/v1/users")
+export class UserController {
+  // Todas as rotas aqui começam com /api/v1/users
+}
+```
+
+### Decorators de Método HTTP
+
+Estes decorators de método mapeiam métodos da classe para endpoints HTTP. Cada um aceita um argumento `path` opcional relativo ao prefixo do controller.
+
+| Decorator | Método HTTP | Rota de Exemplo |
+| :--- | :--- | :--- |
+| `@Get(path?)` | `GET` | `GET /users` |
+| `@Post(path?)` | `POST` | `POST /users` |
+| `@Put(path?)` | `PUT` | `PUT /users/:id` |
+| `@Delete(path?)` | `DELETE` | `DELETE /users/:id` |
+| `@Patch(path?)` | `PATCH` | `PATCH /users/:id` |
+| `@Head(path?)` | `HEAD` | `HEAD /users` |
+| `@Options(path?)` | `OPTIONS` | `OPTIONS /users` |
+
+```typescript
+@Controller("/posts")
+export class PostController {
+  @Get()
+  list() {
+    return { posts: [] };
+  }
+
+  @Get("/:id")
+  findOne(@Param("id") id: string) {
+    return { id };
+  }
+
+  @Post()
+  create(@Body() data: any) {
+    return { created: data };
+  }
+
+  @Put("/:id")
+  update(@Param("id") id: string, @Body() data: any) {
+    return { id, updated: data };
+  }
+
+  @Patch("/:id")
+  patch(@Param("id") id: string, @Body() data: any) {
+    return { id, patched: data };
+  }
+
+  @Delete("/:id")
+  remove(@Param("id") id: string) {
+    return { deleted: id };
+  }
+}
+```
+
+## Decorators de Parâmetro
+
+Decorators de parâmetro injetam dados da requisição diretamente nos argumentos dos métodos. Isso elimina parsing manual e produz assinaturas de handler limpas e testáveis.
+
+### Visão Geral
+
+| Decorator | Injeta | Argumento |
+| :--- | :--- | :--- |
+| `@Req()` | Objeto `AzuraRequest` completo | — |
+| `@Res()` | Objeto `AzuraResponse` completo | — |
+| `@NextFunc()` | A função callback `next` | — |
+| `@Body()` | Corpo da requisição parseado inteiro | — |
+| `@Body("field")` | Campo específico do corpo | Nome do campo |
+| `@Query()` | Todos os parâmetros de query | — |
+| `@Query("key")` | Parâmetro de query específico | Chave da query |
+| `@Param()` | Todos os parâmetros de rota | — |
+| `@Param("name")` | Parâmetro de rota específico | Nome do parâmetro |
+| `@Headers()` | Todos os cabeçalhos da requisição | — |
+| `@Headers("name")` | Valor de cabeçalho específico | Nome do cabeçalho |
+| `@Cookies()` | Todos os cookies | — |
+| `@Cookies("name")` | Valor de cookie específico | Nome do cookie |
+| `@Ip()` | Endereço IP do cliente | — |
+| `@Session()` | Objeto de sessão | — |
+
+### `@Body(field?)`
+
+Injeta o corpo da requisição parseado, ou um campo específico dele.
+
+```typescript
+@Post()
+create(@Body() data: any) {
+  return { received: data };
+}
+
+@Post("/login")
+login(@Body("email") email: string, @Body("password") password: string) {
+  return { email };
+}
+```
+
+### `@Query(key?)`
+
+Injeta parâmetros de query string da URL.
+
+```typescript
+@Get("/search")
+search(@Query("q") query: string, @Query("limit") limit?: string) {
+  return { query, limit: Number(limit) || 10 };
+}
+
+@Get("/filter")
+filter(@Query() allParams: Record<string, string>) {
+  return allParams;
+}
+```
+
+### `@Param(name?)`
+
+Injeta parâmetros de rota definidos com a sintaxe `:name`.
+
+```typescript
+@Get("/:userId/posts/:postId")
+getPost(
+  @Param("userId") userId: string,
+  @Param("postId") postId: string,
+) {
+  return { userId, postId };
+}
+
+@Get("/:id")
+getById(@Param() allParams: Record<string, string>) {
+  return allParams;
+}
+```
+
+### `@Headers(name?)`
+
+Injeta cabeçalhos da requisição. Os nomes de cabeçalho são case-insensitive.
+
+```typescript
+@Get("/info")
+info(
+  @Headers("authorization") auth: string,
+  @Headers("user-agent") userAgent: string,
+) {
+  return { auth: !!auth, userAgent };
+}
+```
+
+### `@Cookies(name?)`
+
+Injeta valores de cookies parseados.
+
+```typescript
+@Get("/preferences")
+prefs(@Cookies("theme") theme: string, @Cookies("lang") lang: string) {
+  return { theme: theme || "light", lang: lang || "en" };
+}
+```
+
+### `@Req()` e `@Res()`
+
+Injetam os objetos de requisição e resposta completos para controle total.
+
+```typescript
+import type { AzuraRequest, AzuraResponse } from "azurats/types";
+
+@Get("/raw")
+rawAccess(@Req() req: AzuraRequest, @Res() res: AzuraResponse) {
+  res.status(200).json({
+    method: req.method,
+    pathname: req.pathname,
+    ip: req.ip,
+  });
+}
+```
+
+<Callout type="warn" title="Valor de Retorno com @Res()">
+  Quando você injeta `@Res()` e envia uma resposta manualmente (ex: `res.json()`), certifique-se de que seu método não retorne também um valor. Caso contrário, o AzuraJS tentará a auto-serialização e a resposta entrará em conflito.
+</Callout>
+
+### `@Ip()`
+
+Injeta o endereço IP resolvido do cliente.
+
+```typescript
+@Get("/whoami")
+whoami(@Ip() ip: string) {
+  return { ip };
+}
+```
+
+### `@Session()`
+
+Injeta o objeto de sessão. Requer que o `SessionPlugin` esteja ativo.
+
+```typescript
+@Get("/dashboard")
+dashboard(@Session() session: Record<string, any>) {
+  return { user: session.user, views: session.views };
+}
+```
+
+### `@NextFunc()`
+
+Injeta a função `next`. Útil em casos raros onde um método do controller precisa chamar o próximo middleware.
+
+```typescript
+@Get("/passthrough")
+passthrough(@NextFunc() next: Function) {
+  next();
+}
+```
+
+## Decorators Utilitários
+
+### `@UseMiddleware(...middlewares)`
+
+Anexa uma ou mais funções de middleware a um controller (nível de classe) ou a uma rota específica (nível de método). O middleware do controller executa antes do middleware da rota.
+
+```typescript
+import type { AzuraRequest, AzuraResponse, NextFunction } from "azurats/types";
+
+const logRequest = (req: AzuraRequest, res: AzuraResponse, next: NextFunction) => {
+  console.log(`${req.method} ${req.pathname}`);
+  next();
+};
+
+const requireAdmin = (req: AzuraRequest, res: AzuraResponse, next: NextFunction) => {
+  if (req.user?.role !== "admin") {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+  next();
+};
+
+@UseMiddleware(logRequest)
+@Controller("/api/admin")
+export class AdminController {
+  @Get("/stats")
+  stats() {
+    return { users: 100 };
+  }
+
+  @UseMiddleware(requireAdmin)
+  @Delete("/users/:id")
+  deleteUser(@Param("id") id: string) {
+    return { deleted: id };
+  }
+}
+```
+
+Neste exemplo, `logRequest` executa em toda rota do controller, enquanto `requireAdmin` só executa em `DELETE /api/admin/users/:id`.
+
+### `@Meta(key, value)`
+
+Anexa metadados arbitrários a uma rota. Metadados são armazenados na definição da rota e podem ser acessados por middleware, plugins ou ferramentas de introspecção (ex: geração de Swagger).
+
+```typescript
+@Controller("/api/posts")
+export class PostController {
+  @Meta("summary", "List all posts")
+  @Meta("tags", ["posts"])
+  @Get()
+  list() {
+    return { posts: [] };
+  }
+
+  @Meta("deprecated", true)
+  @Get("/legacy")
+  legacy() {
+    return { warning: "Use /api/posts instead" };
+  }
+}
+```
+
+### `applyDecorators(...decorators)`
+
+Compõe múltiplos decorators em um único decorator. Poderoso para criar bundles de decorators reutilizáveis.
+
+```typescript
+import { applyDecorators, UseMiddleware, Meta, Get } from "azurats/decorators";
+
+function PublicEndpoint(path: string) {
+  return applyDecorators(
+    Get(path),
+    Meta("public", true),
+    Meta("rateLimit", 100),
+  );
+}
+
+function ProtectedEndpoint(path: string) {
+  return applyDecorators(
+    Get(path),
+    UseMiddleware(requireAuth),
+    Meta("public", false),
+  );
+}
+
+@Controller("/api")
+export class ApiController {
+  @PublicEndpoint("/status")
+  status() {
+    return { ok: true };
+  }
+
+  @ProtectedEndpoint("/profile")
+  profile(@Req() req: AzuraRequest) {
+    return { user: req.user };
+  }
+}
+```
+
+## Como a Resolução de Decorators Funciona
+
+Entender o pipeline de resolução ajuda a raciocinar sobre ordem de execução e injeção de parâmetros.
+
+### 1. Fase de Registro
+
+Quando você chama `app.register(Controller)`:
+
+1. O AzuraJS lê os metadados de `@Controller` para determinar o prefixo de rota.
+2. Ele varre cada método no protótipo da classe em busca de metadados `@Get`/`@Post`/etc.
+3. Para cada método decorado, ele lê os metadados `@UseMiddleware` (nível de classe + nível de método).
+4. Ele lê os metadados de `@Param`/`@Body`/`@Query`/etc. para construir um mapa de resolução de parâmetros.
+5. As rotas são adicionadas ao roteador radix tree com seus handlers, middleware e metadados.
+
+### 2. Fase de Requisição
+
+Quando uma requisição chega:
+
+1. Plugins globais executam primeiro (na ordem de registro).
+2. Middleware global executa em seguida (na ordem de registro).
+3. O roteador faz a correspondência da requisição com uma rota.
+4. O middleware do controller executa.
+5. O middleware da rota executa.
+6. Decorators de parâmetro resolvem `req`/`res`/body/query/params nos argumentos do método.
+7. O método handler é chamado com os argumentos resolvidos.
+8. Se o método retorna um valor, ele é auto-serializado (JSON para objetos, texto puro para strings).
+
+```
+Request → Plugins → Middleware Global → Correspondência do Router
+       → Middleware do Controller → Middleware da Rota
+       → Resolução de Parâmetros → Handler → Auto-Serializar Resposta
+```
+
+## Referência Rápida de Decorators
+
+| Decorator | Alvo | Propósito |
+| :--- | :--- | :--- |
+| `@Controller(prefix?)` | Classe | Definir um controller com prefixo de rota |
+| `@Get(path?)` | Método | Mapear para endpoint GET |
+| `@Post(path?)` | Método | Mapear para endpoint POST |
+| `@Put(path?)` | Método | Mapear para endpoint PUT |
+| `@Delete(path?)` | Método | Mapear para endpoint DELETE |
+| `@Patch(path?)` | Método | Mapear para endpoint PATCH |
+| `@Head(path?)` | Método | Mapear para endpoint HEAD |
+| `@Options(path?)` | Método | Mapear para endpoint OPTIONS |
+| `@Body(field?)` | Parâmetro | Injetar corpo da requisição |
+| `@Query(key?)` | Parâmetro | Injetar parâmetros de query |
+| `@Param(name?)` | Parâmetro | Injetar parâmetros de rota |
+| `@Headers(name?)` | Parâmetro | Injetar cabeçalhos da requisição |
+| `@Cookies(name?)` | Parâmetro | Injetar cookies |
+| `@Req()` | Parâmetro | Injetar AzuraRequest |
+| `@Res()` | Parâmetro | Injetar AzuraResponse |
+| `@NextFunc()` | Parâmetro | Injetar função next |
+| `@Ip()` | Parâmetro | Injetar IP do cliente |
+| `@Session()` | Parâmetro | Injetar objeto de sessão |
+| `@UseMiddleware(...)` | Classe / Método | Anexar middleware |
+| `@Meta(key, value)` | Método | Anexar metadados à rota |
+| `applyDecorators(...)` | Classe / Método | Compor múltiplos decorators |
+
+## Próximos Passos
+
+- [**Controllers**](/docs/pt/v3/conceitos/controllers) — Veja decorators em ação dentro de classes de controller completas.
+- [**Middleware**](/docs/pt/v3/conceitos/middleware) — Entenda como `@UseMiddleware` se integra ao pipeline de execução.
+- [**Request & Response**](/docs/pt/v3/conceitos/http) — Mergulhe nos objetos injetados por `@Req()` e `@Res()`.

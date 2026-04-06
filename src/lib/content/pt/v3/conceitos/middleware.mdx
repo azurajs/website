@@ -1,0 +1,386 @@
+---
+title: Middleware
+description: Aprenda como middleware e plugins interceptam requisições no AzuraJS v3 e como eles se diferenciam
+category: Conceitos Principais
+icon: lucide:layers
+order: 4
+---
+
+# Middleware & Plugins 🔌
+
+O AzuraJS v3 possui dois mecanismos de interceptação distintos: **plugins** e **middleware**. Ambos executam antes do handler da sua rota, mas possuem assinaturas, escopos e fases de execução diferentes. Entender quando usar cada um é essencial para construir aplicações bem estruturadas.
+
+## Middleware vs Plugins
+
+| | Plugins | Middleware |
+| :--- | :--- | :--- |
+| **Assinatura** | `(ctx, next) => void` | `(req, res, next) => void` |
+| **Contexto** | Recebe `{ req, res }` como um único objeto | Recebe `req`, `res` como argumentos separados |
+| **Registro** | `app.plugin(handler)` | `app.use(handler)` |
+| **Fase de execução** | Executa **primeiro**, antes de todo middleware | Executa **depois** dos plugins, antes dos handlers de rota |
+| **Caso de uso** | Preocupações transversais (CORS, helmet, rate limiting, compressão) | Lógica por requisição (auth, logging, validação) |
+| **Escopo** | Apenas global | Global, por controller ou por rota |
+
+<Callout type="info" title="Distinção Chave">
+  Plugins usam o padrão baseado em contexto `(ctx, next)` enquanto middleware usa o estilo clássico Express `(req, res, next)`. O AzuraJS os distingue pela aridade da função: funções com 2 ou menos parâmetros são tratadas como plugins; funções com 3 parâmetros são middleware.
+</Callout>
+
+## Ordem de Execução
+
+Quando uma requisição chega, o AzuraJS processa os interceptadores nesta ordem exata:
+
+```
+1. Plugins Globais       (registrados via app.plugin(), em ordem)
+2. Middleware Global      (registrado via app.use(), em ordem)
+3. Correspondência de Rota (busca na radix tree)
+4. Middleware do Controller (@UseMiddleware na classe)
+5. Middleware da Rota       (@UseMiddleware no método, ou handlers inline)
+6. Handler da Rota          (o método do controller ou handler final)
+```
+
+Em qualquer ponto, um plugin ou middleware pode curto-circuitar a cadeia enviando uma resposta sem chamar `next()`.
+
+## Plugins
+
+Plugins usam a assinatura `(ctx, next) => void` onde `ctx` é um `PluginContext` contendo `{ req, res }`. São ideais para funcionalidades de nível de framework que envolvem toda requisição.
+
+### Escrevendo um Plugin Personalizado
+
+```typescript
+import type { PluginContext, NextFunction } from "azurats/types";
+
+const timingPlugin = (ctx: PluginContext, next: NextFunction) => {
+  const start = Date.now();
+
+  ctx.res.on("finish", () => {
+    const duration = Date.now() - start;
+    console.log(`${ctx.req.method} ${ctx.req.pathname} - ${duration}ms`);
+  });
+
+  next();
+};
+```
+
+### Registrando Plugins
+
+Registre plugins usando `app.plugin()`. Eles executam na ordem de registro.
+
+```typescript
+import { AzuraServer } from "azurats";
+import { CORSPlugin, HelmetPlugin, RateLimitPlugin } from "azurats/plugins";
+
+const app = new AzuraServer();
+
+app.plugin(HelmetPlugin());
+app.plugin(CORSPlugin({ origins: "*", credentials: false }));
+app.plugin(RateLimitPlugin({ windowMs: 60_000, max: 100 }));
+app.plugin(timingPlugin);
+
+app.listen();
+```
+
+### Plugins Integrados
+
+O AzuraJS vem com um conjunto abrangente de plugins prontos para produção:
+
+| Plugin | Import | Propósito |
+| :--- | :--- | :--- |
+| `CORSPlugin` | `azurats/plugins` | Cross-Origin Resource Sharing |
+| `HelmetPlugin` | `azurats/plugins` | Cabeçalhos de segurança |
+| `RateLimitPlugin` | `azurats/plugins` | Limitação de taxa de requisições |
+| `CompressionPlugin` | `azurats/plugins` | Compressão de resposta (gzip, deflate, br) |
+| `RequestIdPlugin` | `azurats/plugins` | Geração de ID único por requisição |
+| `HealthCheckPlugin` | `azurats/plugins` | Endpoint de verificação de saúde |
+| `JWTPlugin` | `azurats/plugins` | Autenticação JWT |
+| `SessionPlugin` | `azurats/plugins` | Sessões no lado do servidor |
+| `StaticPlugin` | `azurats/plugins` | Servir arquivos estáticos |
+| `ETagPlugin` | `azurats/plugins` | Cache via ETag |
+| `TimeoutPlugin` | `azurats/plugins` | Timeout de requisição |
+| `CircuitBreakerPlugin` | `azurats/plugins` | Padrão circuit breaker |
+| `ProxyPlugin` | `azurats/plugins` | Proxy reverso |
+| `SSEPlugin` | `azurats/plugins` | Server-Sent Events |
+| `MultipartPlugin` | `azurats/plugins` | Upload multipart/form-data |
+
+### Padrão Factory de Plugins
+
+Todo plugin integrado segue o padrão factory — uma função que aceita opções e retorna um `PluginHandler`:
+
+```typescript
+import { CORSPlugin } from "azurats/plugins";
+
+const cors = CORSPlugin({
+  origins: ["https://example.com", "https://app.example.com"],
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true,
+  maxAge: 86400,
+});
+
+app.plugin(cors);
+```
+
+Você pode seguir o mesmo padrão para seus próprios plugins:
+
+```typescript
+interface MyPluginOptions {
+  header: string;
+  value: string;
+}
+
+function MyPlugin(options: MyPluginOptions): PluginHandler {
+  return (ctx, next) => {
+    ctx.res.setHeader(options.header, options.value);
+    next();
+  };
+}
+
+app.plugin(MyPlugin({ header: "X-Powered-By", value: "AzuraJS" }));
+```
+
+## Middleware
+
+Middleware usa a assinatura clássica `(req, res, next) => void`. Middleware pode ser aplicado globalmente, por controller ou por rota.
+
+### Escrevendo Middleware
+
+```typescript
+import type { AzuraRequest, AzuraResponse, NextFunction } from "azurats/types";
+
+const loggerMiddleware = (req: AzuraRequest, res: AzuraResponse, next: NextFunction) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.pathname}`);
+  next();
+};
+```
+
+### Middleware Global
+
+Registre middleware global com `app.use()`. Ele executa em toda requisição, depois de todos os plugins.
+
+```typescript
+const app = new AzuraServer();
+
+app.use(loggerMiddleware);
+app.use(authMiddleware);
+```
+
+<Callout type="warn" title="A Ordem de Registro Importa">
+  Tanto plugins quanto middleware executam na ordem exata em que são registrados. Coloque middleware de segurança (auth, rate limiting) antes de middleware de lógica de negócios (logging, métricas).
+</Callout>
+
+### Middleware de Controller
+
+Use `@UseMiddleware` no nível da classe para aplicar middleware a todas as rotas de um controller:
+
+```typescript
+import { Controller, Get, UseMiddleware } from "azurats/decorators";
+import type { AzuraRequest, AzuraResponse, NextFunction } from "azurats/types";
+
+const requireAuth = (req: AzuraRequest, res: AzuraResponse, next: NextFunction) => {
+  if (!req.headers.authorization) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  next();
+};
+
+@UseMiddleware(requireAuth)
+@Controller("/api/admin")
+export class AdminController {
+  @Get("/dashboard")
+  dashboard() {
+    return { stats: {} };
+  }
+
+  @Get("/users")
+  users() {
+    return { users: [] };
+  }
+}
+```
+
+Tanto `/api/admin/dashboard` quanto `/api/admin/users` exigirão autenticação.
+
+### Middleware de Rota
+
+Use `@UseMiddleware` no nível do método para aplicar middleware apenas a uma rota específica:
+
+```typescript
+import { Controller, Get, Delete, UseMiddleware, Param } from "azurats/decorators";
+
+const requireSuperAdmin = (req: AzuraRequest, res: AzuraResponse, next: NextFunction) => {
+  if (req.user?.role !== "super_admin") {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+  next();
+};
+
+@UseMiddleware(requireAuth)
+@Controller("/api/users")
+export class UserController {
+  @Get()
+  list() {
+    return { users: [] };
+  }
+
+  @UseMiddleware(requireSuperAdmin)
+  @Delete("/:id")
+  remove(@Param("id") id: string) {
+    return { deleted: id };
+  }
+}
+```
+
+Aqui, `requireAuth` executa em todas as rotas, mas `requireSuperAdmin` só executa em `DELETE /api/users/:id`.
+
+### Middleware de Rota Estilo Express
+
+Ao usar roteamento estilo Express, passe funções de middleware antes do handler final:
+
+```typescript
+app.get("/public", (req, res) => {
+  res.json({ data: "open" });
+});
+
+app.delete("/users/:id", requireAuth, requireSuperAdmin, (req, res) => {
+  res.status(204).send("");
+});
+```
+
+## Middleware e Plugins Assíncronos
+
+Tanto middleware quanto plugins suportam totalmente `async/await`. Sempre chame `next()` (ou `await next()`) para garantir que a cadeia continue.
+
+<Tabs items={["Plugin Assíncrono", "Middleware Assíncrono"]}>
+  <Tab value="Plugin Assíncrono">
+```typescript
+const asyncPlugin = async (ctx, next) => {
+  const token = ctx.req.headers.authorization?.split(" ")[1];
+  if (token) {
+    ctx.req.user = await verifyToken(token);
+  }
+  next();
+};
+
+app.plugin(asyncPlugin);
+```
+  </Tab>
+  <Tab value="Middleware Assíncrono">
+```typescript
+const asyncMiddleware = async (req, res, next) => {
+  const session = await loadSession(req.cookies.sid);
+  req.session = session;
+  next();
+};
+
+app.use(asyncMiddleware);
+```
+  </Tab>
+</Tabs>
+
+## Curto-Circuitando a Cadeia
+
+Tanto plugins quanto middleware podem parar a cadeia enviando uma resposta sem chamar `next()`:
+
+```typescript
+const maintenanceMode = (ctx, next) => {
+  if (process.env.MAINTENANCE === "true") {
+    ctx.res.status(503).json({
+      error: "Service temporarily unavailable",
+      retryAfter: 300,
+    });
+    return;
+  }
+  next();
+};
+
+app.plugin(maintenanceMode);
+```
+
+## Tratamento de Erros em Middleware
+
+Se um middleware ou plugin lançar um erro (ou passar um para `next(err)`), o AzuraJS o captura e o direciona para o handler de erros:
+
+```typescript
+const riskyMiddleware = async (req, res, next) => {
+  try {
+    await someRiskyOperation();
+    next();
+  } catch (err) {
+    next(err);
+  }
+};
+
+app.onError((err, req, res) => {
+  console.error("Error caught:", err);
+  res.status(500).json({ error: "Internal Server Error" });
+});
+```
+
+## Exemplo Completo
+
+Aqui está uma aplicação completa demonstrando a interação entre plugins, middleware global, middleware de controller e middleware de rota:
+
+```typescript
+import { AzuraServer } from "azurats";
+import { Controller, Get, Post, UseMiddleware, Body, Param } from "azurats/decorators";
+import { CORSPlugin, HelmetPlugin, RateLimitPlugin, RequestIdPlugin } from "azurats/plugins";
+import type { AzuraRequest, AzuraResponse, NextFunction } from "azurats/types";
+
+// --- Plugins (executam primeiro) ---
+const app = new AzuraServer({ server: { port: 3000 } });
+app.plugin(RequestIdPlugin());
+app.plugin(HelmetPlugin());
+app.plugin(CORSPlugin({ origins: "*" }));
+app.plugin(RateLimitPlugin({ windowMs: 60_000, max: 200 }));
+
+// --- Middleware Global (executa em segundo) ---
+app.use((req: AzuraRequest, res: AzuraResponse, next: NextFunction) => {
+  console.log(`[${req.requestId}] ${req.method} ${req.pathname}`);
+  next();
+});
+
+// --- Controller com middleware escopado ---
+const authenticate = (req: AzuraRequest, res: AzuraResponse, next: NextFunction) => {
+  const token = req.headers.authorization;
+  if (!token) return res.status(401).json({ error: "No token" });
+  req.user = { id: 1, role: "admin" };
+  next();
+};
+
+const requireRole = (role: string) => {
+  return (req: AzuraRequest, res: AzuraResponse, next: NextFunction) => {
+    if (req.user?.role !== role) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    next();
+  };
+};
+
+@UseMiddleware(authenticate)
+@Controller("/api/posts")
+class PostController {
+  @Get()
+  list() {
+    return { posts: [] };
+  }
+
+  @Post()
+  create(@Body() data: any) {
+    return { post: data };
+  }
+
+  @UseMiddleware(requireRole("admin"))
+  @Post("/publish/:id")
+  publish(@Param("id") id: string) {
+    return { published: id };
+  }
+}
+
+app.register(PostController);
+app.listen();
+```
+
+## Próximos Passos
+
+- [**Controllers**](/docs/pt/v3/conceitos/controllers) — Estruture seu middleware dentro de classes de controller.
+- [**Decorators**](/docs/pt/v3/conceitos/decorators) — Referência completa de `@UseMiddleware` e todos os outros decorators.
+- [**Plugins**](/docs/pt/v3/recursos/plugins) — Guia detalhado de configuração dos plugins integrados.
+- [**Tratamento de Erros**](/docs/pt/v3/recursos/error-handling) — Estratégias centralizadas de tratamento de erros.

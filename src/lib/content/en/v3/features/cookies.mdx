@@ -1,0 +1,152 @@
+---
+title: Cookies
+description: Read, set, and clear HTTP cookies with the built-in cookie API
+category: Features
+icon: lucide:cookie
+order: 3
+---
+
+# Cookies
+
+AzuraJS parses incoming cookies automatically and exposes a straightforward API for setting and clearing them on every response.
+
+## Reading Cookies
+
+Incoming cookies are parsed from the `Cookie` header and available on `req.cookies` as a `Record<string, string>`.
+
+```typescript
+import { AzuraServer } from "azurats";
+
+const app = new AzuraServer();
+
+app.get("/preferences", (req, res) => {
+  const theme = req.cookies.theme ?? "light";
+  const lang  = req.cookies.lang  ?? "en";
+
+  res.json({ theme, lang });
+});
+```
+
+<Callout>
+`req.cookies` is populated during request initialization. No additional middleware is needed.
+</Callout>
+
+## Setting Cookies
+
+Use `res.cookie(name, value, options?)` to append a `Set-Cookie` header. Multiple calls accumulate — each produces its own header.
+
+```typescript
+app.post("/login", (req, res) => {
+  const token = generateSessionToken(req.body);
+
+  res.cookie("session", token, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "Strict",
+    maxAge: 86_400_000, // 1 day in ms
+    path: "/",
+  });
+
+  res.json({ success: true });
+});
+```
+
+### CookieOptions
+
+| Option | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `maxAge` | `number` | — | Lifetime in **milliseconds**. Converted to a `Max-Age` directive in seconds. |
+| `expires` | `Date` | — | Absolute expiry date. Ignored when `maxAge` is set. |
+| `path` | `string` | `"/"` | URL path scope. |
+| `domain` | `string` | — | Domain scope (e.g. `.example.com`). |
+| `secure` | `boolean` | `false` | Send only over HTTPS. |
+| `httpOnly` | `boolean` | `true` | Inaccessible to client-side JavaScript. |
+| `sameSite` | `"Strict" \| "Lax" \| "None"` | — | CSRF mitigation directive. |
+
+<Callout>
+`httpOnly` defaults to `true` in the serializer for security. Set it to `false` explicitly if you need client-side access.
+</Callout>
+
+## Clearing Cookies
+
+`res.clearCookie(name, options?)` sets the cookie's `Max-Age` to `0` and `Expires` to the Unix epoch, instructing the browser to remove it.
+
+```typescript
+app.post("/logout", (req, res) => {
+  res.clearCookie("session", {
+    path: "/",
+    httpOnly: true,
+    secure: true,
+  });
+
+  res.json({ success: true });
+});
+```
+
+<Callout>
+When clearing a cookie, the `path` and `domain` must match the values used when the cookie was originally set. Otherwise the browser may not delete it.
+</Callout>
+
+## Complete Example
+
+```typescript
+import { AzuraServer } from "azurats";
+
+const app = new AzuraServer();
+
+app.post("/settings", (req, res) => {
+  const { theme, lang } = req.body;
+
+  res.cookie("theme", theme, { maxAge: 365 * 24 * 60 * 60 * 1000 });
+  res.cookie("lang", lang, { maxAge: 365 * 24 * 60 * 60 * 1000 });
+
+  res.json({ saved: true });
+});
+
+app.get("/settings", (req, res) => {
+  res.json({
+    theme: req.cookies.theme ?? "light",
+    lang: req.cookies.lang ?? "en",
+  });
+});
+
+app.delete("/settings", (req, res) => {
+  res.clearCookie("theme");
+  res.clearCookie("lang");
+  res.json({ cleared: true });
+});
+
+app.listen(3000);
+```
+
+## Cookies with CORS
+
+When sending cookies cross-origin, both the server and client must opt in:
+
+```typescript
+import { CORSPlugin } from "azurats/plugins";
+
+app.plugin(
+  CORSPlugin({
+    origins: ["https://frontend.example.com"],
+    credentials: true, // allow Set-Cookie on cross-origin responses
+  })
+);
+```
+
+On the client side:
+
+```javascript
+fetch("https://api.example.com/login", {
+  method: "POST",
+  credentials: "include", // send cookies cross-origin
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ email, password }),
+});
+```
+
+## Next Steps
+
+- [JWT Authentication](/docs/en/v3/features/jwt) — cookies as a JWT transport
+- [Security](/docs/en/v3/features/security) — cookie hardening with Helmet
+- [CORS](/docs/en/v3/features/cors) — credential handling in cross-origin requests

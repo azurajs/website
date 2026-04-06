@@ -1,0 +1,249 @@
+---
+title: Health Check
+description: Expose a /health endpoint with dependency checks using the HealthCheckPlugin
+category: Features
+icon: lucide:heart-pulse
+order: 13
+---
+
+# Health Check
+
+The `HealthCheckPlugin` registers a dedicated endpoint (default `/health`) that returns the current status of your application and its dependencies. It's designed for use with load balancers, Kubernetes probes, and monitoring systems.
+
+## Quick Start
+
+```typescript
+import { AzuraServer } from "azurats";
+import { HealthCheckPlugin } from "azurats/plugins";
+
+const app = new AzuraServer();
+
+app.plugin(HealthCheckPlugin());
+
+app.listen(3000);
+```
+
+A `GET /health` request now returns:
+
+```json
+{
+  "status": "healthy",
+  "uptime": 42.5,
+  "timestamp": "2026-04-04T12:00:00.000Z",
+  "memory": {
+    "rss": 52428800,
+    "heapTotal": 20971520,
+    "heapUsed": 15728640,
+    "external": 1048576
+  },
+  "checks": {}
+}
+```
+
+## Options
+
+| Option | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `path` | `string` | `"/health"` | URL path for the health endpoint. |
+| `checks` | `Record<string, () => Promise<any>>` | `{}` | Named async functions that test individual dependencies. Each should return a result object or throw on failure. |
+| `timeout` | `number` | `5000` | Maximum time in ms to wait for each individual check before marking it as timed out. |
+
+## Custom Health Checks
+
+Pass named async functions in the `checks` option. Each receives no arguments and should return an object describing the dependency's status.
+
+```typescript
+app.plugin(
+  HealthCheckPlugin({
+    path: "/health",
+    timeout: 3000,
+    checks: {
+      database: async () => {
+        const start = Date.now();
+        await db.query("SELECT 1");
+        return {
+          status: "healthy",
+          responseTime: Date.now() - start,
+          connections: db.pool.totalCount,
+        };
+      },
+
+      redis: async () => {
+        await redis.ping();
+        return { status: "healthy" };
+      },
+
+      externalApi: async () => {
+        const start = Date.now();
+        const res = await fetch("https://api.example.com/status");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return {
+          status: "healthy",
+          responseTime: Date.now() - start,
+        };
+      },
+    },
+  })
+);
+```
+
+## Response Format
+
+The endpoint responds with `200 OK` when all checks pass, or `503 Service Unavailable` when any check fails or times out.
+
+### Healthy Response (200)
+
+```json
+{
+  "status": "healthy",
+  "uptime": 3600.5,
+  "timestamp": "2026-04-04T12:00:00.000Z",
+  "memory": {
+    "rss": 52428800,
+    "heapTotal": 20971520,
+    "heapUsed": 15728640,
+    "external": 1048576
+  },
+  "checks": {
+    "database": {
+      "status": "healthy",
+      "responseTime": 5,
+      "connections": 10
+    },
+    "redis": {
+      "status": "healthy"
+    }
+  }
+}
+```
+
+### Unhealthy Response (503)
+
+```json
+{
+  "status": "unhealthy",
+  "uptime": 3600.5,
+  "timestamp": "2026-04-04T12:00:01.000Z",
+  "memory": {
+    "rss": 52428800,
+    "heapTotal": 20971520,
+    "heapUsed": 15728640,
+    "external": 1048576
+  },
+  "checks": {
+    "database": {
+      "status": "healthy",
+      "responseTime": 3
+    },
+    "redis": {
+      "error": "Connection refused"
+    }
+  }
+}
+```
+
+### Response Fields
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `status` | `"healthy" \| "unhealthy"` | Overall status. `"unhealthy"` if any check fails. |
+| `uptime` | `number` | Process uptime in seconds (`process.uptime()`). |
+| `timestamp` | `string` | ISO 8601 timestamp of the check. |
+| `memory` | `object` | Output of `process.memoryUsage()`. |
+| `checks` | `object` | Results keyed by check name. Contains whatever each check function returned, or an `error` field on failure. |
+
+## Kubernetes Integration
+
+### Liveness Probe
+
+```yaml
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 3000
+  initialDelaySeconds: 10
+  periodSeconds: 30
+  timeoutSeconds: 5
+```
+
+### Readiness Probe
+
+```yaml
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 3000
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 3
+```
+
+## Timeout Behaviour
+
+Each check runs with an independent timeout. If a check doesn't resolve within the configured `timeout`, its result is replaced with:
+
+```json
+{ "error": "Health check timed out" }
+```
+
+The overall status becomes `"unhealthy"`.
+
+```typescript
+app.plugin(
+  HealthCheckPlugin({
+    timeout: 2000, // aggressive 2s timeout per check
+    checks: {
+      slowService: async () => {
+        // if this takes > 2s, it's reported as timed out
+        await fetch("http://slow-service/ping");
+        return { status: "healthy" };
+      },
+    },
+  })
+);
+```
+
+<Callout>
+The health endpoint does not call `next()`. It terminates the request directly, so no other middleware or routes run for health check requests.
+</Callout>
+
+## Production Example
+
+```typescript
+import { AzuraServer } from "azurats";
+import { HealthCheckPlugin, HelmetPlugin, CORSPlugin } from "azurats/plugins";
+
+const app = new AzuraServer();
+
+app.plugin(HelmetPlugin());
+app.plugin(CORSPlugin({ origins: ["https://monitoring.example.com"] }));
+
+app.plugin(
+  HealthCheckPlugin({
+    path: "/health",
+    timeout: 5000,
+    checks: {
+      postgres: async () => {
+        await pool.query("SELECT 1");
+        return { status: "healthy", pool: pool.totalCount };
+      },
+      redis: async () => {
+        const latency = await redis.ping();
+        return { status: "healthy", latency };
+      },
+      s3: async () => {
+        await s3.headBucket({ Bucket: process.env.S3_BUCKET! });
+        return { status: "healthy" };
+      },
+    },
+  })
+);
+
+app.listen(3000);
+```
+
+## Next Steps
+
+- [Logger](/docs/en/framework/features/logger) — log health check results
+- [SSE](/docs/en/framework/features/sse) — stream health metrics in real time
+- [Error Handling](/docs/en/framework/features/error-handling) — structured error responses

@@ -1,0 +1,289 @@
+---
+title: TypeScript Support
+description: First-class TypeScript design with strict mode, generics, and decorator metadata
+category: Advanced
+icon: lucide:file-code
+order: 2
+---
+
+# TypeScript Support
+
+AzuraJS v3 is written entirely in TypeScript under `strict` mode. Every public API — from route handlers to plugin options — carries precise type information, giving you autocompletion, compile-time error checking, and safe refactoring out of the box.
+
+## Recommended `tsconfig.json`
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "dist"
+  },
+  "include": ["src"]
+}
+```
+
+<Callout>
+`experimentalDecorators` and `emitDecoratorMetadata` are required when using the decorator-based controller system (`@Controller`, `@Get`, `@Body`, etc.). If you only use the functional API (`app.get(...)`) you can omit them.
+</Callout>
+
+### Key Options Explained
+
+| Option | Why It Matters |
+|---|---|
+| `moduleResolution: "Bundler"` | Resolves sub-path imports like `azurats/core` through the `exports` field in `package.json` |
+| `strict: true` | Enables `strictNullChecks`, `noImplicitAny`, and others — AzuraJS types are designed for this |
+| `experimentalDecorators` | Activates the legacy decorator syntax used by `@Controller`, `@Get`, `@Body`, etc. |
+| `emitDecoratorMetadata` | Emits `Reflect.metadata` calls so the framework can resolve parameter types at runtime |
+| `target: "ES2022"` | AzuraJS requires Node.js >= 18; ES2022 covers all needed language features |
+
+## Type Safety Across the Framework
+
+### Server Configuration
+
+The `AzuraConfig` interface types every option accepted by `AzuraServer`:
+
+```typescript
+import { AzuraServer } from "azurats/core";
+import type { AzuraConfig } from "azurats/types";
+
+const config: AzuraConfig = {
+  environment: "production",
+  server: {
+    port: 8080,
+    host: "0.0.0.0",
+    keepAliveTimeout: 72_000,
+    headersTimeout: 75_000,
+    requestTimeout: 30_000,
+    https: {
+      key: "/path/to/key.pem",
+      cert: "/path/to/cert.pem",
+    },
+  },
+  logging: {
+    enabled: true,
+    level: "info",
+    timestamp: true,
+    colors: true,
+    requestLogging: true,
+  },
+  debug: false,
+};
+
+const app = new AzuraServer(config);
+```
+
+TypeScript will flag invalid property names, wrong value types, and unsupported log levels at compile time.
+
+### Route Handlers
+
+Both `AzuraRequest` and `AzuraResponse` are fully typed interfaces that extend Node.js's `IncomingMessage` and `ServerResponse`:
+
+```typescript
+import { AzuraServer } from "azurats/core";
+import type { AzuraRequest, AzuraResponse } from "azurats/types";
+
+const app = new AzuraServer();
+
+app.get("/users/:id", (req: AzuraRequest, res: AzuraResponse) => {
+  const id: string = req.params.id;
+  const page: string | string[] = req.query.page;
+  const ip: string = req.ip;
+  const isSecure: boolean = req.secure;
+
+  res.status(200).json({ id, page, ip, isSecure });
+});
+```
+
+### Plugin Options
+
+Every plugin factory accepts a dedicated options type, all exported from `azurats/types`:
+
+```typescript
+import { CORSPlugin, RateLimitPlugin, JWTPlugin } from "azurats/plugins";
+import type { CORSOptions, RateLimitOptions, JWTOptions } from "azurats/types";
+
+const cors: CORSOptions = {
+  origins: ["https://app.example.com"],
+  methods: ["GET", "POST"],
+  credentials: true,
+};
+
+const rateLimit: RateLimitOptions = {
+  windowMs: 60_000,
+  max: 200,
+};
+
+const jwt: JWTOptions = {
+  secret: process.env.JWT_SECRET!,
+  expiresIn: "1h",
+};
+
+app.plugin(CORSPlugin(cors));
+app.plugin(RateLimitPlugin(rateLimit));
+app.plugin(JWTPlugin(jwt));
+```
+
+### Error Handling
+
+`HttpError` provides typed static factory methods for every common status code:
+
+```typescript
+import { HttpError } from "azurats/utils";
+
+throw HttpError.notFound("User not found");
+throw HttpError.badRequest("Missing required field: email");
+```
+
+The error handler callback is typed as `ErrorHandler`:
+
+```typescript
+import type { ErrorHandler } from "azurats/types";
+import { HttpError } from "azurats/utils";
+
+const handler: ErrorHandler = (err, req, res, next) => {
+  if (err instanceof HttpError) {
+    res.status(err.statusCode).json(err.toJSON());
+    return;
+  }
+  res.status(500).json({ error: "Internal Server Error" });
+};
+
+app.onError(handler);
+```
+
+### HttpStatus Constants
+
+`HttpStatus` is a `const` object that provides a type-safe alternative to magic numbers:
+
+```typescript
+import { HttpStatus } from "azurats/types";
+import type { HttpStatusCode } from "azurats/types";
+
+function respond(res: AzuraResponse, code: HttpStatusCode, data: unknown) {
+  res.status(code).json(data);
+}
+
+respond(res, HttpStatus.OK, { message: "success" });
+respond(res, HttpStatus.CREATED, { id: 1 });
+respond(res, HttpStatus.NOT_FOUND, { error: "not found" });
+
+// Type error — 999 is not a valid HttpStatusCode
+respond(res, 999, {});
+```
+
+## Decorator Metadata and Parameter Injection
+
+The decorator system uses `Reflect.defineMetadata` to store routing and parameter information. AzuraJS ships a built-in polyfill, so you do not need `reflect-metadata` as a dependency.
+
+```typescript
+import { Controller, Get, Post, Param, Body, Query, Req, Res, Ip } from "azurats/decorators";
+import type { AzuraRequest, AzuraResponse } from "azurats/types";
+
+@Controller("/api/users")
+export class UserController {
+  @Get()
+  list(@Query("page") page: string, @Query("limit") limit: string) {
+    return { page: Number(page) || 1, limit: Number(limit) || 10 };
+  }
+
+  @Get("/:id")
+  findOne(@Param("id") id: string) {
+    return { id };
+  }
+
+  @Post()
+  create(@Body() body: { name: string; email: string }, @Ip() ip: string) {
+    return { ...body, ip, createdAt: new Date().toISOString() };
+  }
+}
+```
+
+Each decorator stores typed metadata (`ParamMetadata`) that the framework reads at controller registration time. The return value of a handler method is automatically serialized: objects go through `res.json()`, primitives through `res.send()`.
+
+## Generic Plugin Types
+
+The plugin system is typed around two core interfaces:
+
+```typescript
+import type { PluginContext, PluginHandler } from "azurats/types";
+
+type PluginHandler = (
+  ctx: PluginContext,
+  next: (err?: Error) => void,
+) => void | Promise<void>;
+
+interface PluginContext {
+  req: AzuraRequest;
+  res: AzuraResponse;
+}
+```
+
+Writing a custom plugin is fully type-safe:
+
+```typescript
+import type { PluginHandler } from "azurats/types";
+
+function TimingPlugin(): PluginHandler {
+  return (ctx, next) => {
+    const start = performance.now();
+    ctx.res.on("finish", () => {
+      const ms = (performance.now() - start).toFixed(2);
+      console.log(`${ctx.req.method} ${ctx.req.pathname} — ${ms}ms`);
+    });
+    next();
+  };
+}
+
+app.plugin(TimingPlugin());
+```
+
+## Middleware Types
+
+Standard middleware follows the classic three-argument signature:
+
+```typescript
+import type { MiddlewareHandler, AzuraRequest, AzuraResponse, NextFunction } from "azurats/types";
+
+const authMiddleware: MiddlewareHandler = async (
+  req: AzuraRequest,
+  res: AzuraResponse,
+  next: NextFunction,
+) => {
+  const token = req.headers["authorization"];
+  if (!token) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  next();
+};
+
+app.use(authMiddleware);
+```
+
+## Type-Only Imports
+
+When you only need a type for annotation (not a runtime value), use `import type` to ensure it is erased at compile time:
+
+```typescript
+import type { AzuraRequest, AzuraResponse, AzuraConfig } from "azurats/types";
+import type { CORSOptions, RateLimitOptions } from "azurats/types";
+```
+
+This keeps your runtime bundle as small as possible while maintaining full type coverage.
+
+## Next Steps
+
+- [**Type Extensions**](/docs/en/v3/advanced/type-extensions) — Extend `AzuraRequest` and `AzuraResponse` with custom properties.
+- [**Modular Imports**](/docs/en/v3/advanced/modular-imports) — Leverage sub-path imports for optimal tree-shaking.

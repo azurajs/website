@@ -1,0 +1,148 @@
+---
+title: Welcome to AzuraJS v3
+description: AzuraJS v3.0 — Ultra-fast, zero-dependency TypeScript web framework for Node.js and Bun with decorator-based routing and a powerful plugin system.
+category: Getting Started
+icon: lucide:zap
+status: new
+date: 2026-04-01
+order: 1
+---
+
+# Welcome to AzuraJS v3.0
+
+AzuraJS is an **ultra-fast, TypeScript-first web framework** built from the ground up for Node.js and Bun. Version 3.0 is a complete rewrite with **zero external dependencies**, a radix-tree router with LRU caching, 15+ built-in plugins, and first-class decorator support.
+
+<Callout type="info" title="What's new in v3?">
+  AzuraJS v3 is a major release. The package has been renamed to **azurats**, the core class is now `AzuraServer`, and the entire plugin and type system has been redesigned. If you're upgrading from v2, check the existing Framework docs for the old API.
+</Callout>
+
+## Why AzuraJS v3?
+
+| Feature | AzuraJS v3 | Express | Fastify | NestJS |
+|---|---|---|---|---|
+| **Zero dependencies** | Yes | No | No | No |
+| **TypeScript-first** | Yes | No | Partial | Yes |
+| **Decorator routing** | Built-in | No | No | Yes |
+| **Built-in plugins** | 15+ | 0 | ~5 | Varies |
+| **Radix-tree router** | Yes + LRU cache | No | Yes | No |
+| **Runtime support** | Node.js + Bun | Node.js | Node.js | Node.js |
+| **Config file support** | TS / JS / JSON / YAML | No | No | No |
+| **Built-in validation** | DTO + Zod schemas | No | JSON Schema | class-validator |
+
+## Key Features
+
+- **Zero Dependencies** — The entire framework ships with no external packages. Everything from routing to JWT signing is implemented natively.
+- **Blazing-Fast Router** — A radix-tree router with an integrated LRU cache delivers sub-microsecond route lookups for registered paths.
+- **15+ Built-in Plugins** — CORS, Helmet, Rate Limiting, JWT, Sessions, Compression, Static Files, ETag, Request IDs, Timeouts, Health Checks, Circuit Breaker, SSE, Proxy, and Multipart — all included out of the box.
+- **Decorator-Based Controllers** — Use `@Controller`, `@Get`, `@Post`, `@Body`, `@Param`, `@Query`, and more to build clean, class-based APIs.
+- **Express-Style Routing** — Prefer functional routing? Use `app.get()`, `app.post()`, etc., just like Express — no decorators required.
+- **TypeScript-First** — Written entirely in TypeScript with full type coverage. Strong types for requests, responses, configuration, and plugins.
+- **Node.js & Bun** — Runs on Node.js 18+ and Bun with no extra configuration needed.
+- **Modular Imports** — Import only what you need: `azurats/core`, `azurats/plugins`, `azurats/decorators`, `azurats/types`, `azurats/utils`, `azurats/config`, `azurats/middleware`.
+- **Config File System** — Automatically loads `azura.config.ts`, `.js`, `.json`, or `.yaml` from your project root.
+- **Built-in Validation** — `DTOValidator` for schema-based validation and `SchemaValidator` for Zod-compatible schemas.
+- **Structured Error Handling** — `HttpError.notFound()`, `HttpError.badRequest()`, and more provide consistent, JSON-serializable error responses.
+
+## Quick Example
+
+```typescript
+import { AzuraServer, CORSPlugin, HelmetPlugin, RateLimitPlugin } from "azurats";
+
+const app = new AzuraServer({
+  server: { port: 3000 },
+  logging: { level: "debug" },
+});
+
+// Register plugins
+app.plugin(CORSPlugin({ origins: "*" }));
+app.plugin(HelmetPlugin());
+app.plugin(RateLimitPlugin({ windowMs: 60_000, max: 100 }));
+
+// Define routes
+app.get("/", (req, res) => {
+  res.json({ message: "Hello from AzuraJS v3!" });
+});
+
+app.get("/users/:id", (req, res) => {
+  res.json({ id: req.params.id, name: `User ${req.params.id}` });
+});
+
+// Start the server
+app.listen(3000, () => {
+  console.log("Server running on http://localhost:3000");
+});
+```
+
+Or with **decorators**:
+
+```typescript
+import { AzuraServer } from "azurats/core";
+import { Controller, Get, Param } from "azurats/decorators";
+
+@Controller("/users")
+class UserController {
+  @Get("/")
+  findAll() {
+    return { users: [] };
+  }
+
+  @Get("/:id")
+  findOne(@Param("id") id: string) {
+    return { id, name: `User ${id}` };
+  }
+}
+
+const app = new AzuraServer();
+app.register(UserController);
+app.listen(3000);
+```
+
+## Built-in Plugins
+
+AzuraJS v3 ships with **15 production-ready plugins**:
+
+| Plugin | Description |
+|---|---|
+| `CORSPlugin` | Cross-Origin Resource Sharing headers |
+| `HelmetPlugin` | Security headers (X-Frame-Options, CSP, etc.) |
+| `RateLimitPlugin` | Request rate limiting with sliding windows |
+| `JWTPlugin` | JSON Web Token authentication |
+| `SessionPlugin` | In-memory session management |
+| `CompressionPlugin` | Gzip/deflate response compression |
+| `StaticPlugin` | Static file serving |
+| `ETagPlugin` | Conditional requests with ETags |
+| `RequestIdPlugin` | Unique request ID generation |
+| `TimeoutPlugin` | Request timeout enforcement |
+| `HealthCheckPlugin` | Health check endpoints with custom checks |
+| `CircuitBreakerPlugin` | Circuit breaker pattern for resilience |
+| `SSEPlugin` | Server-Sent Events support |
+| `ProxyPlugin` | HTTP reverse proxy |
+| `MultipartPlugin` | Multipart form / file upload handling |
+
+## Project Structure
+
+A typical AzuraJS v3 project looks like this:
+
+```
+my-app/
+├── src/
+│   ├── controllers/
+│   │   └── UserController.ts
+│   ├── middleware/
+│   │   └── auth.ts
+│   └── main.ts
+├── azura.config.ts
+├── tsconfig.json
+└── package.json
+```
+
+## Next Steps
+
+<Callout type="info" title="Ready to get started?">
+  Head over to the guides below to set up your first AzuraJS v3 project.
+</Callout>
+
+- [**Installation**](/docs/en/v3/getting-started/installation) — Install AzuraJS and set up your TypeScript project.
+- [**Quick Start**](/docs/en/v3/getting-started/quick-start) — Build your first API in under 5 minutes.
+- [**Configuration**](/docs/en/v3/getting-started/configuration) — Learn about the configuration system.
+- [**Usage with JavaScript**](/docs/en/v3/getting-started/usage-with-javascript) — Use AzuraJS without TypeScript.

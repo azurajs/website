@@ -1,0 +1,134 @@
+---
+title: Plugins
+description: Complete guide to the AzuraJS v3 plugin ecosystem — 15 built-in plugins that extend your server with zero external dependencies
+category: Features
+icon: lucide:plug
+order: 1
+---
+
+# Plugins
+
+AzuraJS ships with **15 built-in plugins** that cover security, performance, real-time communication, infrastructure, and more. Every plugin is a zero-dependency module built on Node.js primitives, fully typed, and designed to compose cleanly with one another.
+
+## How Plugins Work
+
+A plugin is a function that receives a `PluginContext` (containing `req` and `res`) and a `next` callback. Plugins run **before** global middleware and route handlers.
+
+```typescript
+import { AzuraServer } from "azurats";
+import { CORSPlugin } from "azurats/plugins";
+
+const app = new AzuraServer();
+
+app.plugin(CORSPlugin({ origins: ["https://example.com"] }));
+
+app.listen(3000);
+```
+
+Register a plugin with `app.plugin()`. Each factory function accepts an options object and returns a `PluginHandler`.
+
+## Available Plugins
+
+| Plugin | Import | Purpose |
+| :--- | :--- | :--- |
+| **CORSPlugin** | `azurats/plugins` | Cross-Origin Resource Sharing headers and preflight handling |
+| **RateLimitPlugin** | `azurats/plugins` | Sliding-window rate limiting per IP or custom key |
+| **HelmetPlugin** | `azurats/plugins` | Security headers (CSP, HSTS, X-Frame-Options, etc.) |
+| **JWTPlugin** | `azurats/plugins` | JWT-based route protection with automatic token extraction |
+| **SessionPlugin** | `azurats/plugins` | Cookie-based sessions with pluggable stores |
+| **CompressionPlugin** | `azurats/plugins` | Gzip / Deflate response compression |
+| **StaticPlugin** | `azurats/plugins` | Static file serving with caching and ETag support |
+| **ETagPlugin** | `azurats/plugins` | Automatic ETag generation and 304 responses |
+| **RequestIdPlugin** | `azurats/plugins` | Unique request ID via `X-Request-Id` header |
+| **TimeoutPlugin** | `azurats/plugins` | Request timeout enforcement |
+| **HealthCheckPlugin** | `azurats/plugins` | `/health` endpoint with custom dependency checks |
+| **CircuitBreakerPlugin** | `azurats/plugins` | Fault-tolerance circuit breaker pattern |
+| **ProxyPlugin** | `azurats/plugins` | Reverse proxy / API gateway forwarding |
+| **SSEPlugin** | `azurats/plugins` | Server-Sent Events with client management |
+| **MultipartPlugin** | `azurats/plugins` | `multipart/form-data` file upload parsing |
+
+### Quick Import Example
+
+```typescript
+import {
+  CORSPlugin,
+  RateLimitPlugin,
+  HelmetPlugin,
+  JWTPlugin,
+  SessionPlugin,
+  CompressionPlugin,
+  StaticPlugin,
+  ETagPlugin,
+  RequestIdPlugin,
+  TimeoutPlugin,
+  HealthCheckPlugin,
+  CircuitBreakerPlugin,
+  ProxyPlugin,
+  SSEPlugin,
+  MultipartPlugin,
+} from "azurats/plugins";
+```
+
+## Plugin Execution Order
+
+Plugins execute in registration order. A recommended production ordering:
+
+```typescript
+const app = new AzuraServer();
+
+// 1. Security
+app.plugin(HelmetPlugin());
+app.plugin(CORSPlugin({ origins: [process.env.FRONTEND_URL!] }));
+
+// 2. Observability
+app.plugin(RequestIdPlugin());
+
+// 3. Performance
+app.plugin(CompressionPlugin({ threshold: 1024 }));
+app.plugin(TimeoutPlugin({ timeout: 30_000 }));
+
+// 4. Rate limiting
+app.plugin(RateLimitPlugin({ windowMs: 60_000, max: 100 }));
+
+// 5. Authentication
+app.plugin(JWTPlugin({ secret: process.env.JWT_SECRET! }));
+
+// 6. Monitoring
+app.plugin(HealthCheckPlugin({ path: "/health" }));
+```
+
+<Callout>
+Plugins registered with `app.plugin()` always run before middleware added with `app.use()`. Within each group, execution follows registration order.
+</Callout>
+
+## Creating a Custom Plugin
+
+Any function matching the `PluginHandler` signature works as a plugin:
+
+```typescript
+import type { PluginContext, NextFunction } from "azurats/plugins";
+
+function TimingPlugin() {
+  return (ctx: PluginContext, next: NextFunction) => {
+    const start = process.hrtime.bigint();
+
+    const originalEnd = ctx.res.end.bind(ctx.res);
+    ctx.res.end = (...args: any[]) => {
+      const ms = Number(process.hrtime.bigint() - start) / 1e6;
+      ctx.res.header("X-Timing", `${ms.toFixed(2)}ms`);
+      return originalEnd(...args);
+    };
+
+    next();
+  };
+}
+
+app.plugin(TimingPlugin());
+```
+
+## Next Steps
+
+- [Validation](/docs/en/v3/features/validation) — request body and schema validation
+- [CORS](/docs/en/v3/features/cors) — Cross-Origin Resource Sharing in depth
+- [Rate Limiting](/docs/en/v3/features/rate-limiting) — protect your API from abuse
+- [JWT Authentication](/docs/en/v3/features/jwt) — token-based route protection

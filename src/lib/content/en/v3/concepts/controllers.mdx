@@ -1,0 +1,278 @@
+---
+title: Controllers
+description: Organize your API into clean, decorator-based controller classes with AzuraJS v3
+category: Core Concepts
+icon: lucide:target
+order: 1
+---
+
+# Controllers 🎯
+
+Controllers are the architectural backbone of an AzuraJS application. They group related route handlers into cohesive TypeScript classes using decorators, following the Model-View-Controller (MVC) pattern. Each controller owns a resource or domain, keeping your codebase modular and maintainable.
+
+<Callout type="info" title="Why Controllers?">
+  Controllers enforce separation of concerns by isolating routing and HTTP handling from business logic. This structure reduces duplication, improves testability, and makes onboarding new developers effortless.
+</Callout>
+
+## What is a Controller?
+
+A controller is a class decorated with `@Controller(prefix)`. Every method inside can become an HTTP endpoint when decorated with `@Get`, `@Post`, `@Put`, `@Delete`, or `@Patch`. The controller prefix is prepended to all method routes automatically.
+
+```typescript
+import { Controller, Get, Post } from "azurats/decorators";
+
+@Controller("/api/products")
+export class ProductController {
+  @Get()
+  listAll() {
+    return { products: [] };
+  }
+
+  @Post()
+  create() {
+    return { message: "Product created" };
+  }
+}
+```
+
+In this example, `listAll` maps to `GET /api/products` and `create` maps to `POST /api/products`.
+
+## The `@Controller` Decorator
+
+The `@Controller(prefix?)` decorator marks a class as a controller and defines the base route prefix for all its methods.
+
+| Usage | Route Prefix | Example Final Route |
+| :--- | :--- | :--- |
+| `@Controller("/users")` | `/users` | `GET /users`, `GET /users/:id` |
+| `@Controller("/api/v1/admin")` | `/api/v1/admin` | `GET /api/v1/admin/dashboard` |
+| `@Controller()` | _(none)_ | Routes defined solely by method decorators |
+
+```typescript
+import { Controller, Get } from "azurats/decorators";
+
+@Controller("/api/v2/orders")
+export class OrderController {
+  @Get()
+  list() { return []; }
+
+  @Get("/:id")
+  findOne() { return {}; }
+}
+```
+
+## Registering Controllers
+
+In AzuraJS v3, controllers are registered on the server instance using `app.register()`. You can pass one or more controller classes in a single call.
+
+```typescript
+import { AzuraServer } from "azurats";
+import { UserController } from "./controllers/UserController";
+import { PostController } from "./controllers/PostController";
+
+const app = new AzuraServer({
+  server: { port: 3000 },
+});
+
+app.register(UserController, PostController);
+
+app.listen();
+```
+
+<Callout type="warn" title="Decorator Requirements">
+  Make sure your `tsconfig.json` has `experimentalDecorators` and `emitDecoratorMetadata` enabled. Without these flags, decorators will not be processed at compile time.
+</Callout>
+
+```json
+{
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+  }
+}
+```
+
+## Parameter Injection
+
+AzuraJS provides parameter decorators to inject request data directly into your method arguments — no manual parsing needed.
+
+| Decorator | Injects |
+| :--- | :--- |
+| `@Req()` | The full `AzuraRequest` object |
+| `@Res()` | The full `AzuraResponse` object |
+| `@Body()` | The parsed request body |
+| `@Body("field")` | A specific field from the body |
+| `@Param("name")` | A URL route parameter (e.g. `:id`) |
+| `@Query("name")` | A query string parameter |
+| `@Headers("name")` | A specific request header |
+| `@Cookies("name")` | A specific cookie value |
+| `@Ip()` | The client's IP address |
+| `@Session()` | The session object |
+
+```typescript
+import { Controller, Get, Post, Param, Query, Body, Ip } from "azurats/decorators";
+
+@Controller("/api/users")
+export class UserController {
+  @Get("/:id")
+  getUser(@Param("id") id: string, @Query("fields") fields?: string) {
+    return { id, fields };
+  }
+
+  @Post()
+  createUser(@Body() data: any, @Ip() ip: string) {
+    return { ...data, createdFrom: ip };
+  }
+}
+```
+
+## Auto-Serialization of Return Values
+
+When a controller method returns a value, AzuraJS automatically serializes and sends the response:
+
+- **Objects and arrays** are sent as JSON with `Content-Type: application/json`.
+- **Strings** are sent as plain text with `Content-Type: text/plain`.
+- **`undefined`** means you handled the response manually (e.g. via `@Res()`).
+
+```typescript
+@Controller("/api/items")
+export class ItemController {
+  @Get()
+  list() {
+    return [{ id: 1, name: "Widget" }];
+  }
+
+  @Get("/greeting")
+  greet() {
+    return "Hello, World!";
+  }
+
+  @Get("/manual")
+  manual(@Res() res: AzuraResponse) {
+    res.status(200).html("<h1>Custom HTML</h1>");
+  }
+}
+```
+
+## Full CRUD Example
+
+Here is a complete controller implementing all CRUD operations for a `User` resource:
+
+```typescript
+import {
+  Controller, Get, Post, Put, Delete,
+  Param, Body, Res,
+} from "azurats/decorators";
+import type { AzuraResponse } from "azurats/types";
+
+interface User {
+  id: number;
+  name: string;
+  email: string;
+}
+
+const users: User[] = [
+  { id: 1, name: "Alice", email: "alice@example.com" },
+  { id: 2, name: "Bob", email: "bob@example.com" },
+];
+
+@Controller("/api/users")
+export class UserController {
+  @Get()
+  list() {
+    return { data: users, total: users.length };
+  }
+
+  @Get("/:id")
+  findOne(@Param("id") id: string) {
+    const user = users.find((u) => u.id === Number(id));
+    if (!user) {
+      return { error: "User not found", statusCode: 404 };
+    }
+    return { data: user };
+  }
+
+  @Post()
+  create(@Body() body: Omit<User, "id">, @Res() res: AzuraResponse) {
+    const newUser: User = { id: Date.now(), ...body };
+    users.push(newUser);
+    res.status(201).json({ data: newUser });
+  }
+
+  @Put("/:id")
+  update(@Param("id") id: string, @Body() body: Partial<User>) {
+    const user = users.find((u) => u.id === Number(id));
+    if (!user) {
+      return { error: "User not found", statusCode: 404 };
+    }
+    Object.assign(user, body);
+    return { data: user };
+  }
+
+  @Delete("/:id")
+  remove(@Param("id") id: string, @Res() res: AzuraResponse) {
+    const index = users.findIndex((u) => u.id === Number(id));
+    if (index === -1) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    users.splice(index, 1);
+    res.status(204).send("");
+  }
+}
+```
+
+Register it in your entry file:
+
+```typescript
+import { AzuraServer } from "azurats";
+import { UserController } from "./controllers/UserController";
+
+const app = new AzuraServer({ server: { port: 3000 } });
+app.register(UserController);
+app.listen();
+```
+
+## Controller-Level Middleware
+
+Apply middleware to every route in a controller using `@UseMiddleware` at the class level:
+
+```typescript
+import { Controller, Get, UseMiddleware } from "azurats/decorators";
+import type { AzuraRequest, AzuraResponse, NextFunction } from "azurats/types";
+
+const requireAuth = (req: AzuraRequest, res: AzuraResponse, next: NextFunction) => {
+  if (!req.headers.authorization) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  next();
+};
+
+@UseMiddleware(requireAuth)
+@Controller("/api/admin")
+export class AdminController {
+  @Get("/dashboard")
+  dashboard() {
+    return { stats: { users: 150, orders: 42 } };
+  }
+
+  @Get("/settings")
+  settings() {
+    return { theme: "dark", notifications: true };
+  }
+}
+```
+
+Both `/api/admin/dashboard` and `/api/admin/settings` will require authentication.
+
+## Best Practices
+
+1. **Single Responsibility** — Dedicate each controller to a single resource or domain (e.g. `UserController`, `OrderController`, `AuthController`).
+2. **Service Layer** — Keep controllers thin. Delegate business logic to service classes and only handle HTTP concerns in the controller.
+3. **Consistent Responses** — Adopt a standard JSON envelope (e.g. `{ data, error, meta }`) across all endpoints.
+4. **Error Handling** — Use `HttpError` for structured errors with proper status codes instead of raw `res.status().json()`.
+5. **Typing** — Leverage TypeScript interfaces for request bodies and response shapes to catch errors at compile time.
+
+## Next Steps
+
+- [**Routing**](/docs/en/v3/concepts/routing) — Understand route patterns, parameters, and the radix tree router.
+- [**Decorators**](/docs/en/v3/concepts/decorators) — Master every decorator available in AzuraJS.
+- [**Middleware**](/docs/en/v3/concepts/middleware) — Learn how to intercept requests at different scopes.

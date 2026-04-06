@@ -1,0 +1,262 @@
+---
+title: Visão Geral dos Plugins
+description: Guia completo do ecossistema de plugins do AzuraJS v3 — 15 plugins integrados que estendem seu servidor com zero dependências externas
+category: Recursos
+icon: lucide:plug
+order: 1
+---
+
+# Visão Geral dos Plugins
+
+O AzuraJS v3 é distribuído com **15 plugins integrados** que cobrem segurança, performance, comunicação em tempo real, infraestrutura e muito mais. Cada plugin é um módulo com zero dependências externas, construído sobre primitivas do Node.js, totalmente tipado e projetado para compor de forma limpa com os demais.
+
+## Como Plugins Funcionam
+
+Um plugin é uma função que recebe um `PluginContext` (contendo `req` e `res`) e um callback `next`. Plugins executam **antes** de middleware global e route handlers.
+
+```typescript
+import { AzuraServer } from "azurats";
+import { CORSPlugin } from "azurats/plugins";
+
+const app = new AzuraServer();
+
+app.plugin(CORSPlugin({ origins: ["https://example.com"] }));
+
+app.listen(3000);
+```
+
+Registre um plugin com `app.plugin()`. Cada função factory aceita um objeto de opções e retorna um `PluginHandler`.
+
+### Assinatura do PluginHandler
+
+```typescript
+import type { PluginContext, NextFunction } from "azurats/types";
+
+type PluginHandler = (
+  ctx: PluginContext,
+  next: NextFunction,
+) => void | Promise<void>;
+
+interface PluginContext {
+  req: AzuraRequest;
+  res: AzuraResponse;
+}
+```
+
+## Plugins Disponíveis
+
+| Plugin | Import | Propósito |
+| :--- | :--- | :--- |
+| **CORSPlugin** | `azurats/plugins` | Headers Cross-Origin Resource Sharing e tratamento de preflight |
+| **RateLimitPlugin** | `azurats/plugins` | Rate limiting com sliding window por IP ou chave personalizada |
+| **HelmetPlugin** | `azurats/plugins` | Headers de segurança (CSP, HSTS, X-Frame-Options, etc.) |
+| **JWTPlugin** | `azurats/plugins` | Proteção de rotas baseada em JWT com extração automática de token |
+| **SessionPlugin** | `azurats/plugins` | Sessões baseadas em cookies com stores plugáveis |
+| **CompressionPlugin** | `azurats/plugins` | Compressão de respostas Gzip / Deflate |
+| **StaticPlugin** | `azurats/plugins` | Servir arquivos estáticos com cache e suporte a ETag |
+| **ETagPlugin** | `azurats/plugins` | Geração automática de ETag e respostas 304 |
+| **RequestIdPlugin** | `azurats/plugins` | ID único de requisição via header `X-Request-Id` |
+| **TimeoutPlugin** | `azurats/plugins` | Imposição de timeout em requisições |
+| **HealthCheckPlugin** | `azurats/plugins` | Endpoint `/health` com checks customizados de dependências |
+| **CircuitBreakerPlugin** | `azurats/plugins` | Padrão circuit breaker para tolerância a falhas |
+| **ProxyPlugin** | `azurats/plugins` | Proxy reverso / encaminhamento de API gateway |
+| **SSEPlugin** | `azurats/plugins` | Server-Sent Events com gerenciamento de clientes |
+| **MultipartPlugin** | `azurats/plugins` | Parsing de upload de arquivos `multipart/form-data` |
+
+### Import Rápido
+
+Todos os plugins podem ser importados de `azurats/plugins` ou diretamente do pacote raiz `azurats`:
+
+```typescript
+import {
+  CORSPlugin,
+  RateLimitPlugin,
+  HelmetPlugin,
+  JWTPlugin,
+  SessionPlugin,
+  CompressionPlugin,
+  StaticPlugin,
+  ETagPlugin,
+  RequestIdPlugin,
+  TimeoutPlugin,
+  HealthCheckPlugin,
+  CircuitBreakerPlugin,
+  ProxyPlugin,
+  SSEPlugin,
+  MultipartPlugin,
+} from "azurats/plugins";
+```
+
+Funções auxiliares como `signJWT` e `verifyJWT` também são exportadas de `azurats/plugins`:
+
+```typescript
+import { signJWT, verifyJWT } from "azurats/plugins";
+```
+
+## Ordem de Execução dos Plugins
+
+Plugins executam na **ordem de registro**. Dentro do ciclo de vida de uma requisição, a cadeia completa é:
+
+```
+Plugins → Middleware Global → Middleware de Rota → Route Handler
+```
+
+Uma ordenação recomendada para produção:
+
+```typescript
+const app = new AzuraServer();
+
+// 1. Segurança — headers de proteção primeiro
+app.plugin(HelmetPlugin());
+app.plugin(CORSPlugin({ origins: [process.env.FRONTEND_URL!] }));
+
+// 2. Observabilidade — rastreamento de requisições
+app.plugin(RequestIdPlugin());
+
+// 3. Performance — compressão e timeouts
+app.plugin(CompressionPlugin({ threshold: 1024 }));
+app.plugin(TimeoutPlugin({ timeout: 30_000 }));
+
+// 4. Rate limiting — proteger contra abuso
+app.plugin(RateLimitPlugin({ windowMs: 60_000, max: 100 }));
+
+// 5. Autenticação — verificação de tokens
+app.plugin(JWTPlugin({
+  secret: process.env.JWT_SECRET!,
+  exclude: ["/auth/login", "/health"],
+}));
+
+// 6. Monitoramento — health check
+app.plugin(HealthCheckPlugin({ path: "/health" }));
+```
+
+<Callout>
+Plugins registrados com `app.plugin()` sempre executam antes de middleware adicionado com `app.use()`. Dentro de cada grupo, a execução segue a ordem de registro.
+</Callout>
+
+## Registro: `app.plugin()` vs `app.use()`
+
+O AzuraJS distingue automaticamente entre plugins e middleware pela aridade da função:
+
+```typescript
+// Plugin — recebe (ctx, next) → 2 parâmetros
+app.plugin(CORSPlugin());
+app.use(CORSPlugin()); // também funciona
+
+// Middleware — recebe (req, res, next) → 3 parâmetros
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.pathname}`);
+  next();
+});
+```
+
+Quando `app.use()` recebe uma função com 2 parâmetros ou menos, ela é tratada como plugin. Funções com 3 parâmetros são tratadas como middleware.
+
+## Criando um Plugin Customizado
+
+Qualquer função que corresponda à assinatura `PluginHandler` funciona como plugin:
+
+```typescript
+import type { PluginHandler } from "azurats/types";
+
+function TimingPlugin(): PluginHandler {
+  return (ctx, next) => {
+    const start = process.hrtime.bigint();
+
+    const originalEnd = ctx.res.end.bind(ctx.res);
+    (ctx.res as any).end = (...args: any[]) => {
+      const ms = Number(process.hrtime.bigint() - start) / 1e6;
+      ctx.res.setHeader("X-Response-Time", `${ms.toFixed(2)}ms`);
+      return originalEnd(...args);
+    };
+
+    next();
+  };
+}
+
+app.plugin(TimingPlugin());
+```
+
+### Plugin Assíncrono
+
+Plugins podem retornar uma `Promise`:
+
+```typescript
+function AuthPlugin(apiUrl: string): PluginHandler {
+  return async (ctx, next) => {
+    const token = ctx.req.headers.authorization;
+    if (token) {
+      const res = await fetch(`${apiUrl}/verify`, {
+        headers: { Authorization: token },
+      });
+      ctx.req.user = await res.json();
+    }
+    next();
+  };
+}
+```
+
+## Exemplo Completo de Produção
+
+```typescript
+import { AzuraServer } from "azurats";
+import {
+  CORSPlugin,
+  HelmetPlugin,
+  RateLimitPlugin,
+  RequestIdPlugin,
+  CompressionPlugin,
+  HealthCheckPlugin,
+  JWTPlugin,
+  TimeoutPlugin,
+} from "azurats/plugins";
+import { LoggingMiddleware } from "azurats/middleware";
+import { HttpError } from "azurats/utils";
+
+const app = new AzuraServer({
+  environment: "production",
+  server: { port: 3000 },
+  logging: { level: "info", requestLogging: true },
+});
+
+app.plugin(HelmetPlugin());
+app.plugin(CORSPlugin({ origins: [process.env.FRONTEND_URL!], credentials: true }));
+app.plugin(RequestIdPlugin());
+app.plugin(CompressionPlugin({ threshold: 1024 }));
+app.plugin(TimeoutPlugin({ timeout: 30_000 }));
+app.plugin(RateLimitPlugin({ windowMs: 60_000, max: 100 }));
+app.plugin(JWTPlugin({
+  secret: process.env.JWT_SECRET!,
+  exclude: ["/auth", "/health"],
+}));
+app.plugin(LoggingMiddleware());
+app.plugin(HealthCheckPlugin({
+  path: "/health",
+  checks: {
+    memory: () => process.memoryUsage().heapUsed < 500 * 1024 * 1024,
+  },
+}));
+
+app.get("/", (req, res) => {
+  res.json({ message: "AzuraJS v3 em produção" });
+});
+
+app.onError((err, req, res) => {
+  if (err instanceof HttpError) {
+    res.status(err.statusCode).json(err.toJSON());
+    return;
+  }
+  res.status(500).json({
+    error: { statusCode: 500, message: "Erro interno do servidor" },
+  });
+});
+
+app.listen(3000);
+```
+
+## Próximos Passos
+
+- [Validação](/docs/pt/v3/recursos/validacao) — validação de body e schemas
+- [CORS](/docs/pt/v3/recursos/cors) — Cross-Origin Resource Sharing em detalhes
+- [Rate Limiting](/docs/pt/v3/recursos/rate-limiting) — proteja sua API contra abuso
+- [Autenticação JWT](/docs/pt/v3/recursos/jwt) — proteção de rotas baseada em tokens

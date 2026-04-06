@@ -1,0 +1,336 @@
+---
+title: Autenticação JWT
+description: Autenticação JWT no AzuraJS v3 — JWTPlugin, signJWT, verifyJWT, proteção de rotas e extração automática de token
+category: Recursos
+icon: lucide:key-round
+order: 7
+---
+
+# Autenticação JWT
+
+O AzuraJS v3 inclui um sistema JWT completo e nativo — sem dependências externas como `jsonwebtoken`. O sistema consiste do **JWTPlugin** para proteção automática de rotas e das funções utilitárias **signJWT** e **verifyJWT** para manipulação manual de tokens.
+
+## Import
+
+```typescript
+import { JWTPlugin, signJWT, verifyJWT } from "azurats/plugins";
+import type { JWTPayload } from "azurats/plugins";
+```
+
+## signJWT — Criando Tokens
+
+```typescript
+const token = signJWT(
+  { userId: 1, role: "admin" },
+  "meu-segredo-jwt",
+  { expiresIn: "1h" },
+);
+```
+
+### Parâmetros
+
+| Parâmetro | Tipo | Descrição |
+| :--- | :--- | :--- |
+| `payload` | `JWTPayload` | Dados a serem incluídos no token |
+| `secret` | `string` | Chave secreta para assinatura HMAC |
+| `options.algorithm` | `"HS256" \| "HS384" \| "HS512"` | Algoritmo (padrão: `"HS256"`) |
+| `options.expiresIn` | `string \| number` | Expiração (ex: `"1h"`, `"7d"`, `3600`) |
+
+### Formato de Expiração
+
+| Formato | Exemplo | Descrição |
+| :--- | :--- | :--- |
+| `Ns` | `"3600s"` | Segundos |
+| `Nm` | `"60m"` | Minutos |
+| `Nh` | `"24h"` | Horas |
+| `Nd` | `"7d"` | Dias |
+| Número | `3600` | Segundos (valor bruto) |
+
+### Claims Automáticos
+
+O `signJWT` adiciona automaticamente:
+- `iat` (Issued At): timestamp de criação
+- `exp` (Expiration): calculado a partir de `expiresIn`
+
+```typescript
+const token = signJWT(
+  { userId: 1, email: "user@example.com" },
+  process.env.JWT_SECRET!,
+  { expiresIn: "7d", algorithm: "HS256" },
+);
+// Payload decodificado:
+// { userId: 1, email: "user@example.com", iat: 1704067200, exp: 1704672000 }
+```
+
+## verifyJWT — Verificando Tokens
+
+```typescript
+try {
+  const payload = verifyJWT(token, "meu-segredo-jwt");
+  console.log(payload.userId); // 1
+} catch (err) {
+  console.error(err.message);
+  // "Invalid token signature" ou "Token expired" ou "Invalid token format"
+}
+```
+
+### Erros Possíveis
+
+| Erro | Causa |
+| :--- | :--- |
+| `"Invalid token format"` | Token não tem 3 partes separadas por `.` |
+| `"Invalid token signature"` | Assinatura não confere com o secret |
+| `"Token expired"` | O claim `exp` está no passado |
+
+### Interface JWTPayload
+
+```typescript
+interface JWTPayload {
+  [key: string]: any;
+  iat?: number; // Issued At (automático)
+  exp?: number; // Expiration
+  iss?: string; // Issuer
+  aud?: string; // Audience
+  sub?: string; // Subject
+}
+```
+
+## JWTPlugin — Proteção Automática de Rotas
+
+O `JWTPlugin` verifica tokens automaticamente e popula `req.user` com o payload decodificado.
+
+```typescript
+import { AzuraServer } from "azurats";
+import { JWTPlugin } from "azurats/plugins";
+
+const app = new AzuraServer();
+
+app.plugin(JWTPlugin({
+  secret: process.env.JWT_SECRET!,
+  exclude: ["/auth/login", "/auth/register", "/health"],
+}));
+
+app.get("/api/profile", (req, res) => {
+  res.json({ user: req.user });
+});
+
+app.listen(3000);
+```
+
+### Opções do JWTPlugin
+
+```typescript
+interface JWTOptions {
+  secret: string;
+  algorithm?: "HS256" | "HS384" | "HS512";
+  paths?: string[];
+  exclude?: string[];
+  getToken?: (req: AzuraRequest) => string | null;
+}
+```
+
+| Opção | Tipo | Padrão | Descrição |
+| :--- | :--- | :--- | :--- |
+| `secret` | `string` | — | **Obrigatório.** Chave secreta para verificação |
+| `algorithm` | `string` | `"HS256"` | Algoritmo de assinatura |
+| `paths` | `string[]` | `[]` | Se definido, protege **apenas** essas rotas (prefixo) |
+| `exclude` | `string[]` | `[]` | Rotas a **excluir** da proteção (prefixo) |
+| `getToken` | `function` | Extração automática | Função customizada para extrair o token |
+
+### Estratégia de Proteção
+
+- Se `paths` está vazio: **todas** as rotas são protegidas (exceto as listadas em `exclude`)
+- Se `paths` tem valores: **apenas** rotas que começam com um dos prefixos são protegidas
+- `exclude` sempre tem prioridade sobre `paths`
+
+### Extração Automática de Token
+
+O plugin busca o token nesta ordem:
+
+1. Header `Authorization: Bearer <token>`
+2. Query parameter `?token=<token>`
+3. Cookie `token`
+
+Para customizar a extração:
+
+```typescript
+app.plugin(JWTPlugin({
+  secret: process.env.JWT_SECRET!,
+  getToken: (req) => {
+    return req.headers["x-auth-token"] as string ?? null;
+  },
+}));
+```
+
+### Respostas de Erro
+
+Quando o token é inválido ou ausente, o plugin retorna status `401`:
+
+```json
+{
+  "error": {
+    "statusCode": 401,
+    "message": "No token provided"
+  }
+}
+```
+
+```json
+{
+  "error": {
+    "statusCode": 401,
+    "message": "Invalid token signature"
+  }
+}
+```
+
+## Exemplo Completo: API de Autenticação
+
+```typescript
+import { AzuraServer } from "azurats";
+import { JWTPlugin, signJWT } from "azurats/plugins";
+import { HttpError } from "azurats/utils";
+
+const app = new AzuraServer();
+const JWT_SECRET = process.env.JWT_SECRET!;
+
+app.plugin(JWTPlugin({
+  secret: JWT_SECRET,
+  exclude: ["/auth/login", "/auth/register"],
+}));
+
+// Login — rota pública
+app.post("/auth/login", (req, res) => {
+  const { email, password } = req.body;
+
+  // Validar credenciais (exemplo simplificado)
+  if (email !== "admin@example.com" || password !== "senha123") {
+    throw HttpError.unauthorized("Credenciais inválidas");
+  }
+
+  const token = signJWT(
+    { userId: 1, email, role: "admin" },
+    JWT_SECRET,
+    { expiresIn: "24h" },
+  );
+
+  res.json({
+    token,
+    user: { id: 1, email, role: "admin" },
+  });
+});
+
+// Registro — rota pública
+app.post("/auth/register", (req, res) => {
+  const { name, email, password } = req.body;
+  // ... criar usuário ...
+
+  const token = signJWT(
+    { userId: 2, email, role: "user" },
+    JWT_SECRET,
+    { expiresIn: "24h" },
+  );
+
+  res.status(201).json({ token, user: { id: 2, name, email } });
+});
+
+// Perfil — rota protegida (requer JWT)
+app.get("/api/profile", (req, res) => {
+  res.json({ user: req.user });
+});
+
+// Atualizar perfil — rota protegida
+app.put("/api/profile", (req, res) => {
+  const { name } = req.body;
+  res.json({
+    user: { ...req.user, name },
+    message: "Perfil atualizado",
+  });
+});
+
+// Rota admin — verificação adicional de role
+app.get("/api/admin/dashboard", (req, res) => {
+  if (req.user.role !== "admin") {
+    throw HttpError.forbidden("Acesso restrito a administradores");
+  }
+  res.json({ dashboard: { users: 150, revenue: 50000 } });
+});
+
+app.listen(3000);
+```
+
+## Refresh Token Pattern
+
+```typescript
+const ACCESS_SECRET = process.env.ACCESS_SECRET!;
+const REFRESH_SECRET = process.env.REFRESH_SECRET!;
+
+app.post("/auth/login", (req, res) => {
+  const { email, password } = req.body;
+  // ... validar ...
+
+  const accessToken = signJWT(
+    { userId: 1, email },
+    ACCESS_SECRET,
+    { expiresIn: "15m" },
+  );
+
+  const refreshToken = signJWT(
+    { userId: 1, tokenType: "refresh" },
+    REFRESH_SECRET,
+    { expiresIn: "7d" },
+  );
+
+  res.cookie("refreshToken", refreshToken, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "Strict",
+    maxAge: 604800,
+    path: "/auth/refresh",
+  });
+
+  res.json({ accessToken });
+});
+
+app.post("/auth/refresh", (req, res) => {
+  const refreshToken = req.cookies.refreshToken;
+  if (!refreshToken) {
+    throw HttpError.unauthorized("Refresh token ausente");
+  }
+
+  try {
+    const payload = verifyJWT(refreshToken, REFRESH_SECRET);
+
+    const newAccessToken = signJWT(
+      { userId: payload.userId },
+      ACCESS_SECRET,
+      { expiresIn: "15m" },
+    );
+
+    res.json({ accessToken: newAccessToken });
+  } catch {
+    res.clearCookie("refreshToken", { path: "/auth/refresh" });
+    throw HttpError.unauthorized("Refresh token inválido");
+  }
+});
+```
+
+## Algoritmos Suportados
+
+| Algoritmo | HMAC | Segurança |
+| :--- | :--- | :--- |
+| `HS256` | SHA-256 | Recomendado para a maioria dos casos |
+| `HS384` | SHA-384 | Segurança intermediária |
+| `HS512` | SHA-512 | Máxima segurança HMAC |
+
+```typescript
+const token = signJWT(
+  { userId: 1 },
+  process.env.JWT_SECRET!,
+  { algorithm: "HS512", expiresIn: "1h" },
+);
+```
+
+<Callout>
+O AzuraJS utiliza `node:crypto` para todas as operações criptográficas, garantindo performance nativa sem dependências externas.
+</Callout>
