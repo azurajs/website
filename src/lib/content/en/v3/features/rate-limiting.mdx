@@ -37,8 +37,8 @@ app.listen(3000);
 | `message` | `string \| object` | `{ error: { statusCode: 429, message: "Too many requests..." } }` | Response body when the limit is exceeded. |
 | `statusCode` | `number` | `429` | HTTP status code when the limit is exceeded. |
 | `keyGenerator` | `(req) => string` | `(req) => req.ip` | Function that returns a string identifying the client. |
-| `skipSuccessfulRequests` | `boolean` | `false` | When `true`, successful responses (< 400) are not counted against the limit. |
-| `skipFailedRequests` | `boolean` | `false` | When `true`, failed responses (>= 400) are not counted against the limit. |
+| `skipSuccessfulRequests` | `boolean` | `false` | When `true`, successful responses (status &lt; 400) are not counted against the limit. |
+| `skipFailedRequests` | `boolean` | `false` | When `true`, failed responses (status &gt;= 400) are not counted against the limit. |
 
 ## Response Headers
 

@@ -52,8 +52,8 @@ interface RateLimitOptions {
 | `message` | `string \| object` | `{ error: { statusCode: 429, message: "Too many requests..." } }` | Resposta quando o limite é excedido |
 | `statusCode` | `number` | `429` | Status code da resposta de limite excedido |
 | `keyGenerator` | `function` | `(req) => req.ip` | Função que gera a chave de identificação |
-| `skipSuccessfulRequests` | `boolean` | `false` | Não contar requisições com status < 400 |
-| `skipFailedRequests` | `boolean` | `false` | Não contar requisições com status >= 400 |
+| `skipSuccessfulRequests` | `boolean` | `false` | Não contar requisições com status &lt; 400 |
+| `skipFailedRequests` | `boolean` | `false` | Não contar requisições com status &gt;= 400 |
 | `store` | `RateLimitStore` | MemoryStore interno | Store customizado para contadores |
 
 ## Headers de Resposta
@@ -153,7 +153,7 @@ app.plugin(RateLimitPlugin({
 
 ### Ignorar Requisições Bem-Sucedidas
 
-Não contar requisições que retornam status < 400 (útil para limitar apenas tentativas de login falhadas):
+Não contar requisições que retornam status &lt; 400 (útil para limitar apenas tentativas de login falhadas):
 
 ```typescript
 app.plugin(RateLimitPlugin({
