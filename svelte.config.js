@@ -31,7 +31,7 @@ const config = {
 
   preprocess: [
     {
-      markup: ({ content, filename }) => {
+      markup: async ({ content, filename }) => {
         if (filename && filename.endsWith(".mdx")) {
           let newCode = content;
 
@@ -45,6 +45,25 @@ const config = {
           } else {
             newCode = `<script>${mdxImports}</script>\n${content}`;
           }
+
+          // mdsvex does not process markdown inside Svelte component blocks,
+          // so code fences inside <Tab> are passed raw to Svelte, breaking
+          // compilation when the code contains {, }, ", <, etc.
+          // Pre-highlight them here so Svelte only sees safe HTML.
+          const highlighter = await highlighterPromise;
+          newCode = newCode.replace(/<Tab[^>]*>[\s\S]*?<\/Tab>/g, (tabBlock) => {
+            return tabBlock.replace(/```(\w+)\s*\n([\s\S]*?)```/g, (_match, lang, code) => {
+              try {
+                let html = escapeSvelte(
+                  highlighter.codeToHtml(code.trim(), { lang, theme: "github-dark" })
+                );
+                html = html.replace(/(<pre[^>]*)\s+tabindex="0"/g, "$1");
+                return `<CodeBlock lang="${lang}">${html}</CodeBlock>`;
+              } catch {
+                return `<CodeBlock lang="${lang}"><pre><code>${escapeSvelte(code.trim())}</code></pre></CodeBlock>`;
+              }
+            });
+          });
 
           return { code: newCode };
         }
