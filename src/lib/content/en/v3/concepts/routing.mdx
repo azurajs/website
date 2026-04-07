@@ -19,7 +19,7 @@ AzuraJS v3 ships with a high-performance **radix tree router** backed by an LRU 
 AzuraJS supports two complementary approaches to defining routes. You can mix and match them in the same application.
 
 <Tabs items={["Express-style", "Decorator-based"]}>
-  <Tab value="Express-style">
+<Tab value="Express-style">
 ```typescript
 import { AzuraServer } from "azurats";
 
@@ -35,8 +35,8 @@ app.post("/users", (req, res) => {
 
 app.listen();
 ```
-  </Tab>
-  <Tab value="Decorator-based">
+</Tab>
+<Tab value="Decorator-based">
 ```typescript
 import { AzuraServer } from "azurats";
 import { Controller, Get, Post, Body } from "azurats/decorators";
@@ -58,7 +58,7 @@ const app = new AzuraServer();
 app.register(UserController);
 app.listen();
 ```
-  </Tab>
+</Tab>
 </Tabs>
 
 ## Express-Style Route Methods
@@ -218,7 +218,7 @@ class SearchController {
 Both routing styles support route-specific middleware. Middleware functions run before the final handler.
 
 <Tabs items={["Express-style", "Decorator-based"]}>
-  <Tab value="Express-style">
+<Tab value="Express-style">
 ```typescript
 import type { AzuraRequest, AzuraResponse, NextFunction } from "azurats/types";
 
@@ -238,8 +238,8 @@ app.get("/users/:id", logRoute, validateId, (req, res) => {
   res.json({ user: { id: req.params.id } });
 });
 ```
-  </Tab>
-  <Tab value="Decorator-based">
+</Tab>
+<Tab value="Decorator-based">
 ```typescript
 import { Controller, Get, Param, UseMiddleware } from "azurats/decorators";
 import type { AzuraRequest, AzuraResponse, NextFunction } from "azurats/types";
@@ -260,7 +260,7 @@ class UserController {
   }
 }
 ```
-  </Tab>
+</Tab>
 </Tabs>
 
 ## Listing All Registered Routes

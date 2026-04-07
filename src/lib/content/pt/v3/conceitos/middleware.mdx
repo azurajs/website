@@ -249,7 +249,7 @@ app.delete("/users/:id", requireAuth, requireSuperAdmin, (req, res) => {
 Tanto middleware quanto plugins suportam totalmente `async/await`. Sempre chame `next()` (ou `await next()`) para garantir que a cadeia continue.
 
 <Tabs items={["Plugin Assíncrono", "Middleware Assíncrono"]}>
-  <Tab value="Plugin Assíncrono">
+<Tab value="Plugin Assíncrono">
 ```typescript
 const asyncPlugin = async (ctx, next) => {
   const token = ctx.req.headers.authorization?.split(" ")[1];
@@ -261,8 +261,8 @@ const asyncPlugin = async (ctx, next) => {
 
 app.plugin(asyncPlugin);
 ```
-  </Tab>
-  <Tab value="Middleware Assíncrono">
+</Tab>
+<Tab value="Middleware Assíncrono">
 ```typescript
 const asyncMiddleware = async (req, res, next) => {
   const session = await loadSession(req.cookies.sid);
@@ -272,7 +272,7 @@ const asyncMiddleware = async (req, res, next) => {
 
 app.use(asyncMiddleware);
 ```
-  </Tab>
+</Tab>
 </Tabs>
 
 ## Curto-Circuitando a Cadeia

@@ -19,7 +19,7 @@ O AzuraJS v3 vem com um **roteador radix tree** de alta performance apoiado por 
 O AzuraJS suporta duas abordagens complementares para definir rotas. Você pode misturá-las na mesma aplicação.
 
 <Tabs items={["Estilo Express", "Baseado em Decorators"]}>
-  <Tab value="Estilo Express">
+<Tab value="Estilo Express">
 ```typescript
 import { AzuraServer } from "azurats";
 
@@ -35,8 +35,8 @@ app.post("/users", (req, res) => {
 
 app.listen();
 ```
-  </Tab>
-  <Tab value="Baseado em Decorators">
+</Tab>
+<Tab value="Baseado em Decorators">
 ```typescript
 import { AzuraServer } from "azurats";
 import { Controller, Get, Post, Body } from "azurats/decorators";
@@ -58,7 +58,7 @@ const app = new AzuraServer();
 app.register(UserController);
 app.listen();
 ```
-  </Tab>
+</Tab>
 </Tabs>
 
 ## Métodos de Rota Estilo Express
@@ -218,7 +218,7 @@ class SearchController {
 Ambos os estilos de roteamento suportam middleware específico de rota. Funções de middleware executam antes do handler final.
 
 <Tabs items={["Estilo Express", "Baseado em Decorators"]}>
-  <Tab value="Estilo Express">
+<Tab value="Estilo Express">
 ```typescript
 import type { AzuraRequest, AzuraResponse, NextFunction } from "azurats/types";
 
@@ -238,8 +238,8 @@ app.get("/users/:id", logRoute, validateId, (req, res) => {
   res.json({ user: { id: req.params.id } });
 });
 ```
-  </Tab>
-  <Tab value="Baseado em Decorators">
+</Tab>
+<Tab value="Baseado em Decorators">
 ```typescript
 import { Controller, Get, Param, UseMiddleware } from "azurats/decorators";
 import type { AzuraRequest, AzuraResponse, NextFunction } from "azurats/types";
@@ -260,7 +260,7 @@ class UserController {
   }
 }
 ```
-  </Tab>
+</Tab>
 </Tabs>
 
 ## Listando Todas as Rotas Registradas
