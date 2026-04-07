@@ -188,7 +188,7 @@ app.get("/", (req, res) => {
 ```
 
 <Callout>
-`res.locals` is loosely typed (`Record<string, any>`). For properties that span many files or are critical to correctness, prefer declaration merging on `AzuraRequest` or `AzuraResponse` for strict type safety.
+<code>res.locals</code> is loosely typed (<code>Record&lt;string, any&gt;</code>). For properties that span many files or are critical to correctness, prefer declaration merging on <code>AzuraRequest</code> or <code>AzuraResponse</code> for strict type safety.
 </Callout>
 
 ## Tips
