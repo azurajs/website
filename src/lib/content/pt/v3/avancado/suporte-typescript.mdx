@@ -14,7 +14,7 @@ O AzuraJS foi construído do zero com TypeScript — não é um wrapper sobre Ja
 
 Diferente de frameworks que adicionam tipos como um afterthought, o AzuraJS v3:
 
-- **Exporta todas as interfaces e tipos** via `azurats/types`, sem necessidade de `@types/azurats`
+- **Exporta todas as interfaces e tipos** via `azurajs/types`, sem necessidade de `@types/azurajs`
 - **Usa decorators nativos do TypeScript** com `experimentalDecorators` e `emitDecoratorMetadata`
 - **Infere tipos automaticamente** nos handlers de rota, parâmetros de decorators e configuração
 - **Zero dependências de runtime** — compila para JavaScript puro com `tsup`
@@ -58,7 +58,7 @@ Diferente de frameworks que adicionam tipos como um afterthought, o AzuraJS v3:
 |---|---|---|
 | `target` | `ES2022` | Suporta `BigInt` (usado em `req.startTime`), top-level `await` e outras features modernas |
 | `module` | `ESNext` | Habilita ESM nativo, compatível com o sistema de exports do AzuraJS |
-| `moduleResolution` | `bundler` | Resolve corretamente os subcaminhos como `azurats/core`, `azurats/plugins` etc. |
+| `moduleResolution` | `bundler` | Resolve corretamente os subcaminhos como `azurajs/core`, `azurajs/plugins` etc. |
 | `experimentalDecorators` | `true` | Ativa decorators de classe, método e parâmetro |
 | `emitDecoratorMetadata` | `true` | Emite metadados de tipo em runtime, usado pelo sistema de injeção de parâmetros |
 | `strict` | `true` | Ativa todas as verificações estritas de tipo |
@@ -71,8 +71,8 @@ Diferente de frameworks que adicionam tipos como um afterthought, o AzuraJS v3:
 Com handlers funcionais, `req` e `res` são totalmente tipados:
 
 ```typescript
-import { AzuraServer } from "azurats/core";
-import type { AzuraRequest, AzuraResponse } from "azurats/types";
+import { AzuraServer } from "azurajs/core";
+import type { AzuraRequest, AzuraResponse } from "azurajs/types";
 
 const app = new AzuraServer();
 
@@ -93,7 +93,7 @@ O TypeScript conhece todas as propriedades de `AzuraRequest` e `AzuraResponse`, 
 Com decorators, os parâmetros são extraídos e tipados automaticamente:
 
 ```typescript
-import { Controller, Get, Post, Param, Body, Query } from "azurats/decorators";
+import { Controller, Get, Post, Param, Body, Query } from "azurajs/decorators";
 
 interface CreateUserDTO {
   name: string;
@@ -120,9 +120,9 @@ class UserController {
 O método `onError` aceita um `ErrorHandler` totalmente tipado:
 
 ```typescript
-import { AzuraServer } from "azurats/core";
-import { HttpError } from "azurats/utils";
-import type { ErrorHandler } from "azurats/types";
+import { AzuraServer } from "azurajs/core";
+import { HttpError } from "azurajs/utils";
+import type { ErrorHandler } from "azurajs/types";
 
 const errorHandler: ErrorHandler = (err, req, res, next) => {
   if (err instanceof HttpError) {
@@ -143,8 +143,8 @@ app.onError(errorHandler);
 O AzuraJS usa `Reflect.getMetadata` para armazenar e recuperar informações dos decorators em runtime. Isso permite que o método `register()` descubra automaticamente as rotas, middlewares e parâmetros de cada controller.
 
 ```typescript
-import { Controller, Get, UseMiddleware, Param, Req } from "azurats/decorators";
-import type { AzuraRequest } from "azurats/types";
+import { Controller, Get, UseMiddleware, Param, Req } from "azurajs/decorators";
+import type { AzuraRequest } from "azurajs/types";
 
 function AuthGuard(req: AzuraRequest, res: any, next: Function) {
   if (!req.headers.authorization) {
@@ -178,8 +178,8 @@ Internamente, o AzuraJS armazena três chaves de metadata:
 O objeto de configuração `AzuraConfig` é totalmente tipado, incluindo sub-interfaces para servidor, logging e plugins:
 
 ```typescript
-import { AzuraServer } from "azurats/core";
-import type { AzuraConfig } from "azurats/types";
+import { AzuraServer } from "azurajs/core";
+import type { AzuraConfig } from "azurajs/types";
 
 const config: AzuraConfig = {
   environment: "production",
@@ -211,7 +211,7 @@ O TypeScript vai alertar se você passar uma opção inválida, um tipo errado o
 
 ## Tipos Utilitários Exportados
 
-O subcaminho `azurats/types` exporta mais de 30 tipos e interfaces para uso em sua aplicação:
+O subcaminho `azurajs/types` exporta mais de 30 tipos e interfaces para uso em sua aplicação:
 
 ```typescript
 import type {
@@ -246,7 +246,7 @@ import type {
   RateLimitOptions,
   JWTOptions,
   SessionOptions,
-} from "azurats/types";
+} from "azurajs/types";
 ```
 
 Importar tipos com `import type` garante que eles são eliminados em tempo de compilação e não afetam o bundle final.

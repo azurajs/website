@@ -26,22 +26,22 @@ While AzuraJS is designed as a TypeScript-first framework, it works perfectly fi
 <Tabs items={["npm", "yarn", "pnpm", "bun"]}>
 <Tab value="npm">
 ```bash
-npm install azurats
+npm install azurajs
 ```
 </Tab>
 <Tab value="yarn">
 ```bash
-yarn add azurats
+yarn add azurajs
 ```
 </Tab>
 <Tab value="pnpm">
 ```bash
-pnpm add azurats
+pnpm add azurajs
 ```
 </Tab>
 <Tab value="bun">
 ```bash
-bun add azurats
+bun add azurajs
 ```
 </Tab>
 </Tabs>
@@ -60,7 +60,7 @@ Set `"type": "module"` in your `package.json` to use ESM imports:
     "dev": "node --watch src/main.js"
   },
   "dependencies": {
-    "azurats": "^3.0.0"
+    "azurajs": "^3.0.0"
   }
 }
 ```
@@ -74,7 +74,7 @@ Set `"type": "module"` in your `package.json` to use ESM imports:
 Create `src/main.js`:
 
 ```javascript
-import { AzuraServer, CORSPlugin, HelmetPlugin, RateLimitPlugin, HttpError } from "azurats";
+import { AzuraServer, CORSPlugin, HelmetPlugin, RateLimitPlugin, HttpError } from "azurajs";
 
 const app = new AzuraServer({
   environment: "development",
@@ -124,7 +124,7 @@ import {
   CompressionPlugin,
   HealthCheckPlugin,
   HttpError,
-} from "azurats";
+} from "azurajs";
 
 const app = new AzuraServer({
   environment: "development",
@@ -395,7 +395,7 @@ app.post("/users", validate, audit, async (req, res) => {
 AzuraJS provides the `HttpError` class for structured HTTP errors:
 
 ```javascript
-import { HttpError } from "azurats";
+import { HttpError } from "azurajs";
 
 // Static factory methods
 throw HttpError.badRequest("Invalid input");         // 400
@@ -457,7 +457,7 @@ import {
   SSEPlugin,
   ProxyPlugin,
   MultipartPlugin,
-} from "azurats";
+} from "azurajs";
 
 const app = new AzuraServer();
 
@@ -486,7 +486,7 @@ app.plugin(HealthCheckPlugin({ path: "/health" }));
 ## JWT Authentication Example
 
 ```javascript
-import { AzuraServer, JWTPlugin, signJWT, verifyJWT, HttpError } from "azurats";
+import { AzuraServer, JWTPlugin, signJWT, verifyJWT, HttpError } from "azurajs";
 
 const app = new AzuraServer();
 const JWT_SECRET = "my-super-secret-key";
@@ -533,15 +533,15 @@ app.listen(3000);
 Even without TypeScript, you can get editor IntelliSense using JSDoc comments:
 
 ```javascript
-/** @type {import('azurats/types').AzuraConfig} */
+/** @type {import('azurajs/types').AzuraConfig} */
 const config = {
   server: { port: 3000 },
   logging: { level: "debug" },
 };
 
 /**
- * @param {import('azurats/types').AzuraRequest} req
- * @param {import('azurats/types').AzuraResponse} res
+ * @param {import('azurajs/types').AzuraRequest} req
+ * @param {import('azurajs/types').AzuraResponse} res
  */
 function handler(req, res) {
   res.json({ hello: "world" });
@@ -559,7 +559,7 @@ This gives you autocomplete, parameter documentation, and type checking in edito
 Create `azura.config.js` at the project root:
 
 ```javascript
-/** @type {import('azurats/types').AzuraConfig} */
+/** @type {import('azurajs/types').AzuraConfig} */
 export default {
   environment: "development",
   server: {
@@ -584,7 +584,7 @@ const {
   CORSPlugin,
   HelmetPlugin,
   HttpError,
-} = require("azurats");
+} = require("azurajs");
 
 const app = new AzuraServer({
   server: { port: 3000 },

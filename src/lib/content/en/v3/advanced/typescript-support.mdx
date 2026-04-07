@@ -42,7 +42,7 @@ AzuraJS v3 is written entirely in TypeScript under `strict` mode. Every public A
 
 | Option | Why It Matters |
 |---|---|
-| `moduleResolution: "Bundler"` | Resolves sub-path imports like `azurats/core` through the `exports` field in `package.json` |
+| `moduleResolution: "Bundler"` | Resolves sub-path imports like `azurajs/core` through the `exports` field in `package.json` |
 | `strict: true` | Enables `strictNullChecks`, `noImplicitAny`, and others — AzuraJS types are designed for this |
 | `experimentalDecorators` | Activates the legacy decorator syntax used by `@Controller`, `@Get`, `@Body`, etc. |
 | `emitDecoratorMetadata` | Emits `Reflect.metadata` calls so the framework can resolve parameter types at runtime |
@@ -55,8 +55,8 @@ AzuraJS v3 is written entirely in TypeScript under `strict` mode. Every public A
 The `AzuraConfig` interface types every option accepted by `AzuraServer`:
 
 ```typescript
-import { AzuraServer } from "azurats/core";
-import type { AzuraConfig } from "azurats/types";
+import { AzuraServer } from "azurajs/core";
+import type { AzuraConfig } from "azurajs/types";
 
 const config: AzuraConfig = {
   environment: "production",
@@ -91,8 +91,8 @@ TypeScript will flag invalid property names, wrong value types, and unsupported 
 Both `AzuraRequest` and `AzuraResponse` are fully typed interfaces that extend Node.js's `IncomingMessage` and `ServerResponse`:
 
 ```typescript
-import { AzuraServer } from "azurats/core";
-import type { AzuraRequest, AzuraResponse } from "azurats/types";
+import { AzuraServer } from "azurajs/core";
+import type { AzuraRequest, AzuraResponse } from "azurajs/types";
 
 const app = new AzuraServer();
 
@@ -108,11 +108,11 @@ app.get("/users/:id", (req: AzuraRequest, res: AzuraResponse) => {
 
 ### Plugin Options
 
-Every plugin factory accepts a dedicated options type, all exported from `azurats/types`:
+Every plugin factory accepts a dedicated options type, all exported from `azurajs/types`:
 
 ```typescript
-import { CORSPlugin, RateLimitPlugin, JWTPlugin } from "azurats/plugins";
-import type { CORSOptions, RateLimitOptions, JWTOptions } from "azurats/types";
+import { CORSPlugin, RateLimitPlugin, JWTPlugin } from "azurajs/plugins";
+import type { CORSOptions, RateLimitOptions, JWTOptions } from "azurajs/types";
 
 const cors: CORSOptions = {
   origins: ["https://app.example.com"],
@@ -140,7 +140,7 @@ app.plugin(JWTPlugin(jwt));
 `HttpError` provides typed static factory methods for every common status code:
 
 ```typescript
-import { HttpError } from "azurats/utils";
+import { HttpError } from "azurajs/utils";
 
 throw HttpError.notFound("User not found");
 throw HttpError.badRequest("Missing required field: email");
@@ -149,8 +149,8 @@ throw HttpError.badRequest("Missing required field: email");
 The error handler callback is typed as `ErrorHandler`:
 
 ```typescript
-import type { ErrorHandler } from "azurats/types";
-import { HttpError } from "azurats/utils";
+import type { ErrorHandler } from "azurajs/types";
+import { HttpError } from "azurajs/utils";
 
 const handler: ErrorHandler = (err, req, res, next) => {
   if (err instanceof HttpError) {
@@ -168,8 +168,8 @@ app.onError(handler);
 `HttpStatus` is a `const` object that provides a type-safe alternative to magic numbers:
 
 ```typescript
-import { HttpStatus } from "azurats/types";
-import type { HttpStatusCode } from "azurats/types";
+import { HttpStatus } from "azurajs/types";
+import type { HttpStatusCode } from "azurajs/types";
 
 function respond(res: AzuraResponse, code: HttpStatusCode, data: unknown) {
   res.status(code).json(data);
@@ -188,8 +188,8 @@ respond(res, 999, {});
 The decorator system uses `Reflect.defineMetadata` to store routing and parameter information. AzuraJS ships a built-in polyfill, so you do not need `reflect-metadata` as a dependency.
 
 ```typescript
-import { Controller, Get, Post, Param, Body, Query, Req, Res, Ip } from "azurats/decorators";
-import type { AzuraRequest, AzuraResponse } from "azurats/types";
+import { Controller, Get, Post, Param, Body, Query, Req, Res, Ip } from "azurajs/decorators";
+import type { AzuraRequest, AzuraResponse } from "azurajs/types";
 
 @Controller("/api/users")
 export class UserController {
@@ -217,7 +217,7 @@ Each decorator stores typed metadata (`ParamMetadata`) that the framework reads 
 The plugin system is typed around two core interfaces:
 
 ```typescript
-import type { PluginContext, PluginHandler } from "azurats/types";
+import type { PluginContext, PluginHandler } from "azurajs/types";
 
 type PluginHandler = (
   ctx: PluginContext,
@@ -233,7 +233,7 @@ interface PluginContext {
 Writing a custom plugin is fully type-safe:
 
 ```typescript
-import type { PluginHandler } from "azurats/types";
+import type { PluginHandler } from "azurajs/types";
 
 function TimingPlugin(): PluginHandler {
   return (ctx, next) => {
@@ -254,7 +254,7 @@ app.plugin(TimingPlugin());
 Standard middleware follows the classic three-argument signature:
 
 ```typescript
-import type { MiddlewareHandler, AzuraRequest, AzuraResponse, NextFunction } from "azurats/types";
+import type { MiddlewareHandler, AzuraRequest, AzuraResponse, NextFunction } from "azurajs/types";
 
 const authMiddleware: MiddlewareHandler = async (
   req: AzuraRequest,
@@ -277,8 +277,8 @@ app.use(authMiddleware);
 When you only need a type for annotation (not a runtime value), use `import type` to ensure it is erased at compile time:
 
 ```typescript
-import type { AzuraRequest, AzuraResponse, AzuraConfig } from "azurats/types";
-import type { CORSOptions, RateLimitOptions } from "azurats/types";
+import type { AzuraRequest, AzuraResponse, AzuraConfig } from "azurajs/types";
+import type { CORSOptions, RateLimitOptions } from "azurajs/types";
 ```
 
 This keeps your runtime bundle as small as possible while maintaining full type coverage.

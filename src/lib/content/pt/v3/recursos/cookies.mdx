@@ -15,7 +15,7 @@ O AzuraJS v3 oferece suporte nativo a cookies através de métodos integrados no
 Os cookies da requisição são automaticamente parseados e disponibilizados em `req.cookies` como um `Record<string, string>`:
 
 ```typescript
-import { AzuraServer } from "azurats";
+import { AzuraServer } from "azurajs";
 
 const app = new AzuraServer();
 
@@ -136,7 +136,7 @@ interface CookieOptions {
 O AzuraJS exporta funções utilitárias de baixo nível para serialização de cookies:
 
 ```typescript
-import { serializeCookie, clearCookieHeader } from "azurats/utils";
+import { serializeCookie, clearCookieHeader } from "azurajs/utils";
 
 const header = serializeCookie("token", "abc123", {
   httpOnly: true,
@@ -158,9 +158,9 @@ Essas funções são úteis quando você precisa manipular cookies fora do ciclo
 ### Autenticação com Cookie
 
 ```typescript
-import { AzuraServer } from "azurats";
-import { signJWT, verifyJWT } from "azurats/plugins";
-import { HttpError } from "azurats/utils";
+import { AzuraServer } from "azurajs";
+import { signJWT, verifyJWT } from "azurajs/plugins";
+import { HttpError } from "azurajs/utils";
 
 const app = new AzuraServer();
 const JWT_SECRET = process.env.JWT_SECRET!;

@@ -19,7 +19,7 @@ Controllers são a espinha dorsal arquitetural de uma aplicação AzuraJS. Eles 
 Um controller é uma classe decorada com `@Controller(prefix)`. Todo método dentro dela pode se tornar um endpoint HTTP ao ser decorado com `@Get`, `@Post`, `@Put`, `@Delete` ou `@Patch`. O prefixo do controller é automaticamente adicionado antes de todas as rotas dos métodos.
 
 ```typescript
-import { Controller, Get, Post } from "azurats/decorators";
+import { Controller, Get, Post } from "azurajs/decorators";
 
 @Controller("/api/products")
 export class ProductController {
@@ -48,7 +48,7 @@ O decorator `@Controller(prefix?)` marca uma classe como controller e define o p
 | `@Controller()` | _(nenhum)_ | Rotas definidas apenas pelos decorators dos métodos |
 
 ```typescript
-import { Controller, Get } from "azurats/decorators";
+import { Controller, Get } from "azurajs/decorators";
 
 @Controller("/api/v2/orders")
 export class OrderController {
@@ -65,7 +65,7 @@ export class OrderController {
 No AzuraJS v3, controllers são registrados na instância do servidor usando `app.register()`. Você pode passar uma ou mais classes de controller em uma única chamada.
 
 ```typescript
-import { AzuraServer } from "azurats";
+import { AzuraServer } from "azurajs";
 import { UserController } from "./controllers/UserController";
 import { PostController } from "./controllers/PostController";
 
@@ -109,7 +109,7 @@ O AzuraJS fornece decorators de parâmetro para injetar dados da requisição di
 | `@Session()` | O objeto de sessão |
 
 ```typescript
-import { Controller, Get, Post, Param, Query, Body, Ip } from "azurats/decorators";
+import { Controller, Get, Post, Param, Query, Body, Ip } from "azurajs/decorators";
 
 @Controller("/api/users")
 export class UserController {
@@ -161,8 +161,8 @@ Aqui está um controller completo implementando todas as operações CRUD para u
 import {
   Controller, Get, Post, Put, Delete,
   Param, Body, Res,
-} from "azurats/decorators";
-import type { AzuraResponse } from "azurats/types";
+} from "azurajs/decorators";
+import type { AzuraResponse } from "azurajs/types";
 
 interface User {
   id: number;
@@ -223,7 +223,7 @@ export class UserController {
 Registre-o no seu arquivo de entrada:
 
 ```typescript
-import { AzuraServer } from "azurats";
+import { AzuraServer } from "azurajs";
 import { UserController } from "./controllers/UserController";
 
 const app = new AzuraServer({ server: { port: 3000 } });
@@ -236,8 +236,8 @@ app.listen();
 Aplique middleware em todas as rotas de um controller usando `@UseMiddleware` no nível da classe:
 
 ```typescript
-import { Controller, Get, UseMiddleware } from "azurats/decorators";
-import type { AzuraRequest, AzuraResponse, NextFunction } from "azurats/types";
+import { Controller, Get, UseMiddleware } from "azurajs/decorators";
+import type { AzuraRequest, AzuraResponse, NextFunction } from "azurajs/types";
 
 const requireAuth = (req: AzuraRequest, res: AzuraResponse, next: NextFunction) => {
   if (!req.headers.authorization) {

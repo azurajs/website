@@ -15,7 +15,7 @@ AzuraJS includes a built-in `Logger` class and a `LoggingMiddleware` that adds r
 Import the singleton `logger` instance or create your own:
 
 ```typescript
-import { Logger, logger } from "azurats/utils";
+import { Logger, logger } from "azurajs/utils";
 
 // Use the pre-configured singleton
 logger.info("Server starting");
@@ -83,11 +83,11 @@ log.request("GET", "/api/users", 200, durationInBigint);
 
 ## LoggingMiddleware
 
-`LoggingMiddleware` from `azurats/middleware` is a plugin-compatible handler that measures response time and attaches an `X-Response-Time` header.
+`LoggingMiddleware` from `azurajs/middleware` is a plugin-compatible handler that measures response time and attaches an `X-Response-Time` header.
 
 ```typescript
-import { AzuraServer } from "azurats";
-import { LoggingMiddleware } from "azurats/middleware";
+import { AzuraServer } from "azurajs";
+import { LoggingMiddleware } from "azurajs/middleware";
 
 const app = new AzuraServer();
 
@@ -119,7 +119,7 @@ app.listen(3000);
 You can integrate the built-in logger with external systems:
 
 ```typescript
-import { Logger } from "azurats/utils";
+import { Logger } from "azurajs/utils";
 
 const log = new Logger({ level: "debug", prefix: "api" });
 

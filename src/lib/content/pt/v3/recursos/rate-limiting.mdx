@@ -13,8 +13,8 @@ O **RateLimitPlugin** protege sua API contra abuso limitando o número de requis
 ## Início Rápido
 
 ```typescript
-import { AzuraServer } from "azurats";
-import { RateLimitPlugin } from "azurats/plugins";
+import { AzuraServer } from "azurajs";
+import { RateLimitPlugin } from "azurajs/plugins";
 
 const app = new AzuraServer();
 
@@ -188,8 +188,8 @@ app.plugin(RateLimitPlugin({
 Aplique limites diferentes para diferentes partes da API usando múltiplas instâncias do plugin como middleware de rota:
 
 ```typescript
-import { AzuraServer } from "azurats";
-import { RateLimitPlugin } from "azurats/plugins";
+import { AzuraServer } from "azurajs";
+import { RateLimitPlugin } from "azurajs/plugins";
 
 const app = new AzuraServer();
 

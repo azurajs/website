@@ -13,8 +13,8 @@ The `RateLimitPlugin` uses a **sliding-window** algorithm to limit the number of
 ## Quick Start
 
 ```typescript
-import { AzuraServer } from "azurats";
-import { RateLimitPlugin } from "azurats/plugins";
+import { AzuraServer } from "azurajs";
+import { RateLimitPlugin } from "azurajs/plugins";
 
 const app = new AzuraServer();
 
@@ -76,8 +76,8 @@ Entries older than `windowMs` are continuously pruned, giving clients a smooth s
 Apply different limits to different parts of your API:
 
 ```typescript
-import { AzuraServer } from "azurats";
-import { RateLimitPlugin } from "azurats/plugins";
+import { AzuraServer } from "azurajs";
+import { RateLimitPlugin } from "azurajs/plugins";
 
 const app = new AzuraServer();
 

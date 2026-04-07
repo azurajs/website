@@ -13,8 +13,8 @@ O **SSEPlugin** e o **SSEManager** permitem comunicação em tempo real do servi
 ## Início Rápido
 
 ```typescript
-import { AzuraServer } from "azurats";
-import { SSEPlugin } from "azurats/plugins";
+import { AzuraServer } from "azurajs";
+import { SSEPlugin } from "azurajs/plugins";
 
 const app = new AzuraServer();
 
@@ -76,7 +76,7 @@ O header `X-Accel-Buffering: no` previne que proxies como Nginx façam buffer da
 O `SSEManager` gerencia todos os clientes conectados e permite envio de mensagens:
 
 ```typescript
-import { SSEManager } from "azurats/plugins";
+import { SSEManager } from "azurajs/plugins";
 
 const manager = new SSEManager();
 ```
@@ -298,8 +298,8 @@ function Dashboard() {
 ### Dashboard em Tempo Real
 
 ```typescript
-import { AzuraServer } from "azurats";
-import { SSEPlugin } from "azurats/plugins";
+import { AzuraServer } from "azurajs";
+import { SSEPlugin } from "azurajs/plugins";
 
 const app = new AzuraServer();
 

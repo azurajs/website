@@ -15,8 +15,8 @@ O AzuraJS v3 é distribuído com **15 plugins integrados** que cobrem segurança
 Um plugin é uma função que recebe um `PluginContext` (contendo `req` e `res`) e um callback `next`. Plugins executam **antes** de middleware global e route handlers.
 
 ```typescript
-import { AzuraServer } from "azurats";
-import { CORSPlugin } from "azurats/plugins";
+import { AzuraServer } from "azurajs";
+import { CORSPlugin } from "azurajs/plugins";
 
 const app = new AzuraServer();
 
@@ -30,7 +30,7 @@ Registre um plugin com `app.plugin()`. Cada função factory aceita um objeto de
 ### Assinatura do PluginHandler
 
 ```typescript
-import type { PluginContext, NextFunction } from "azurats/types";
+import type { PluginContext, NextFunction } from "azurajs/types";
 
 type PluginHandler = (
   ctx: PluginContext,
@@ -47,25 +47,25 @@ interface PluginContext {
 
 | Plugin | Import | Propósito |
 | :--- | :--- | :--- |
-| **CORSPlugin** | `azurats/plugins` | Headers Cross-Origin Resource Sharing e tratamento de preflight |
-| **RateLimitPlugin** | `azurats/plugins` | Rate limiting com sliding window por IP ou chave personalizada |
-| **HelmetPlugin** | `azurats/plugins` | Headers de segurança (CSP, HSTS, X-Frame-Options, etc.) |
-| **JWTPlugin** | `azurats/plugins` | Proteção de rotas baseada em JWT com extração automática de token |
-| **SessionPlugin** | `azurats/plugins` | Sessões baseadas em cookies com stores plugáveis |
-| **CompressionPlugin** | `azurats/plugins` | Compressão de respostas Gzip / Deflate |
-| **StaticPlugin** | `azurats/plugins` | Servir arquivos estáticos com cache e suporte a ETag |
-| **ETagPlugin** | `azurats/plugins` | Geração automática de ETag e respostas 304 |
-| **RequestIdPlugin** | `azurats/plugins` | ID único de requisição via header `X-Request-Id` |
-| **TimeoutPlugin** | `azurats/plugins` | Imposição de timeout em requisições |
-| **HealthCheckPlugin** | `azurats/plugins` | Endpoint `/health` com checks customizados de dependências |
-| **CircuitBreakerPlugin** | `azurats/plugins` | Padrão circuit breaker para tolerância a falhas |
-| **ProxyPlugin** | `azurats/plugins` | Proxy reverso / encaminhamento de API gateway |
-| **SSEPlugin** | `azurats/plugins` | Server-Sent Events com gerenciamento de clientes |
-| **MultipartPlugin** | `azurats/plugins` | Parsing de upload de arquivos `multipart/form-data` |
+| **CORSPlugin** | `azurajs/plugins` | Headers Cross-Origin Resource Sharing e tratamento de preflight |
+| **RateLimitPlugin** | `azurajs/plugins` | Rate limiting com sliding window por IP ou chave personalizada |
+| **HelmetPlugin** | `azurajs/plugins` | Headers de segurança (CSP, HSTS, X-Frame-Options, etc.) |
+| **JWTPlugin** | `azurajs/plugins` | Proteção de rotas baseada em JWT com extração automática de token |
+| **SessionPlugin** | `azurajs/plugins` | Sessões baseadas em cookies com stores plugáveis |
+| **CompressionPlugin** | `azurajs/plugins` | Compressão de respostas Gzip / Deflate |
+| **StaticPlugin** | `azurajs/plugins` | Servir arquivos estáticos com cache e suporte a ETag |
+| **ETagPlugin** | `azurajs/plugins` | Geração automática de ETag e respostas 304 |
+| **RequestIdPlugin** | `azurajs/plugins` | ID único de requisição via header `X-Request-Id` |
+| **TimeoutPlugin** | `azurajs/plugins` | Imposição de timeout em requisições |
+| **HealthCheckPlugin** | `azurajs/plugins` | Endpoint `/health` com checks customizados de dependências |
+| **CircuitBreakerPlugin** | `azurajs/plugins` | Padrão circuit breaker para tolerância a falhas |
+| **ProxyPlugin** | `azurajs/plugins` | Proxy reverso / encaminhamento de API gateway |
+| **SSEPlugin** | `azurajs/plugins` | Server-Sent Events com gerenciamento de clientes |
+| **MultipartPlugin** | `azurajs/plugins` | Parsing de upload de arquivos `multipart/form-data` |
 
 ### Import Rápido
 
-Todos os plugins podem ser importados de `azurats/plugins` ou diretamente do pacote raiz `azurats`:
+Todos os plugins podem ser importados de `azurajs/plugins` ou diretamente do pacote raiz `azurajs`:
 
 ```typescript
 import {
@@ -84,13 +84,13 @@ import {
   ProxyPlugin,
   SSEPlugin,
   MultipartPlugin,
-} from "azurats/plugins";
+} from "azurajs/plugins";
 ```
 
-Funções auxiliares como `signJWT` e `verifyJWT` também são exportadas de `azurats/plugins`:
+Funções auxiliares como `signJWT` e `verifyJWT` também são exportadas de `azurajs/plugins`:
 
 ```typescript
-import { signJWT, verifyJWT } from "azurats/plugins";
+import { signJWT, verifyJWT } from "azurajs/plugins";
 ```
 
 ## Ordem de Execução dos Plugins
@@ -157,7 +157,7 @@ Quando `app.use()` recebe uma função com 2 parâmetros ou menos, ela é tratad
 Qualquer função que corresponda à assinatura `PluginHandler` funciona como plugin:
 
 ```typescript
-import type { PluginHandler } from "azurats/types";
+import type { PluginHandler } from "azurajs/types";
 
 function TimingPlugin(): PluginHandler {
   return (ctx, next) => {
@@ -199,7 +199,7 @@ function AuthPlugin(apiUrl: string): PluginHandler {
 ## Exemplo Completo de Produção
 
 ```typescript
-import { AzuraServer } from "azurats";
+import { AzuraServer } from "azurajs";
 import {
   CORSPlugin,
   HelmetPlugin,
@@ -209,9 +209,9 @@ import {
   HealthCheckPlugin,
   JWTPlugin,
   TimeoutPlugin,
-} from "azurats/plugins";
-import { LoggingMiddleware } from "azurats/middleware";
-import { HttpError } from "azurats/utils";
+} from "azurajs/plugins";
+import { LoggingMiddleware } from "azurajs/middleware";
+import { HttpError } from "azurajs/utils";
 
 const app = new AzuraServer({
   environment: "production",

@@ -16,7 +16,7 @@ Create a declaration file anywhere in your project (e.g. `src/types/azura.d.ts`)
 
 ```typescript
 // src/types/azura.d.ts
-declare module "azurats/types" {
+declare module "azurajs/types" {
   interface AzuraRequest {
     user?: {
       id: string;
@@ -41,8 +41,8 @@ The file must be included by your `tsconfig.json` (either via `include` or `file
 Once declared, every reference to `AzuraRequest` picks up the new properties:
 
 ```typescript
-import { AzuraServer } from "azurats/core";
-import type { AzuraRequest, AzuraResponse, NextFunction } from "azurats/types";
+import { AzuraServer } from "azurajs/core";
+import type { AzuraRequest, AzuraResponse, NextFunction } from "azurajs/types";
 
 const app = new AzuraServer();
 
@@ -71,8 +71,8 @@ app.get("/profile", (req: AzuraRequest, res: AzuraResponse) => {
 A common pattern is an authentication middleware that verifies a token and attaches the decoded user:
 
 ```typescript
-import type { MiddlewareHandler } from "azurats/types";
-import { HttpError } from "azurats/utils";
+import type { MiddlewareHandler } from "azurajs/types";
+import { HttpError } from "azurajs/utils";
 
 export const authMiddleware: MiddlewareHandler = async (req, res, next) => {
   const header = req.headers["authorization"];
@@ -101,7 +101,7 @@ You can add custom response helpers the same way:
 
 ```typescript
 // src/types/azura.d.ts
-declare module "azurats/types" {
+declare module "azurajs/types" {
   interface AzuraResponse {
     success(data: unknown, message?: string): void;
     fail(statusCode: number, error: string, details?: unknown): void;
@@ -112,7 +112,7 @@ declare module "azurats/types" {
 Then implement them in a middleware that runs early in the chain:
 
 ```typescript
-import type { MiddlewareHandler } from "azurats/types";
+import type { MiddlewareHandler } from "azurajs/types";
 
 export const responseHelpers: MiddlewareHandler = (req, res, next) => {
   res.success = (data, message = "OK") => {
@@ -130,8 +130,8 @@ export const responseHelpers: MiddlewareHandler = (req, res, next) => {
 Usage in a route handler:
 
 ```typescript
-import { Controller, Get, Post, Body, Res } from "azurats/decorators";
-import type { AzuraResponse } from "azurats/types";
+import { Controller, Get, Post, Body, Res } from "azurajs/decorators";
+import type { AzuraResponse } from "azurajs/types";
 
 @Controller("/api/items")
 export class ItemController {
@@ -157,7 +157,7 @@ You can place all augmentations in a single file or split them across multiple `
 
 ```typescript
 // src/types/azura.d.ts
-declare module "azurats/types" {
+declare module "azurajs/types" {
   interface AzuraRequest {
     user?: { id: string; email: string; roles: string[] };
     session?: { id: string; data: Record<string, unknown> };

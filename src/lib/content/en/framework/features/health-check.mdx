@@ -13,8 +13,8 @@ The `HealthCheckPlugin` registers a dedicated endpoint (default `/health`) that 
 ## Quick Start
 
 ```typescript
-import { AzuraServer } from "azurats";
-import { HealthCheckPlugin } from "azurats/plugins";
+import { AzuraServer } from "azurajs";
+import { HealthCheckPlugin } from "azurajs/plugins";
 
 const app = new AzuraServer();
 
@@ -210,8 +210,8 @@ The health endpoint does not call `next()`. It terminates the request directly, 
 ## Production Example
 
 ```typescript
-import { AzuraServer } from "azurats";
-import { HealthCheckPlugin, HelmetPlugin, CORSPlugin } from "azurats/plugins";
+import { AzuraServer } from "azurajs";
+import { HealthCheckPlugin, HelmetPlugin, CORSPlugin } from "azurajs/plugins";
 
 const app = new AzuraServer();
 

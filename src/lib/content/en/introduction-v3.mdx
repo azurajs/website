@@ -13,7 +13,7 @@ order: 1
 AzuraJS is an **ultra-fast, TypeScript-first web framework** built from the ground up for Node.js and Bun. Version 3.0 is a complete rewrite with **zero external dependencies**, a radix-tree router with LRU caching, 15+ built-in plugins, and first-class decorator support.
 
 <Callout type="info" title="What's new in v3?">
-  AzuraJS v3 is a major release. The package has been renamed to **azurats**, the core class is now `AzuraServer`, and the entire plugin and type system has been redesigned. If you're upgrading from v2, check the existing Framework docs for the old API.
+  AzuraJS v3 is a major release. The package has been renamed to **azurajs**, the core class is now `AzuraServer`, and the entire plugin and type system has been redesigned. If you're upgrading from v2, check the existing Framework docs for the old API.
 </Callout>
 
 ## Why AzuraJS v3?
@@ -38,7 +38,7 @@ AzuraJS is an **ultra-fast, TypeScript-first web framework** built from the grou
 - **Express-Style Routing** — Prefer functional routing? Use `app.get()`, `app.post()`, etc., just like Express — no decorators required.
 - **TypeScript-First** — Written entirely in TypeScript with full type coverage. Strong types for requests, responses, configuration, and plugins.
 - **Node.js & Bun** — Runs on Node.js 18+ and Bun with no extra configuration needed.
-- **Modular Imports** — Import only what you need: `azurats/core`, `azurats/plugins`, `azurats/decorators`, `azurats/types`, `azurats/utils`, `azurats/config`, `azurats/middleware`.
+- **Modular Imports** — Import only what you need: `azurajs/core`, `azurajs/plugins`, `azurajs/decorators`, `azurajs/types`, `azurajs/utils`, `azurajs/config`, `azurajs/middleware`.
 - **Config File System** — Automatically loads `azura.config.ts`, `.js`, `.json`, or `.yaml` from your project root.
 - **Built-in Validation** — `DTOValidator` for schema-based validation and `SchemaValidator` for Zod-compatible schemas.
 - **Structured Error Handling** — `HttpError.notFound()`, `HttpError.badRequest()`, and more provide consistent, JSON-serializable error responses.
@@ -46,7 +46,7 @@ AzuraJS is an **ultra-fast, TypeScript-first web framework** built from the grou
 ## Quick Example
 
 ```typescript
-import { AzuraServer, CORSPlugin, HelmetPlugin, RateLimitPlugin } from "azurats";
+import { AzuraServer, CORSPlugin, HelmetPlugin, RateLimitPlugin } from "azurajs";
 
 const app = new AzuraServer({
   server: { port: 3000 },
@@ -76,8 +76,8 @@ app.listen(3000, () => {
 Or with **decorators**:
 
 ```typescript
-import { AzuraServer } from "azurats/core";
-import { Controller, Get, Param } from "azurats/decorators";
+import { AzuraServer } from "azurajs/core";
+import { Controller, Get, Param } from "azurajs/decorators";
 
 @Controller("/users")
 class UserController {

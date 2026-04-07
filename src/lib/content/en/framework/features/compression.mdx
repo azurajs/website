@@ -13,8 +13,8 @@ The `CompressionPlugin` transparently compresses response bodies using **gzip** 
 ## Quick Start
 
 ```typescript
-import { AzuraServer } from "azurats";
-import { CompressionPlugin } from "azurats/plugins";
+import { AzuraServer } from "azurajs";
+import { CompressionPlugin } from "azurajs/plugins";
 
 const app = new AzuraServer();
 
@@ -114,7 +114,7 @@ Level 6 provides a good trade-off between compression ratio and CPU usage for mo
 Register `ETagPlugin` **before** `CompressionPlugin` so the ETag is computed on the uncompressed body:
 
 ```typescript
-import { ETagPlugin, CompressionPlugin } from "azurats/plugins";
+import { ETagPlugin, CompressionPlugin } from "azurajs/plugins";
 
 app.plugin(ETagPlugin());
 app.plugin(CompressionPlugin());

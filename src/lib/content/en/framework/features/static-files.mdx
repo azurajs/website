@@ -13,8 +13,8 @@ The `StaticPlugin` serves files from a directory on disk, handling MIME detectio
 ## Quick Start
 
 ```typescript
-import { AzuraServer } from "azurats";
-import { StaticPlugin } from "azurats/plugins";
+import { AzuraServer } from "azurajs";
+import { StaticPlugin } from "azurajs/plugins";
 
 const app = new AzuraServer();
 
@@ -139,7 +139,7 @@ Path traversal is prevented — requests containing `..` segments are rejected b
 ## Production Configuration
 
 ```typescript
-import { StaticPlugin, CompressionPlugin, HelmetPlugin } from "azurats/plugins";
+import { StaticPlugin, CompressionPlugin, HelmetPlugin } from "azurajs/plugins";
 
 app.plugin(HelmetPlugin());
 app.plugin(CompressionPlugin({ threshold: 1024 }));

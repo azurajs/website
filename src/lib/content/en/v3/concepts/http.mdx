@@ -11,7 +11,7 @@ order: 5
 Every HTTP interaction in AzuraJS flows through two enhanced objects: `AzuraRequest` and `AzuraResponse`. They extend Node.js's native `IncomingMessage` and `ServerResponse` with a rich set of properties and methods designed for modern API development.
 
 ```typescript
-import type { AzuraRequest, AzuraResponse } from "azurats/types";
+import type { AzuraRequest, AzuraResponse } from "azurajs/types";
 ```
 
 ## Request Lifecycle
@@ -330,9 +330,9 @@ const safeMiddleware = (req, res, next) => {
 ## Full Request/Response Example
 
 ```typescript
-import { AzuraServer } from "azurats";
-import { Controller, Get, Post, Put, Delete, Param, Body, Query, Req, Res, Ip, Cookies } from "azurats/decorators";
-import type { AzuraRequest, AzuraResponse } from "azurats/types";
+import { AzuraServer } from "azurajs";
+import { Controller, Get, Post, Put, Delete, Param, Body, Query, Req, Res, Ip, Cookies } from "azurajs/decorators";
+import type { AzuraRequest, AzuraResponse } from "azurajs/types";
 
 @Controller("/api/users")
 class UserController {
@@ -388,7 +388,7 @@ app.listen();
 
 ## TypeScript Types
 
-All request/response types are available from `azurats/types`:
+All request/response types are available from `azurajs/types`:
 
 ```typescript
 import type {
@@ -400,7 +400,7 @@ import type {
   ErrorHandler,
   HttpMethod,
   CookieOptions,
-} from "azurats/types";
+} from "azurajs/types";
 ```
 
 | Type | Description |

@@ -13,8 +13,8 @@ O **ProxyPlugin** implementa proxy reverso para encaminhar requisições a servi
 ## Início Rápido
 
 ```typescript
-import { AzuraServer } from "azurats";
-import { ProxyPlugin } from "azurats/plugins";
+import { AzuraServer } from "azurajs";
+import { ProxyPlugin } from "azurajs/plugins";
 
 const app = new AzuraServer();
 
@@ -216,14 +216,14 @@ Para métodos GET e HEAD, o proxy é finalizado sem corpo.
 ### API Gateway com Microsserviços
 
 ```typescript
-import { AzuraServer } from "azurats";
+import { AzuraServer } from "azurajs";
 import {
   ProxyPlugin,
   HelmetPlugin,
   CORSPlugin,
   RateLimitPlugin,
   RequestIdPlugin,
-} from "azurats/plugins";
+} from "azurajs/plugins";
 
 const app = new AzuraServer();
 
@@ -261,7 +261,7 @@ app.listen(3000);
 ### Proxy com Autenticação
 
 ```typescript
-import { JWTPlugin, ProxyPlugin } from "azurats/plugins";
+import { JWTPlugin, ProxyPlugin } from "azurajs/plugins";
 
 const app = new AzuraServer();
 

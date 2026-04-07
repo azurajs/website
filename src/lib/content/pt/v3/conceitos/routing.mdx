@@ -21,7 +21,7 @@ O AzuraJS suporta duas abordagens complementares para definir rotas. Você pode 
 <Tabs items={["Estilo Express", "Baseado em Decorators"]}>
 <Tab value="Estilo Express">
 ```typescript
-import { AzuraServer } from "azurats";
+import { AzuraServer } from "azurajs";
 
 const app = new AzuraServer();
 
@@ -38,8 +38,8 @@ app.listen();
 </Tab>
 <Tab value="Baseado em Decorators">
 ```typescript
-import { AzuraServer } from "azurats";
-import { Controller, Get, Post, Body } from "azurats/decorators";
+import { AzuraServer } from "azurajs";
+import { Controller, Get, Post, Body } from "azurajs/decorators";
 
 @Controller("/users")
 class UserController {
@@ -220,7 +220,7 @@ Ambos os estilos de roteamento suportam middleware específico de rota. Funçõe
 <Tabs items={["Estilo Express", "Baseado em Decorators"]}>
 <Tab value="Estilo Express">
 ```typescript
-import type { AzuraRequest, AzuraResponse, NextFunction } from "azurats/types";
+import type { AzuraRequest, AzuraResponse, NextFunction } from "azurajs/types";
 
 const logRoute = (req: AzuraRequest, res: AzuraResponse, next: NextFunction) => {
   console.log(`${req.method} ${req.pathname}`);
@@ -241,8 +241,8 @@ app.get("/users/:id", logRoute, validateId, (req, res) => {
 </Tab>
 <Tab value="Baseado em Decorators">
 ```typescript
-import { Controller, Get, Param, UseMiddleware } from "azurats/decorators";
-import type { AzuraRequest, AzuraResponse, NextFunction } from "azurats/types";
+import { Controller, Get, Param, UseMiddleware } from "azurajs/decorators";
+import type { AzuraRequest, AzuraResponse, NextFunction } from "azurajs/types";
 
 const validateId = (req: AzuraRequest, res: AzuraResponse, next: NextFunction) => {
   if (isNaN(Number(req.params.id))) {
