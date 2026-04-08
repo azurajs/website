@@ -8,6 +8,7 @@
   import astralLogo from "$lib/assets/partners/astral-ia.png";
   import quackLogo from "$lib/assets/partners/quackpay.png";
   import teamProgrammingLogo from "$lib/assets/partners/teamprogramming.png";
+  import cheetahSolutions from "$lib/assets/partners/cheetah.png";
 
   const partners = [
     {
@@ -48,13 +49,18 @@
     {
       name: "Quack Pay",
       logo: quackLogo,
-      url: "https://quackpay.com,br/",
+      url: "https://quackpay.com.br/",
     },
     {
       name: "Team Programming",
       logo: teamProgrammingLogo,
       url: "https://discord.gg/teamprogramming",
     },
+    {
+      name: "Cheetah Solutions",
+      logo: cheetahSolutions,
+      url: "https://cheetahsolutions.com.br"
+    }
   ];
 </script>
 

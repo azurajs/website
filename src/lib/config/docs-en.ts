@@ -107,6 +107,6 @@ export const docsConfig = {
 
 export const frameworkOptions = [
   { id: "framework", label: "AzuraJS Framework", icon: "lucide:box" },
-  { id: "v3", label: "Framework v3", icon: "lucide:zap" },
+  { id: "v3", label: "AzuraJS Framework v3", icon: "lucide:zap" },
   { id: "cdn", label: "@azurajs/cdn", icon: "lucide:globe" },
 ];
