@@ -13,8 +13,8 @@ O AzuraJS v3 inclui um sistema JWT completo e nativo — sem dependências exter
 ## Import
 
 ```typescript
-import { JWTPlugin, signJWT, verifyJWT } from "azurats/plugins";
-import type { JWTPayload } from "azurats/plugins";
+import { JWTPlugin, signJWT, verifyJWT } from "azurajs/plugins";
+import type { JWTPayload } from "azurajs/plugins";
 ```
 
 ## signJWT — Criando Tokens
@@ -100,8 +100,8 @@ interface JWTPayload {
 O `JWTPlugin` verifica tokens automaticamente e popula `req.user` com o payload decodificado.
 
 ```typescript
-import { AzuraServer } from "azurats";
-import { JWTPlugin } from "azurats/plugins";
+import { AzuraServer } from "azurajs";
+import { JWTPlugin } from "azurajs/plugins";
 
 const app = new AzuraServer();
 
@@ -187,9 +187,9 @@ Quando o token é inválido ou ausente, o plugin retorna status `401`:
 ## Exemplo Completo: API de Autenticação
 
 ```typescript
-import { AzuraServer } from "azurats";
-import { JWTPlugin, signJWT } from "azurats/plugins";
-import { HttpError } from "azurats/utils";
+import { AzuraServer } from "azurajs";
+import { JWTPlugin, signJWT } from "azurajs/plugins";
+import { HttpError } from "azurajs/utils";
 
 const app = new AzuraServer();
 const JWT_SECRET = process.env.JWT_SECRET!;

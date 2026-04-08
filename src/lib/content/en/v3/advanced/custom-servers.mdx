@@ -15,7 +15,7 @@ order: 4
 AzuraJS creates an HTTPS server automatically when you supply a `server.https` block in the config. No additional code is required — `app.listen()` detects the TLS options and switches from `http.createServer` to `https.createServer`.
 
 ```typescript
-import { AzuraServer } from "azurats/core";
+import { AzuraServer } from "azurajs/core";
 
 const app = new AzuraServer({
   server: {
@@ -63,7 +63,7 @@ For local development you can generate self-signed certificates with `mkcert` or
 | `maxHeaderSize` | Node default | Maximum allowed size of HTTP headers in bytes |
 
 ```typescript
-import { AzuraServer } from "azurats/core";
+import { AzuraServer } from "azurajs/core";
 
 const app = new AzuraServer({
   server: {
@@ -101,9 +101,9 @@ interface ServerConfig {
 By default, `AzuraServer` catches exceptions thrown in route handlers and returns a structured JSON response. You can override this behaviour with `app.onError()`:
 
 ```typescript
-import { AzuraServer } from "azurats/core";
-import { HttpError } from "azurats/utils";
-import type { ErrorHandler } from "azurats/types";
+import { AzuraServer } from "azurajs/core";
+import { HttpError } from "azurajs/utils";
+import type { ErrorHandler } from "azurajs/types";
 
 const app = new AzuraServer({ environment: "production" });
 
@@ -149,7 +149,7 @@ When no custom error handler is registered:
 `HttpError` provides static methods for every common status code:
 
 ```typescript
-import { HttpError } from "azurats/utils";
+import { HttpError } from "azurajs/utils";
 
 throw HttpError.badRequest("Missing required field");     // 400
 throw HttpError.unauthorized("Invalid token");            // 401
@@ -165,7 +165,7 @@ throw HttpError.tooManyRequests("Rate limit exceeded");   // 429
 A production server should stop accepting new connections, wait for in-flight requests to finish, and then exit cleanly. `AzuraServer` exposes an `async close()` method that wraps `server.close()`:
 
 ```typescript
-import { AzuraServer } from "azurats/core";
+import { AzuraServer } from "azurajs/core";
 
 const app = new AzuraServer({ server: { port: 3000 } });
 
@@ -211,10 +211,10 @@ async function shutdown(signal: string) {
 Putting it all together — HTTPS, tuned timeouts, custom error handling, and graceful shutdown:
 
 ```typescript
-import { AzuraServer } from "azurats/core";
-import { CORSPlugin, HelmetPlugin, RateLimitPlugin, CompressionPlugin } from "azurats/plugins";
-import { LoggingMiddleware } from "azurats/middleware";
-import { HttpError } from "azurats/utils";
+import { AzuraServer } from "azurajs/core";
+import { CORSPlugin, HelmetPlugin, RateLimitPlugin, CompressionPlugin } from "azurajs/plugins";
+import { LoggingMiddleware } from "azurajs/middleware";
+import { HttpError } from "azurajs/utils";
 
 const app = new AzuraServer({
   environment: "production",

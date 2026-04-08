@@ -15,8 +15,8 @@ AzuraJS ships with **15 built-in plugins** that cover security, performance, rea
 A plugin is a function that receives a `PluginContext` (containing `req` and `res`) and a `next` callback. Plugins run **before** global middleware and route handlers.
 
 ```typescript
-import { AzuraServer } from "azurats";
-import { CORSPlugin } from "azurats/plugins";
+import { AzuraServer } from "azurajs";
+import { CORSPlugin } from "azurajs/plugins";
 
 const app = new AzuraServer();
 
@@ -31,21 +31,21 @@ Register a plugin with `app.plugin()`. Each factory function accepts an options 
 
 | Plugin | Import | Purpose |
 | :--- | :--- | :--- |
-| **CORSPlugin** | `azurats/plugins` | Cross-Origin Resource Sharing headers and preflight handling |
-| **RateLimitPlugin** | `azurats/plugins` | Sliding-window rate limiting per IP or custom key |
-| **HelmetPlugin** | `azurats/plugins` | Security headers (CSP, HSTS, X-Frame-Options, etc.) |
-| **JWTPlugin** | `azurats/plugins` | JWT-based route protection with automatic token extraction |
-| **SessionPlugin** | `azurats/plugins` | Cookie-based sessions with pluggable stores |
-| **CompressionPlugin** | `azurats/plugins` | Gzip / Deflate response compression |
-| **StaticPlugin** | `azurats/plugins` | Static file serving with caching and ETag support |
-| **ETagPlugin** | `azurats/plugins` | Automatic ETag generation and 304 responses |
-| **RequestIdPlugin** | `azurats/plugins` | Unique request ID via `X-Request-Id` header |
-| **TimeoutPlugin** | `azurats/plugins` | Request timeout enforcement |
-| **HealthCheckPlugin** | `azurats/plugins` | `/health` endpoint with custom dependency checks |
-| **CircuitBreakerPlugin** | `azurats/plugins` | Fault-tolerance circuit breaker pattern |
-| **ProxyPlugin** | `azurats/plugins` | Reverse proxy / API gateway forwarding |
-| **SSEPlugin** | `azurats/plugins` | Server-Sent Events with client management |
-| **MultipartPlugin** | `azurats/plugins` | `multipart/form-data` file upload parsing |
+| **CORSPlugin** | `azurajs/plugins` | Cross-Origin Resource Sharing headers and preflight handling |
+| **RateLimitPlugin** | `azurajs/plugins` | Sliding-window rate limiting per IP or custom key |
+| **HelmetPlugin** | `azurajs/plugins` | Security headers (CSP, HSTS, X-Frame-Options, etc.) |
+| **JWTPlugin** | `azurajs/plugins` | JWT-based route protection with automatic token extraction |
+| **SessionPlugin** | `azurajs/plugins` | Cookie-based sessions with pluggable stores |
+| **CompressionPlugin** | `azurajs/plugins` | Gzip / Deflate response compression |
+| **StaticPlugin** | `azurajs/plugins` | Static file serving with caching and ETag support |
+| **ETagPlugin** | `azurajs/plugins` | Automatic ETag generation and 304 responses |
+| **RequestIdPlugin** | `azurajs/plugins` | Unique request ID via `X-Request-Id` header |
+| **TimeoutPlugin** | `azurajs/plugins` | Request timeout enforcement |
+| **HealthCheckPlugin** | `azurajs/plugins` | `/health` endpoint with custom dependency checks |
+| **CircuitBreakerPlugin** | `azurajs/plugins` | Fault-tolerance circuit breaker pattern |
+| **ProxyPlugin** | `azurajs/plugins` | Reverse proxy / API gateway forwarding |
+| **SSEPlugin** | `azurajs/plugins` | Server-Sent Events with client management |
+| **MultipartPlugin** | `azurajs/plugins` | `multipart/form-data` file upload parsing |
 
 ### Quick Import Example
 
@@ -66,7 +66,7 @@ import {
   ProxyPlugin,
   SSEPlugin,
   MultipartPlugin,
-} from "azurats/plugins";
+} from "azurajs/plugins";
 ```
 
 ## Plugin Execution Order
@@ -106,7 +106,7 @@ Plugins registered with `app.plugin()` always run before middleware added with `
 Any function matching the `PluginHandler` signature works as a plugin:
 
 ```typescript
-import type { PluginContext, NextFunction } from "azurats/plugins";
+import type { PluginContext, NextFunction } from "azurajs/plugins";
 
 function TimingPlugin() {
   return (ctx: PluginContext, next: NextFunction) => {

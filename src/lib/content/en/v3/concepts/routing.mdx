@@ -21,7 +21,7 @@ AzuraJS supports two complementary approaches to defining routes. You can mix an
 <Tabs items={["Express-style", "Decorator-based"]}>
 <Tab value="Express-style">
 ```typescript
-import { AzuraServer } from "azurats";
+import { AzuraServer } from "azurajs";
 
 const app = new AzuraServer();
 
@@ -38,8 +38,8 @@ app.listen();
 </Tab>
 <Tab value="Decorator-based">
 ```typescript
-import { AzuraServer } from "azurats";
-import { Controller, Get, Post, Body } from "azurats/decorators";
+import { AzuraServer } from "azurajs";
+import { Controller, Get, Post, Body } from "azurajs/decorators";
 
 @Controller("/users")
 class UserController {
@@ -220,7 +220,7 @@ Both routing styles support route-specific middleware. Middleware functions run 
 <Tabs items={["Express-style", "Decorator-based"]}>
 <Tab value="Express-style">
 ```typescript
-import type { AzuraRequest, AzuraResponse, NextFunction } from "azurats/types";
+import type { AzuraRequest, AzuraResponse, NextFunction } from "azurajs/types";
 
 const logRoute = (req: AzuraRequest, res: AzuraResponse, next: NextFunction) => {
   console.log(`${req.method} ${req.pathname}`);
@@ -241,8 +241,8 @@ app.get("/users/:id", logRoute, validateId, (req, res) => {
 </Tab>
 <Tab value="Decorator-based">
 ```typescript
-import { Controller, Get, Param, UseMiddleware } from "azurats/decorators";
-import type { AzuraRequest, AzuraResponse, NextFunction } from "azurats/types";
+import { Controller, Get, Param, UseMiddleware } from "azurajs/decorators";
+import type { AzuraRequest, AzuraResponse, NextFunction } from "azurajs/types";
 
 const validateId = (req: AzuraRequest, res: AzuraResponse, next: NextFunction) => {
   if (isNaN(Number(req.params.id))) {

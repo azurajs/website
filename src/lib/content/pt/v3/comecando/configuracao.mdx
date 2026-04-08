@@ -19,7 +19,7 @@ Existem duas formas de configurar sua aplicação AzuraJS:
 Passe um objeto `AzuraConfig` diretamente para o construtor do `AzuraServer`:
 
 ```typescript
-import { AzuraServer } from "azurats";
+import { AzuraServer } from "azurajs";
 
 const app = new AzuraServer({
   environment: "production",
@@ -59,7 +59,7 @@ Crie um arquivo de configuração na raiz do seu projeto. O `ConfigModule` busca
 <Tab value="TypeScript">
 ```typescript
 // azura.config.ts
-import type { AzuraConfig } from "azurats/types";
+import type { AzuraConfig } from "azurajs/types";
 
 const config: AzuraConfig = {
   environment: "development",
@@ -98,7 +98,7 @@ export default config;
 ```javascript
 // azura.config.js
 
-/** @type {import('azurats/types').AzuraConfig} */
+/** @type {import('azurajs/types').AzuraConfig} */
 export default {
   environment: "development",
   server: {
@@ -154,7 +154,7 @@ debug: true
 O singleton `ConfigModule` pode ser usado para carregar, ler e mesclar configurações em tempo de execução:
 
 ```typescript
-import { ConfigModule } from "azurats/config";
+import { ConfigModule } from "azurajs/config";
 
 // Carregamento assíncrono (suporta TS/JS/JSON/YAML)
 const config = await ConfigModule.load();
@@ -307,7 +307,7 @@ Exemplo de arquivo de config com configuração de plugins:
 
 ```typescript
 // azura.config.ts
-import type { AzuraConfig } from "azurats/types";
+import type { AzuraConfig } from "azurajs/types";
 
 export default {
   environment: "production",
@@ -349,7 +349,7 @@ Um padrão comum é usar variáveis de ambiente ou lógica condicional no seu ar
 
 ```typescript
 // azura.config.ts
-import type { AzuraConfig } from "azurats/types";
+import type { AzuraConfig } from "azurajs/types";
 
 const isProd = process.env.NODE_ENV === "production";
 
@@ -379,8 +379,8 @@ Quando tanto um argumento do construtor quanto um arquivo de config estão prese
 Se você passar configuração para o construtor, o arquivo de config **não** é carregado automaticamente. Para mesclar ambos, carregue o arquivo de config explicitamente:
 
 ```typescript
-import { AzuraServer } from "azurats/core";
-import { ConfigModule } from "azurats/config";
+import { AzuraServer } from "azurajs/core";
+import { ConfigModule } from "azurajs/config";
 
 const fileConfig = await ConfigModule.load();
 

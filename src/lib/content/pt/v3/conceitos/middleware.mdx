@@ -47,7 +47,7 @@ Plugins usam a assinatura `(ctx, next) => void` onde `ctx` é um `PluginContext`
 ### Escrevendo um Plugin Personalizado
 
 ```typescript
-import type { PluginContext, NextFunction } from "azurats/types";
+import type { PluginContext, NextFunction } from "azurajs/types";
 
 const timingPlugin = (ctx: PluginContext, next: NextFunction) => {
   const start = Date.now();
@@ -66,8 +66,8 @@ const timingPlugin = (ctx: PluginContext, next: NextFunction) => {
 Registre plugins usando `app.plugin()`. Eles executam na ordem de registro.
 
 ```typescript
-import { AzuraServer } from "azurats";
-import { CORSPlugin, HelmetPlugin, RateLimitPlugin } from "azurats/plugins";
+import { AzuraServer } from "azurajs";
+import { CORSPlugin, HelmetPlugin, RateLimitPlugin } from "azurajs/plugins";
 
 const app = new AzuraServer();
 
@@ -85,28 +85,28 @@ O AzuraJS vem com um conjunto abrangente de plugins prontos para produção:
 
 | Plugin | Import | Propósito |
 | :--- | :--- | :--- |
-| `CORSPlugin` | `azurats/plugins` | Cross-Origin Resource Sharing |
-| `HelmetPlugin` | `azurats/plugins` | Cabeçalhos de segurança |
-| `RateLimitPlugin` | `azurats/plugins` | Limitação de taxa de requisições |
-| `CompressionPlugin` | `azurats/plugins` | Compressão de resposta (gzip, deflate, br) |
-| `RequestIdPlugin` | `azurats/plugins` | Geração de ID único por requisição |
-| `HealthCheckPlugin` | `azurats/plugins` | Endpoint de verificação de saúde |
-| `JWTPlugin` | `azurats/plugins` | Autenticação JWT |
-| `SessionPlugin` | `azurats/plugins` | Sessões no lado do servidor |
-| `StaticPlugin` | `azurats/plugins` | Servir arquivos estáticos |
-| `ETagPlugin` | `azurats/plugins` | Cache via ETag |
-| `TimeoutPlugin` | `azurats/plugins` | Timeout de requisição |
-| `CircuitBreakerPlugin` | `azurats/plugins` | Padrão circuit breaker |
-| `ProxyPlugin` | `azurats/plugins` | Proxy reverso |
-| `SSEPlugin` | `azurats/plugins` | Server-Sent Events |
-| `MultipartPlugin` | `azurats/plugins` | Upload multipart/form-data |
+| `CORSPlugin` | `azurajs/plugins` | Cross-Origin Resource Sharing |
+| `HelmetPlugin` | `azurajs/plugins` | Cabeçalhos de segurança |
+| `RateLimitPlugin` | `azurajs/plugins` | Limitação de taxa de requisições |
+| `CompressionPlugin` | `azurajs/plugins` | Compressão de resposta (gzip, deflate, br) |
+| `RequestIdPlugin` | `azurajs/plugins` | Geração de ID único por requisição |
+| `HealthCheckPlugin` | `azurajs/plugins` | Endpoint de verificação de saúde |
+| `JWTPlugin` | `azurajs/plugins` | Autenticação JWT |
+| `SessionPlugin` | `azurajs/plugins` | Sessões no lado do servidor |
+| `StaticPlugin` | `azurajs/plugins` | Servir arquivos estáticos |
+| `ETagPlugin` | `azurajs/plugins` | Cache via ETag |
+| `TimeoutPlugin` | `azurajs/plugins` | Timeout de requisição |
+| `CircuitBreakerPlugin` | `azurajs/plugins` | Padrão circuit breaker |
+| `ProxyPlugin` | `azurajs/plugins` | Proxy reverso |
+| `SSEPlugin` | `azurajs/plugins` | Server-Sent Events |
+| `MultipartPlugin` | `azurajs/plugins` | Upload multipart/form-data |
 
 ### Padrão Factory de Plugins
 
 Todo plugin integrado segue o padrão factory — uma função que aceita opções e retorna um `PluginHandler`:
 
 ```typescript
-import { CORSPlugin } from "azurats/plugins";
+import { CORSPlugin } from "azurajs/plugins";
 
 const cors = CORSPlugin({
   origins: ["https://example.com", "https://app.example.com"],
@@ -143,7 +143,7 @@ Middleware usa a assinatura clássica `(req, res, next) => void`. Middleware pod
 ### Escrevendo Middleware
 
 ```typescript
-import type { AzuraRequest, AzuraResponse, NextFunction } from "azurats/types";
+import type { AzuraRequest, AzuraResponse, NextFunction } from "azurajs/types";
 
 const loggerMiddleware = (req: AzuraRequest, res: AzuraResponse, next: NextFunction) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.pathname}`);
@@ -171,8 +171,8 @@ app.use(authMiddleware);
 Use `@UseMiddleware` no nível da classe para aplicar middleware a todas as rotas de um controller:
 
 ```typescript
-import { Controller, Get, UseMiddleware } from "azurats/decorators";
-import type { AzuraRequest, AzuraResponse, NextFunction } from "azurats/types";
+import { Controller, Get, UseMiddleware } from "azurajs/decorators";
+import type { AzuraRequest, AzuraResponse, NextFunction } from "azurajs/types";
 
 const requireAuth = (req: AzuraRequest, res: AzuraResponse, next: NextFunction) => {
   if (!req.headers.authorization) {
@@ -203,7 +203,7 @@ Tanto `/api/admin/dashboard` quanto `/api/admin/users` exigirão autenticação.
 Use `@UseMiddleware` no nível do método para aplicar middleware apenas a uma rota específica:
 
 ```typescript
-import { Controller, Get, Delete, UseMiddleware, Param } from "azurats/decorators";
+import { Controller, Get, Delete, UseMiddleware, Param } from "azurajs/decorators";
 
 const requireSuperAdmin = (req: AzuraRequest, res: AzuraResponse, next: NextFunction) => {
   if (req.user?.role !== "super_admin") {
@@ -319,10 +319,10 @@ app.onError((err, req, res) => {
 Aqui está uma aplicação completa demonstrando a interação entre plugins, middleware global, middleware de controller e middleware de rota:
 
 ```typescript
-import { AzuraServer } from "azurats";
-import { Controller, Get, Post, UseMiddleware, Body, Param } from "azurats/decorators";
-import { CORSPlugin, HelmetPlugin, RateLimitPlugin, RequestIdPlugin } from "azurats/plugins";
-import type { AzuraRequest, AzuraResponse, NextFunction } from "azurats/types";
+import { AzuraServer } from "azurajs";
+import { Controller, Get, Post, UseMiddleware, Body, Param } from "azurajs/decorators";
+import { CORSPlugin, HelmetPlugin, RateLimitPlugin, RequestIdPlugin } from "azurajs/plugins";
+import type { AzuraRequest, AzuraResponse, NextFunction } from "azurajs/types";
 
 // --- Plugins (executam primeiro) ---
 const app = new AzuraServer({ server: { port: 3000 } });

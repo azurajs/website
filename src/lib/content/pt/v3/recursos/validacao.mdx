@@ -17,8 +17,8 @@ O `DTOValidator` permite definir schemas inline com regras tipadas. Ideal para v
 ### Import
 
 ```typescript
-import { DTOValidator } from "azurats/utils";
-import type { Schema, ValidationResult, ValidationError } from "azurats/utils";
+import { DTOValidator } from "azurajs/utils";
+import type { Schema, ValidationResult, ValidationError } from "azurajs/utils";
 ```
 
 ### Definindo um Schema
@@ -102,9 +102,9 @@ interface ValidationError {
 ### Exemplo Completo em Rota
 
 ```typescript
-import { AzuraServer } from "azurats";
-import { DTOValidator, HttpError } from "azurats/utils";
-import type { Schema } from "azurats/utils";
+import { AzuraServer } from "azurajs";
+import { DTOValidator, HttpError } from "azurajs/utils";
+import type { Schema } from "azurajs/utils";
 
 const app = new AzuraServer();
 
@@ -163,15 +163,15 @@ O `SchemaValidator` é um adaptador universal que funciona com qualquer bibliote
 ### Import
 
 ```typescript
-import { SchemaValidator } from "azurats/utils";
-import type { ExternalSchema, SchemaValidationResult } from "azurats/utils";
+import { SchemaValidator } from "azurajs/utils";
+import type { ExternalSchema, SchemaValidationResult } from "azurajs/utils";
 ```
 
 ### Com Zod
 
 ```typescript
 import { z } from "zod";
-import { SchemaValidator } from "azurats/utils";
+import { SchemaValidator } from "azurajs/utils";
 
 const UserSchema = z.object({
   name: z.string().min(2).max(50),
@@ -196,7 +196,7 @@ O `SchemaValidator` detecta automaticamente o método `safeParse` do Zod. Se o s
 
 ```typescript
 import Joi from "joi";
-import { SchemaValidator } from "azurats/utils";
+import { SchemaValidator } from "azurajs/utils";
 
 const userSchema = Joi.object({
   name: Joi.string().min(2).max(50).required(),
@@ -240,8 +240,8 @@ O `SchemaValidator` detecta a biblioteca automaticamente pela presença dos mét
 Crie um middleware de validação genérico para reaproveitar em várias rotas:
 
 ```typescript
-import { DTOValidator, HttpError } from "azurats/utils";
-import type { Schema, MiddlewareHandler } from "azurats";
+import { DTOValidator, HttpError } from "azurajs/utils";
+import type { Schema, MiddlewareHandler } from "azurajs";
 
 function validate(schema: Schema): MiddlewareHandler {
   return (req, res, next) => {
@@ -276,8 +276,8 @@ app.put("/users/:id", validate(updateUserSchema), (req, res) => {
 
 ```typescript
 import { z } from "zod";
-import { SchemaValidator, HttpError } from "azurats/utils";
-import type { MiddlewareHandler } from "azurats";
+import { SchemaValidator, HttpError } from "azurajs/utils";
+import type { MiddlewareHandler } from "azurajs";
 
 function zodValidate(schema: z.ZodSchema): MiddlewareHandler {
   return (req, res, next) => {

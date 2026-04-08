@@ -13,8 +13,8 @@ The `ProxyPlugin` forwards incoming requests to an upstream server, acting as a 
 ## Quick Start
 
 ```typescript
-import { AzuraServer } from "azurats";
-import { ProxyPlugin } from "azurats/plugins";
+import { AzuraServer } from "azurajs";
+import { ProxyPlugin } from "azurajs/plugins";
 
 const app = new AzuraServer();
 
@@ -57,8 +57,8 @@ For `GET` and `HEAD` requests, no body is forwarded. For all other methods, the 
 ### Microservice Gateway
 
 ```typescript
-import { AzuraServer } from "azurats";
-import { ProxyPlugin } from "azurats/plugins";
+import { AzuraServer } from "azurajs";
+import { ProxyPlugin } from "azurajs/plugins";
 
 const gateway = new AzuraServer();
 
@@ -133,7 +133,7 @@ When the timeout is exceeded, the plugin aborts the upstream request and respond
 ## API Gateway Pattern
 
 ```typescript
-import { AzuraServer } from "azurats";
+import { AzuraServer } from "azurajs";
 import {
   ProxyPlugin,
   CORSPlugin,
@@ -141,7 +141,7 @@ import {
   HelmetPlugin,
   RequestIdPlugin,
   JWTPlugin,
-} from "azurats/plugins";
+} from "azurajs/plugins";
 
 const gateway = new AzuraServer();
 

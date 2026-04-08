@@ -19,7 +19,7 @@ Follow this step-by-step guide to build a fully functional REST API with AzuraJS
 Create `azura.config.ts` in your project root. This file is auto-loaded by the framework at startup.
 
 ```typescript
-import type { AzuraConfig } from "azurats/types";
+import type { AzuraConfig } from "azurajs/types";
 
 const config: AzuraConfig = {
   environment: "development",
@@ -48,8 +48,8 @@ export default config;
 Create `src/controllers/UserController.ts`:
 
 ```typescript
-import { Controller, Get, Post, Put, Delete, Param, Body, Query } from "azurats/decorators";
-import { HttpError } from "azurats/utils";
+import { Controller, Get, Post, Put, Delete, Param, Body, Query } from "azurajs/decorators";
+import { HttpError } from "azurajs/utils";
 
 interface User {
   id: number;
@@ -136,7 +136,7 @@ export class UserController {
 Create `src/main.ts`:
 
 ```typescript
-import { AzuraServer } from "azurats/core";
+import { AzuraServer } from "azurajs/core";
 import {
   CORSPlugin,
   HelmetPlugin,
@@ -144,9 +144,9 @@ import {
   RequestIdPlugin,
   CompressionPlugin,
   HealthCheckPlugin,
-} from "azurats/plugins";
-import { LoggingMiddleware } from "azurats/middleware";
-import { HttpError } from "azurats/utils";
+} from "azurajs/plugins";
+import { LoggingMiddleware } from "azurajs/middleware";
+import { HttpError } from "azurajs/utils";
 import { UserController } from "./controllers/UserController.js";
 
 const app = new AzuraServer({
@@ -311,8 +311,8 @@ Request → Plugins → Global Middleware → Route Middleware → Route Handler
 You can attach middleware to individual routes or entire controllers:
 
 ```typescript
-import { Controller, Get, UseMiddleware } from "azurats/decorators";
-import type { AzuraRequest, AzuraResponse, NextFunction } from "azurats/types";
+import { Controller, Get, UseMiddleware } from "azurajs/decorators";
+import type { AzuraRequest, AzuraResponse, NextFunction } from "azurajs/types";
 
 function requireAuth(req: AzuraRequest, res: AzuraResponse, next: NextFunction) {
   const token = req.headers["authorization"];
@@ -348,8 +348,8 @@ AzuraJS provides a rich set of parameter decorators:
 import {
   Controller, Get, Post,
   Body, Query, Param, Headers, Cookies, Ip, Session, Req, Res,
-} from "azurats/decorators";
-import type { AzuraRequest, AzuraResponse } from "azurats/types";
+} from "azurajs/decorators";
+import type { AzuraRequest, AzuraResponse } from "azurajs/types";
 
 @Controller("/demo")
 class DemoController {

@@ -8,12 +8,12 @@ order: 14
 
 # Error Handling
 
-AzuraJS provides the `HttpError` class (from `azurats/utils`) for throwing structured HTTP errors, plus a global error handler hook via `app.onError()`. Together they give you consistent, predictable error responses across your entire API.
+AzuraJS provides the `HttpError` class (from `azurajs/utils`) for throwing structured HTTP errors, plus a global error handler hook via `app.onError()`. Together they give you consistent, predictable error responses across your entire API.
 
 ## HttpError Class
 
 ```typescript
-import { HttpError } from "azurats/utils";
+import { HttpError } from "azurajs/utils";
 
 throw new HttpError(404, "User not found");
 ```
@@ -77,7 +77,7 @@ error.toJSON();
 ### Examples
 
 ```typescript
-import { HttpError } from "azurats/utils";
+import { HttpError } from "azurajs/utils";
 
 // 400 Bad Request
 throw HttpError.badRequest("Missing required field: email");
@@ -106,8 +106,8 @@ throw HttpError.internal("Database connection lost");
 When you throw an `HttpError` inside a route handler, AzuraJS catches it and sends a structured JSON response automatically:
 
 ```typescript
-import { AzuraServer } from "azurats";
-import { HttpError } from "azurats/utils";
+import { AzuraServer } from "azurajs";
+import { HttpError } from "azurajs/utils";
 
 const app = new AzuraServer();
 
@@ -148,8 +148,8 @@ AzuraJS's built-in error handler works as follows:
 Register a global error handler with `app.onError()`:
 
 ```typescript
-import { AzuraServer } from "azurats";
-import { HttpError, Logger } from "azurats/utils";
+import { AzuraServer } from "azurajs";
+import { HttpError, Logger } from "azurajs/utils";
 
 const app = new AzuraServer();
 const log = new Logger({ prefix: "errors" });
@@ -207,7 +207,7 @@ In debug mode, an additional `stack` field may be included for non-operational e
 Combine `DTOValidator` with `HttpError` for structured validation errors:
 
 ```typescript
-import { DTOValidator, HttpError } from "azurats/utils";
+import { DTOValidator, HttpError } from "azurajs/utils";
 
 app.post("/users", (req, res) => {
   const result = DTOValidator.validate(req.body, userSchema);

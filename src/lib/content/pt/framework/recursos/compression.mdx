@@ -13,8 +13,8 @@ O **CompressionPlugin** comprime automaticamente as respostas HTTP utilizando **
 ## Início Rápido
 
 ```typescript
-import { AzuraServer } from "azurats";
-import { CompressionPlugin } from "azurats/plugins";
+import { AzuraServer } from "azurajs";
+import { CompressionPlugin } from "azurajs/plugins";
 
 const app = new AzuraServer();
 
@@ -159,8 +159,8 @@ Quando a compressão é aplicada, o plugin modifica os headers:
 ### API com Compressão
 
 ```typescript
-import { AzuraServer } from "azurats";
-import { CompressionPlugin, CORSPlugin, HelmetPlugin } from "azurats/plugins";
+import { AzuraServer } from "azurajs";
+import { CompressionPlugin, CORSPlugin, HelmetPlugin } from "azurajs/plugins";
 
 const app = new AzuraServer();
 
@@ -201,7 +201,7 @@ app.plugin(CompressionPlugin({
 ### Monitorando Tamanho das Respostas
 
 ```typescript
-import { Logger } from "azurats/utils";
+import { Logger } from "azurajs/utils";
 
 const logger = new Logger({ prefix: "compression" });
 

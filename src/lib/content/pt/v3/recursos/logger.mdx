@@ -15,7 +15,7 @@ O AzuraJS v3 inclui um sistema de logging integrado com saída colorida no termi
 ### Import
 
 ```typescript
-import { Logger } from "azurats/utils";
+import { Logger } from "azurajs/utils";
 ```
 
 ### Criando uma Instância
@@ -155,8 +155,8 @@ logger.setLevel("silent"); // desabilita tudo
 O AzuraJS inclui um middleware/plugin de logging que adiciona o header `X-Response-Time` a cada resposta:
 
 ```typescript
-import { AzuraServer } from "azurats";
-import { LoggingMiddleware } from "azurats/middleware";
+import { AzuraServer } from "azurajs";
+import { LoggingMiddleware } from "azurajs/middleware";
 
 const app = new AzuraServer();
 
@@ -177,7 +177,7 @@ O `LoggingMiddleware` mede o tempo de processamento da requisição com `process
 O pacote exporta uma instância global do Logger:
 
 ```typescript
-import { Logger } from "azurats/utils";
+import { Logger } from "azurajs/utils";
 
 // Instância singleton disponível como export padrão do módulo
 const logger = new Logger();
@@ -222,8 +222,8 @@ cacheLogger.warn("Taxa de miss acima de 50%");
 ### Logging em Middleware Customizado
 
 ```typescript
-import { Logger } from "azurats/utils";
-import type { MiddlewareHandler } from "azurats";
+import { Logger } from "azurajs/utils";
+import type { MiddlewareHandler } from "azurajs";
 
 const logger = new Logger({ prefix: "audit" });
 

@@ -15,7 +15,7 @@ O AzuraJS v3 oferece controle total sobre a configuração do servidor HTTP/HTTP
 O AzuraJS suporta HTTPS nativamente via a propriedade `server.https` na configuração. Basta fornecer os caminhos para os arquivos de chave privada e certificado:
 
 ```typescript
-import { AzuraServer } from "azurats/core";
+import { AzuraServer } from "azurajs/core";
 
 const app = new AzuraServer({
   server: {
@@ -87,7 +87,7 @@ const app = new AzuraServer({
 O `ServerConfig` expõe quatro propriedades de timeout para controle fino do comportamento do servidor:
 
 ```typescript
-import { AzuraServer } from "azurats/core";
+import { AzuraServer } from "azurajs/core";
 
 const app = new AzuraServer({
   server: {
@@ -153,9 +153,9 @@ const app = new AzuraServer({
 O método `onError()` registra um handler global de erros que intercepta qualquer exceção não tratada durante o processamento de requisições:
 
 ```typescript
-import { AzuraServer } from "azurats/core";
-import { HttpError } from "azurats/utils";
-import type { ErrorHandler } from "azurats/types";
+import { AzuraServer } from "azurajs/core";
+import { HttpError } from "azurajs/utils";
+import type { ErrorHandler } from "azurajs/types";
 
 const app = new AzuraServer({ environment: "production" });
 
@@ -180,8 +180,8 @@ app.onError((err, req, res, next) => {
 ### Error Handler com Logging Estruturado
 
 ```typescript
-import { AzuraServer } from "azurats/core";
-import { HttpError, Logger } from "azurats/utils";
+import { AzuraServer } from "azurajs/core";
+import { HttpError, Logger } from "azurajs/utils";
 
 const logger = new Logger({ level: "error", timestamp: true });
 const app = new AzuraServer();
@@ -240,7 +240,7 @@ Quando `debug: true` e `environment: "development"`, o error handler padrão do 
 O método `close()` do `AzuraServer` encerra o servidor HTTP de forma limpa, aguardando que as conexões ativas sejam finalizadas:
 
 ```typescript
-import { AzuraServer } from "azurats/core";
+import { AzuraServer } from "azurajs/core";
 
 const app = new AzuraServer({ server: { port: 3000 } });
 
@@ -294,7 +294,7 @@ process.on("SIGINT", () => shutdown("SIGINT"));
 ### Shutdown com Cleanup de Recursos
 
 ```typescript
-import { AzuraServer } from "azurats/core";
+import { AzuraServer } from "azurajs/core";
 
 const app = new AzuraServer();
 let dbConnection: any;
@@ -329,10 +329,10 @@ process.on("SIGINT", () => shutdown("SIGINT"));
 Um exemplo combinando HTTPS, timeouts otimizados, error handler e graceful shutdown:
 
 ```typescript
-import { AzuraServer } from "azurats/core";
-import { Controller, Get, Param } from "azurats/decorators";
-import { CORSPlugin, HelmetPlugin, RateLimitPlugin } from "azurats/plugins";
-import { HttpError } from "azurats/utils";
+import { AzuraServer } from "azurajs/core";
+import { Controller, Get, Param } from "azurajs/decorators";
+import { CORSPlugin, HelmetPlugin, RateLimitPlugin } from "azurajs/plugins";
+import { HttpError } from "azurajs/utils";
 
 @Controller("/api/v1")
 class AppController {

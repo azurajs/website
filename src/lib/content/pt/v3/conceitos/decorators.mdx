@@ -25,7 +25,7 @@ Decorators são a base declarativa do AzuraJS. Eles permitem definir rotas, inje
 
 ## Import
 
-Todos os decorators estão disponíveis no submódulo `azurats/decorators`:
+Todos os decorators estão disponíveis no submódulo `azurajs/decorators`:
 
 ```typescript
 import {
@@ -35,7 +35,7 @@ import {
   UseMiddleware,
   applyDecorators,
   Meta,
-} from "azurats/decorators";
+} from "azurajs/decorators";
 ```
 
 ## Decorators de Rota
@@ -209,7 +209,7 @@ prefs(@Cookies("theme") theme: string, @Cookies("lang") lang: string) {
 Injetam os objetos de requisição e resposta completos para controle total.
 
 ```typescript
-import type { AzuraRequest, AzuraResponse } from "azurats/types";
+import type { AzuraRequest, AzuraResponse } from "azurajs/types";
 
 @Get("/raw")
 rawAccess(@Req() req: AzuraRequest, @Res() res: AzuraResponse) {
@@ -265,7 +265,7 @@ passthrough(@NextFunc() next: Function) {
 Anexa uma ou mais funções de middleware a um controller (nível de classe) ou a uma rota específica (nível de método). O middleware do controller executa antes do middleware da rota.
 
 ```typescript
-import type { AzuraRequest, AzuraResponse, NextFunction } from "azurats/types";
+import type { AzuraRequest, AzuraResponse, NextFunction } from "azurajs/types";
 
 const logRequest = (req: AzuraRequest, res: AzuraResponse, next: NextFunction) => {
   console.log(`${req.method} ${req.pathname}`);
@@ -324,7 +324,7 @@ export class PostController {
 Compõe múltiplos decorators em um único decorator. Poderoso para criar bundles de decorators reutilizáveis.
 
 ```typescript
-import { applyDecorators, UseMiddleware, Meta, Get } from "azurats/decorators";
+import { applyDecorators, UseMiddleware, Meta, Get } from "azurajs/decorators";
 
 function PublicEndpoint(path: string) {
   return applyDecorators(

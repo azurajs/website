@@ -8,13 +8,13 @@ order: 7
 
 # JWT Authentication
 
-The `JWTPlugin` provides route-level JWT protection. Companion utilities `signJWT` and `verifyJWT` (also exported from `azurats/plugins`) let you create and manually verify tokens.
+The `JWTPlugin` provides route-level JWT protection. Companion utilities `signJWT` and `verifyJWT` (also exported from `azurajs/plugins`) let you create and manually verify tokens.
 
 ## Quick Start
 
 ```typescript
-import { AzuraServer } from "azurats";
-import { JWTPlugin, signJWT, verifyJWT } from "azurats/plugins";
+import { AzuraServer } from "azurajs";
+import { JWTPlugin, signJWT, verifyJWT } from "azurajs/plugins";
 
 const app = new AzuraServer();
 
@@ -69,7 +69,7 @@ On failure the plugin responds with:
 Create a signed token.
 
 ```typescript
-import { signJWT } from "azurats/plugins";
+import { signJWT } from "azurajs/plugins";
 
 const token = signJWT(
   { sub: user.id, role: user.role },
@@ -97,7 +97,7 @@ The function automatically adds `iat` (issued at) to the payload.
 Decode and verify a token. Throws on invalid or expired tokens.
 
 ```typescript
-import { verifyJWT } from "azurats/plugins";
+import { verifyJWT } from "azurajs/plugins";
 
 try {
   const payload = verifyJWT(token, process.env.JWT_SECRET!);
@@ -119,9 +119,9 @@ Returns the decoded payload object if the signature and expiry are valid.
 ## Full Login + Protected Route Example
 
 ```typescript
-import { AzuraServer } from "azurats";
-import { JWTPlugin, signJWT } from "azurats/plugins";
-import { HttpError } from "azurats/utils";
+import { AzuraServer } from "azurajs";
+import { JWTPlugin, signJWT } from "azurajs/plugins";
+import { HttpError } from "azurajs/utils";
 
 const app = new AzuraServer();
 

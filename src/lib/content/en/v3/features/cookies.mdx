@@ -15,7 +15,7 @@ AzuraJS parses incoming cookies automatically and exposes a straightforward API 
 Incoming cookies are parsed from the `Cookie` header and available on `req.cookies` as a `Record<string, string>`.
 
 ```typescript
-import { AzuraServer } from "azurats";
+import { AzuraServer } from "azurajs";
 
 const app = new AzuraServer();
 
@@ -90,7 +90,7 @@ When clearing a cookie, the `path` and `domain` must match the values used when 
 ## Complete Example
 
 ```typescript
-import { AzuraServer } from "azurats";
+import { AzuraServer } from "azurajs";
 
 const app = new AzuraServer();
 
@@ -124,7 +124,7 @@ app.listen(3000);
 When sending cookies cross-origin, both the server and client must opt in:
 
 ```typescript
-import { CORSPlugin } from "azurats/plugins";
+import { CORSPlugin } from "azurajs/plugins";
 
 app.plugin(
   CORSPlugin({

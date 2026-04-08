@@ -19,7 +19,7 @@ There are two ways to configure your AzuraJS application:
 Pass an `AzuraConfig` object directly to the `AzuraServer` constructor:
 
 ```typescript
-import { AzuraServer } from "azurats";
+import { AzuraServer } from "azurajs";
 
 const app = new AzuraServer({
   environment: "production",
@@ -59,7 +59,7 @@ Create a config file in your project root. The `ConfigModule` searches for files
 <Tab value="TypeScript">
 ```typescript
 // azura.config.ts
-import type { AzuraConfig } from "azurats/types";
+import type { AzuraConfig } from "azurajs/types";
 
 const config: AzuraConfig = {
   environment: "development",
@@ -98,7 +98,7 @@ export default config;
 ```javascript
 // azura.config.js
 
-/** @type {import('azurats/types').AzuraConfig} */
+/** @type {import('azurajs/types').AzuraConfig} */
 export default {
   environment: "development",
   server: {
@@ -154,7 +154,7 @@ debug: true
 The `ConfigModule` singleton can be used to load, read, and merge configuration at runtime:
 
 ```typescript
-import { ConfigModule } from "azurats/config";
+import { ConfigModule } from "azurajs/config";
 
 // Async load (supports TS/JS/JSON/YAML)
 const config = await ConfigModule.load();
@@ -307,7 +307,7 @@ Example config file with plugin configuration:
 
 ```typescript
 // azura.config.ts
-import type { AzuraConfig } from "azurats/types";
+import type { AzuraConfig } from "azurajs/types";
 
 export default {
   environment: "production",
@@ -349,7 +349,7 @@ A common pattern is to use environment variables or conditional logic in your co
 
 ```typescript
 // azura.config.ts
-import type { AzuraConfig } from "azurats/types";
+import type { AzuraConfig } from "azurajs/types";
 
 const isProd = process.env.NODE_ENV === "production";
 
@@ -379,8 +379,8 @@ When both a constructor argument and a config file are present, the **constructo
 If you pass configuration to the constructor, the config file is **not** loaded automatically. To merge both, load the config file explicitly:
 
 ```typescript
-import { AzuraServer } from "azurats/core";
-import { ConfigModule } from "azurats/config";
+import { AzuraServer } from "azurajs/core";
+import { ConfigModule } from "azurajs/config";
 
 const fileConfig = await ConfigModule.load();
 

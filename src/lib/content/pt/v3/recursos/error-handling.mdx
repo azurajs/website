@@ -15,7 +15,7 @@ O AzuraJS v3 oferece um sistema de tratamento de erros robusto e integrado com a
 ### Import
 
 ```typescript
-import { HttpError } from "azurats/utils";
+import { HttpError } from "azurajs/utils";
 ```
 
 ### Criando Erros
@@ -215,8 +215,8 @@ type ErrorHandler = (
 ### CRUD com Tratamento de Erros
 
 ```typescript
-import { AzuraServer } from "azurats";
-import { HttpError } from "azurats/utils";
+import { AzuraServer } from "azurajs";
+import { HttpError } from "azurajs/utils";
 
 const app = new AzuraServer();
 const users = new Map<string, { id: string; name: string; email: string }>();
@@ -267,7 +267,7 @@ app.listen(3000);
 ### Error Handler com Logging Estruturado
 
 ```typescript
-import { Logger, HttpError } from "azurats/utils";
+import { Logger, HttpError } from "azurajs/utils";
 
 const logger = new Logger({ prefix: "error-handler" });
 
@@ -310,8 +310,8 @@ app.onError((err, req, res) => {
 ### Validação + Erro Customizado
 
 ```typescript
-import { DTOValidator, HttpError } from "azurats/utils";
-import type { Schema } from "azurats/utils";
+import { DTOValidator, HttpError } from "azurajs/utils";
+import type { Schema } from "azurajs/utils";
 
 const schema: Schema = {
   email: {

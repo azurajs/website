@@ -25,7 +25,7 @@ Decorators are the declarative backbone of AzuraJS. They let you define routes, 
 
 ## Import
 
-All decorators are available from the `azurats/decorators` submodule:
+All decorators are available from the `azurajs/decorators` submodule:
 
 ```typescript
 import {
@@ -35,7 +35,7 @@ import {
   UseMiddleware,
   applyDecorators,
   Meta,
-} from "azurats/decorators";
+} from "azurajs/decorators";
 ```
 
 ## Route Decorators
@@ -209,7 +209,7 @@ prefs(@Cookies("theme") theme: string, @Cookies("lang") lang: string) {
 Inject the raw request and response objects for full control.
 
 ```typescript
-import type { AzuraRequest, AzuraResponse } from "azurats/types";
+import type { AzuraRequest, AzuraResponse } from "azurajs/types";
 
 @Get("/raw")
 rawAccess(@Req() req: AzuraRequest, @Res() res: AzuraResponse) {
@@ -265,7 +265,7 @@ passthrough(@NextFunc() next: Function) {
 Attaches one or more middleware functions to a controller (class-level) or a specific route (method-level). Controller middleware runs before route middleware.
 
 ```typescript
-import type { AzuraRequest, AzuraResponse, NextFunction } from "azurats/types";
+import type { AzuraRequest, AzuraResponse, NextFunction } from "azurajs/types";
 
 const logRequest = (req: AzuraRequest, res: AzuraResponse, next: NextFunction) => {
   console.log(`${req.method} ${req.pathname}`);
@@ -324,7 +324,7 @@ export class PostController {
 Composes multiple decorators into a single decorator. This is powerful for creating reusable decorator bundles.
 
 ```typescript
-import { applyDecorators, UseMiddleware, Meta, Get } from "azurats/decorators";
+import { applyDecorators, UseMiddleware, Meta, Get } from "azurajs/decorators";
 
 function PublicEndpoint(path: string) {
   return applyDecorators(
