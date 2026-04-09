@@ -5,6 +5,7 @@
   import type { FrameworkId } from "$lib/config/docs";
   import Icon from "@iconify/svelte";
   import { onMount } from "svelte";
+  import { goto } from "$app/navigation";
 
   export let open = false;
   export let collapsed = false;
@@ -43,6 +44,16 @@
   function selectFramework(id: FrameworkId) {
     activeFramework = id;
     navItems.forEach((_: any, i: number) => (openSections[i] = true));
+    
+    // Navigate to the first item of the selected framework
+    const frameworks: Record<FrameworkId, string> = {
+      framework: "introduction",
+      v3: "introduction-v3",
+      cdn: "cdn/edge-network/cdn-basics"
+    };
+    
+    const targetSlug = frameworks[id];
+    goto(`/docs/${currentLang}/${targetSlug}`);
   }
 
   function toggleCollapse() {
