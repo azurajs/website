@@ -1,0 +1,99 @@
+---
+title: Pacote npm e exports
+description: Metadados do azurajs 3.x, campo exports do package.json, subcaminhos públicos e ficheiro estático Swagger UI.
+category: Referência
+icon: lucide:package
+order: 1
+---
+
+# Pacote npm e exports (`azurajs`)
+
+Esta página descreve o **pacote publicado** tal como está no [npm](https://www.npmjs.com/package/azurajs): nome, versão, requisitos de runtime e **todos os subcaminhos** definidos em `exports` no `package.json`. Serve de índice único para saber **de onde importar** cada API na v3.
+
+<Callout type="info" title="Versão de referência">
+  A documentação alinha-se com **`azurajs@^3`** (por exemplo **3.0.9**). Confirma a versão instalada com `npm ls azurajs` ou o campo `version` em `node_modules/azurajs/package.json`.
+</Callout>
+
+## Metadados do pacote
+
+| Campo | Valor |
+| :--- | :--- |
+| **Nome** | `azurajs` |
+| **Descrição** | Framework web ultra-rápido, TypeScript-first, para Node.js e Bun, com roteamento por decorators, zero dependências de runtime e sistema de plugins. |
+| **Licença** | MIT |
+| **Motores** | Node.js **>= 18.0.0** |
+| **Peer opcional** | `typescript` **>= 5.0.0** (recomendado para projetos TS) |
+| **Repositório** | [github.com/azurajs/azura](https://github.com/azurajs/azura) |
+| **Homepage** | [azura.js.org](https://azura.js.org) |
+
+## Instalação
+
+```bash
+npm install azurajs@^3
+```
+
+```bash
+bun add azurajs@^3
+```
+
+## Raiz (`azurajs`)
+
+O ponto de entrada principal reexporta o núcleo e os módulos mais usados:
+
+- **`AzuraServer`**, **`Router`** (núcleo)
+- Tudo em **`azurajs/decorators`**, **`azurajs/plugins`**, **`azurajs/utils`**, **`azurajs/config`**, **`azurajs/middleware`**, **`azurajs/types`**
+
+Conveniente para protótipos; para produção e tree-shaking, prefere subcaminhos (ver abaixo e [Importações modulares](/docs/pt/v3/avancado/importacoes-modulares)).
+
+## Mapa completo de `exports` (subcaminhos)
+
+Cada linha corresponde a uma chave no `exports` do `package.json`. Todos suportam **ESM** (`import`) e **CommonJS** (`require`), com ficheiros de tipos dedicados.
+
+| Subcaminho | Conteúdo principal |
+| :--- | :--- |
+| **`azurajs`** | Entrada completa: servidor, decorators, plugins, utils, config, middleware, types. |
+| **`azurajs/core`** | `AzuraServer`, `Router`. |
+| **`azurajs/plugins`** | Todas as fábricas de plugins oficiais: `CORSPlugin`, `RateLimitPlugin`, `HelmetPlugin`, `JWTPlugin`, `SessionPlugin`, `CompressionPlugin`, `StaticPlugin`, `ETagPlugin`, `RequestIdPlugin`, `TimeoutPlugin`, `HealthCheckPlugin`, `CircuitBreakerPlugin`, `SSEPlugin`, `SSEManager`, `ProxyPlugin`, `MultipartPlugin`, `SwaggerPlugin`, mais `signJWT`, `verifyJWT`, tipos como `JWTPayload`, `UploadedFile`, `SSEClient`. |
+| **`azurajs/decorators`** | `Controller`, métodos HTTP, injeção de parâmetros, `UseMiddleware`, `Meta`, `applyDecorators`, etc. |
+| **`azurajs/types`** | Tipos partilhados: pedido/resposta, handlers, `HttpStatus`, `HttpStatusText`, opções de plugins, etc. |
+| **`azurajs/utils`** | `Logger`, `HttpError`, validação (`v`, `DTOValidator`, `SchemaValidator`), parsers (`parseBody`, `parseQueryString`, …), cookies (`serializeCookie`, `clearCookieHeader`), `resolveIp`. |
+| **`azurajs/validators`** | Apenas validação: `v`, `ValidationError`, `Infer`, `DTOValidator`, `SchemaValidator`, validadores base, `DtoValidationError`, etc. |
+| **`azurajs/logger`** | Logger **chamável** (estilo v2): `logger`, `log`, `configureLogger`, `colors`. |
+| **`azurajs/config`** | `ConfigModule` (ficheiros `azura.config.*`). |
+| **`azurajs/middleware`** | `LoggingMiddleware` e outros middlewares embutidos. |
+| **`azurajs/router`** | `Router` (mesmo roteador radix-tree; duplicado para imports mínimos). |
+| **`azurajs/cookies`** | `serializeCookie`, `clearCookieHeader` (sem puxar todo o `utils`). |
+| **`azurajs/http-error`** | `HttpError` apenas. |
+| **`azurajs/cors`** | `CORSPlugin` + tipo `CORSOptions`. |
+| **`azurajs/rate-limit`** | `RateLimitPlugin` + tipo `RateLimitOptions`. |
+| **`azurajs/infra`** | Compatível com código v2 que importava infra: `ConfigModule`, `resolveIp`. |
+| **`azurajs/swagger`** | `SwaggerPlugin`, `buildOpenApiDocument`, `toOpenApiPath`, `ApiTags`, `ApiOperation`, `renderSwaggerUiPage`, constantes OpenAPI. |
+| **`azurajs/swagger-ui`** | Ficheiro estático **`swagger-ui-modern.html`** (UI embutida; não é um módulo JS). |
+
+O campo **`azurajs/package.json`** também está exposto para ferramentas que precisem de ler metadados do pacote.
+
+## `typesVersions` (TypeScript)
+
+O pacote declara `typesVersions` para que IDEs e `tsc` resolvam tipos em subcaminhos mesmo com configurações antigas. Chaves típicas: `core`, `plugins`, `decorators`, `types`, `utils`, `validators`, `logger`, `config`, `middleware`, `router`, `cookies`, `http-error`, `cors`, `rate-limit`, `infra`, `swagger`.
+
+Em `tsconfig.json`, usa **`moduleResolution`: `"Bundler"`** ou **`"NodeNext"`** para melhor alinhamento com `exports`.
+
+## Plugins oficiais (contagem)
+
+No índice `azurajs/plugins` estão **16** plugins nomeados (incluindo **`SwaggerPlugin`**), além de helpers JWT e tipos associados. Lista detalhada: [Visão geral dos plugins](/docs/pt/v3/recursos/plugins).
+
+## Ficheiros publicados
+
+O pacote npm inclui **`dist`**, **`src`** (código-fonte), **`README.md`** e **`LICENSE`**, conforme o campo `files` do `package.json`.
+
+## Relação com a v2
+
+- O nome do pacote continua **`azurajs`**; a **major 3** introduz `AzuraServer`, plugins e novos subcaminhos.
+- O subcaminho **`azurajs/infra`** ajuda migrações que usavam imports de infraestrutura na v2.
+- Guia passo a passo: [Migração da v2 para a v3](/docs/pt/v3/comecando/migracao-da-v2).
+
+## Próximos passos
+
+- [Migração v2 → v3](/docs/pt/v3/comecando/migracao-da-v2)  
+- [Importações modulares](/docs/pt/v3/avancado/importacoes-modulares)  
+- [Instalação](/docs/pt/v3/comecando/instalacao)  

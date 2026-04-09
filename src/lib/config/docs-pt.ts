@@ -49,11 +49,11 @@ export const docsConfig = {
       title: "Começando",
       items: [
         { title: "Bem-vindo ao AzuraJS v3", slug: "introduction-v3" },
+        { title: "Migração v2 → v3", slug: "v3/comecando/migracao-da-v2" },
         { title: "Instalação", slug: "v3/comecando/instalacao" },
         { title: "Início Rápido", slug: "v3/comecando/inicio-rapido" },
         { title: "Uso com JavaScript", slug: "v3/comecando/uso-com-javascript" },
         { title: "Configuração", slug: "v3/comecando/configuracao" },
-        { title: "Migração v2 → v3", slug: "v3/comecando/migracao-da-v2" },
       ],
     },
     {
@@ -93,6 +93,12 @@ export const docsConfig = {
         { title: "Suporte TypeScript", slug: "v3/avancado/suporte-typescript" },
         { title: "Extensões de Tipo", slug: "v3/avancado/extensoes-de-tipo" },
         { title: "Servidores Customizados", slug: "v3/avancado/servidores-customizados" },
+      ],
+    },
+    {
+      title: "Referência",
+      items: [
+        { title: "Pacote npm e exports", slug: "v3/referencia/pacote-e-exports" },
       ],
     },
   ],

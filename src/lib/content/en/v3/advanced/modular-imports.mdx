@@ -18,15 +18,24 @@ The table below lists every available import path, what it exposes, and when you
 |---|---|---|
 | `azurajs` | Everything below, re-exported | Convenience root — pulls in the entire surface |
 | `azurajs/core` | `AzuraServer`, `Router` | Server instantiation and low-level routing |
-| `azurajs/plugins` | `CORSPlugin`, `RateLimitPlugin`, `HelmetPlugin`, `JWTPlugin`, `SessionPlugin`, `CompressionPlugin`, `StaticPlugin`, `ETagPlugin`, `RequestIdPlugin`, `TimeoutPlugin`, `HealthCheckPlugin`, `CircuitBreakerPlugin`, `ProxyPlugin`, `SSEPlugin`, `MultipartPlugin` | All 15 first-party plugins |
+| `azurajs/plugins` | `CORSPlugin`, `RateLimitPlugin`, `HelmetPlugin`, `JWTPlugin`, `SessionPlugin`, `CompressionPlugin`, `StaticPlugin`, `ETagPlugin`, `RequestIdPlugin`, `TimeoutPlugin`, `HealthCheckPlugin`, `CircuitBreakerPlugin`, `ProxyPlugin`, `SSEPlugin`, `MultipartPlugin`, `SwaggerPlugin`, … | All **16** first-party plugins |
 | `azurajs/decorators` | `Controller`, `Get`, `Post`, `Put`, `Delete`, `Patch`, `Head`, `Options`, `Body`, `Query`, `Param`, `Headers`, `Cookies`, `Req`, `Res`, `NextFunc`, `Ip`, `Session`, `UseMiddleware`, `applyDecorators`, `Meta` | Decorator-based routing and parameter injection |
 | `azurajs/types` | `AzuraRequest`, `AzuraResponse`, `NextFunction`, `MiddlewareHandler`, `RouteHandler`, `ErrorHandler`, `HttpMethod`, `HttpStatus`, `HttpStatusText`, `HttpStatusCode`, `CookieOptions`, plugin option types | TypeScript interfaces, enums, and HTTP status constants |
 | `azurajs/utils` | `Logger`, `HttpError`, `v`, `ValidationError`, `DTOValidator`, `SchemaValidator`, `resolveIp`, `parseQueryString`, `parseCookies`, `parseBody`, `parseUrl`, `serializeCookie`, `clearCookieHeader` | Utilities; **class `Logger`** and validators (including Zod-like **`v`**) |
 | `azurajs/validators` | `v`, `ValidationError`, `DTOValidator`, `SchemaValidator`, `Infer`, … | Validation-only entry (smaller surface than `utils`) |
 | `azurajs/logger` | `logger`, `log`, `configureLogger`, `colors` | **Callable** console logger (v2-style); not the `Logger` class |
-| `azurajs/swagger` | `SwaggerPlugin`, `ApiTags`, `ApiOperation`, `buildOpenApiDocument`, … | OpenAPI generation + docs plugin + UI helper |
+| `azurajs/swagger` | `SwaggerPlugin`, `ApiTags`, `ApiOperation`, `buildOpenApiDocument`, `renderSwaggerUiPage`, … | OpenAPI generation + docs + UI helpers |
 | `azurajs/config` | `ConfigModule` | Configuration loading (JSON, YAML, TS/JS) and singleton access |
 | `azurajs/middleware` | `LoggingMiddleware` | Built-in middleware factories |
+| `azurajs/router` | `Router` | Radix-tree router only |
+| `azurajs/cookies` | `serializeCookie`, `clearCookieHeader` | Cookie helpers without full `utils` |
+| `azurajs/http-error` | `HttpError` | HTTP error class only |
+| `azurajs/cors` | `CORSPlugin`, `CORSOptions` | Minimal CORS surface |
+| `azurajs/rate-limit` | `RateLimitPlugin`, `RateLimitOptions` | Minimal rate-limit surface |
+| `azurajs/infra` | `ConfigModule`, `resolveIp` | v2-style “infra” imports |
+| `azurajs/swagger-ui` | Static HTML | `swagger-ui-modern.html` (not a JS module) |
+
+Full mirror of npm `exports`: [npm package and exports](/docs/en/v3/reference/package-and-exports).
 
 ## Root Import vs Sub-Path Imports
 
@@ -75,7 +84,7 @@ app.get("/", (req, res) => res.json({ status: "ok" }));
 app.listen(3000);
 ```
 
-With the code above, none of the decorator system, config module, validators, or the remaining 13 plugins are included in the final output.
+With the code above, none of the decorator system, config module, validators, or the remaining plugins are included in the final output.
 
 ### Measuring the Difference
 

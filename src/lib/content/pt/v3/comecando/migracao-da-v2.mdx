@@ -1,30 +1,45 @@
 ---
 title: Migração da v2 para a v3
-description: O que mudou entre o AzuraJS v2 e v3 e como atualizar imports, servidor, Swagger, validators e logger sem erros.
+description: O que mudou entre o AzuraJS v2 e v3, checklist de upgrade, exports do pacote npm e como atualizar servidor, Swagger, validators e logger sem erros.
 category: Começando
 icon: lucide:arrow-right-left
-order: 6
+order: 2
 ---
 
 # Migração da v2 para a v3
 
-O AzuraJS v3 é uma reescrita: mesmos objetivos (rápido, TypeScript-first, decorators), mas **novo nome de pacote**, classe principal, modelo de plugins e algumas APIs públicas. Esta página compara **v2 → v3** e cobre os erros mais comuns após o upgrade.
+O AzuraJS v3 é uma reescrita: mesmos objetivos (rápido, TypeScript-first, decorators), mas **nova classe principal**, modelo de plugins, **campo `exports` no npm** com muitos subcaminhos e algumas APIs públicas diferentes. Esta página é o guia principal de **v2 → v3**: checklist, mudanças por tema e erros frequentes após o upgrade.
 
 <Callout type="info" title="Versões">
-  **v2** refere-se ao pacote e APIs antigas (por exemplo **`AzuraClient`**, **`setupSwagger`**, etc.). **v3** é **`azurajs`** 3.x com **`AzuraServer`** e o sistema de plugins descrito nesta secção.
+  **v2** refere-se ao pacote **`azurajs` 2.x** e APIs antigas (`AzuraClient`, `setupSwagger`, etc.). **v3** é **`azurajs` ^3.x** com **`AzuraServer`**, plugins e os subcaminhos documentados em [Pacote npm e exports](/docs/pt/v3/referencia/pacote-e-exports).
 </Callout>
+
+## Checklist de migração
+
+1. **Dependência** — Fixar `azurajs@^3` no `package.json` e remover lockfiles/resoluções que apontem para 2.x.
+2. **Entrada** — Substituir `AzuraClient` por `AzuraServer` e rever `listen` / opções de servidor (ver [Configuração](/docs/pt/v3/comecando/configuracao)).
+3. **Plugins** — Trocar middlewares soltos por **`app.plugin(...)`** com fábricas (`CORSPlugin`, `HelmetPlugin`, …); CORS pode ainda vir de `config.plugins.cors` no `AzuraServer`.
+4. **Swagger** — Substituir `setupSwagger` / `setupSwaggerWithControllers` por **`SwaggerPlugin`** e alinhar URLs (`/openapi.json` vs `/api-spec.json`).
+5. **Validação** — Manter `import { v } from "azurajs/validators"`; usar **`DtoValidationError`** para erros do **DTOValidator** (não confundir com a classe **`ValidationError`** do `v`).
+6. **Logger** — `logger` chamável vem de **`azurajs/logger`**; a classe **`Logger`** em **`azurajs/utils`**.
+7. **Imports** — Atualizar caminhos para os subcaminhos do `package.json` (tabela completa na [referência do pacote](/docs/pt/v3/referencia/pacote-e-exports)).
+8. **Testes** — Correr a suíte e validar documentação OpenAPI, rotas com decorators e fluxos com JWT/sessão.
 
 ## 1. Pacote e instalação
 
 | v2 | v3 |
 | :--- | :--- |
-| `azurajs` 2.x (ou tutoriais com nomes antigos) | **`azurajs` @ ^3.x** |
+| `azurajs` 2.x | **`azurajs` @ ^3.x** (Node **>= 18**) |
 
 ```bash
 npm install azurajs@^3
 ```
 
-Mantém uma única major no monorepo; não mistures instâncias v2 e v3.
+Não mistures instâncias ou tipos das duas majors no mesmo projeto.
+
+### `package.json`: o que a v3 expõe
+
+A v3 publica **dezenas de subcaminhos** (`azurajs/core`, `azurajs/plugins`, `azurajs/validators`, `azurajs/swagger`, `azurajs/infra`, …). Índice completo com descrição de cada um: [Pacote npm e exports](/docs/pt/v3/referencia/pacote-e-exports).
 
 ## 2. Entrada da aplicação: `AzuraClient` → `AzuraServer`
 
@@ -40,9 +55,23 @@ Mantém uma única major no monorepo; não mistures instâncias v2 e v3.
 import { AzuraServer } from "azurajs";
 ```
 
-Detalhes de configuração e `listen`: [Configuração](/docs/pt/v3/comecando/configuracao) e [Início rápido](/docs/pt/v3/comecando/inicio-rapido).
+- **`app.register(Controller)`** para classes com `@Controller`.
+- **`app.get` / `app.post`** continuam disponíveis para estilo Express.
+- Detalhes: [Configuração](/docs/pt/v3/comecando/configuracao), [Início rápido](/docs/pt/v3/comecando/inicio-rapido).
 
-## 3. Swagger / OpenAPI
+## 3. Subcaminhos úteis para código v2
+
+| Situação | Subcaminho v3 |
+| :--- | :--- |
+| Migrações que importavam “infra” na v2 | **`azurajs/infra`** — `ConfigModule`, `resolveIp` |
+| Só `Router` sem o resto do core | **`azurajs/router`** — `Router` |
+| Só `HttpError` | **`azurajs/http-error`** |
+| Só cookies (serializar / limpar) | **`azurajs/cookies`** |
+| CORS ou rate limit sem `azurajs/plugins` completo | **`azurajs/cors`**, **`azurajs/rate-limit`** |
+
+Isto reduz o bundle e espelha o que o `exports` do npm disponibiliza.
+
+## 4. Swagger / OpenAPI
 
 | v2 | v3 |
 | :--- | :--- |
@@ -65,11 +94,13 @@ app.plugin(
 );
 ```
 
-**Interface de documentação:** a v3 serve uma **UI HTML própria** (barra lateral, Inter / JetBrains Mono, alinhada à experiência “modern” da v2). **Não** é o Swagger UI carregado por CDN. Para ficheiro estático: **`azurajs/swagger-ui`**.
+**Interface de documentação:** a v3 serve uma **UI HTML própria** (barra lateral, Inter / JetBrains Mono). **Não** é o Swagger UI carregado por CDN. Para o ficheiro estático embutido: **`azurajs/swagger-ui`** → `swagger-ui-modern.html`.
 
 Se precisas de manter **`/api-spec.json`**, define **`specPath: "/api-spec.json"`** no **`SwaggerPlugin`**.
 
-## 4. Validators: `v` e tipos DTO
+Decorators OpenAPI: **`ApiTags`**, **`ApiOperation`** a partir de **`azurajs`** ou **`azurajs/swagger`**.
+
+## 5. Validators: `v` e tipos DTO
 
 | v2 | v3 |
 | :--- | :--- |
@@ -97,7 +128,7 @@ import type { ValidationResult, DtoValidationError } from "azurajs/validators";
 
 Mais em [Validação](/docs/pt/v3/recursos/validacao).
 
-## 5. Logger: função vs classe
+## 6. Logger: função vs classe
 
 | API | Import | Quando usar |
 | :--- | :--- | :--- |
@@ -113,11 +144,18 @@ logger("success", "Ligado.");
 log.info("Também válido");
 ```
 
-## 6. Decorators e controllers
+## 7. Decorators e controllers
 
 v3: **`app.register(Controller)`**, **`applyDecorators`** em **`azurajs/decorators`**. Ver [Controllers](/docs/pt/v3/conceitos/controllers) e [Decorators](/docs/pt/v3/conceitos/decorators).
 
-## 7. Imports modulares (resumo)
+## 8. Plugins e middleware
+
+- **`app.plugin(factory())`** — regista um **plugin** (assinatura de plugin do framework).
+- **`app.use(...)`** — aceita middleware **(req, res, next)** ou handlers compatíveis com a cadeia interna; ver documentação em [Middleware](/docs/pt/v3/conceitos/middleware).
+
+Na v2, vários comportamentos estavam em funções soltas; na v3 a lista oficial está em **`azurajs/plugins`** (16 plugins, incluindo **`SwaggerPlugin`**). Visão geral: [Plugins](/docs/pt/v3/recursos/plugins).
+
+## 9. Imports modulares (resumo)
 
 | Necessidade | Importar de |
 | :--- | :--- |
@@ -128,20 +166,33 @@ v3: **`app.register(Controller)`**, **`applyDecorators`** em **`azurajs/decorato
 | **`logger`** chamável | `azurajs/logger` |
 | Classe **`Logger`** | `azurajs/utils` |
 | OpenAPI / Swagger | `azurajs/swagger` |
+| Compat infra v2 | `azurajs/infra` |
 
-Lista completa: [Importações modulares](/docs/pt/v3/avancado/importacoes-modulares).
+Lista detalhada e tree-shaking: [Importações modulares](/docs/pt/v3/avancado/importacoes-modulares).
 
-## 8. Erros frequentes após o upgrade
+## 10. Resumo de breaking changes (v2 → v3)
+
+| Área | Mudança |
+| :--- | :--- |
+| Classe principal | `AzuraClient` → **`AzuraServer`** |
+| Swagger | Funções `setup*` → **`SwaggerPlugin`**; URLs por defeito **`/openapi.json`** e **`/docs`** |
+| Erros DTO | Usar tipo **`DtoValidationError`** onde aplicável |
+| Logger | `logger` de **`azurajs/logger`** é função; **`Logger`** é classe em **`utils`** |
+| npm | Novos subcaminhos (`exports`); ver [referência](/docs/pt/v3/referencia/pacote-e-exports) |
+
+## 11. Erros frequentes após o upgrade
 
 | Sintoma | Causa provável | Solução |
 | :--- | :--- | :--- |
-| **`Cannot read properties of undefined (reading 'object')`** | **`v`** indefinido (build antigo) ou import errado | Atualiza **`azurajs`**; usa **`import { v } from "azurajs/validators"`**. |
+| **`Cannot read properties of undefined (reading 'object')`** | **`v`** indefinido ou import errado | Atualiza **`azurajs`**; usa **`import { v } from "azurajs/validators"`**. |
 | **`Logger` has no call signatures** | Chamar **`logger(...)`** mas o tipo é a **classe** | Importa **`logger`** de **`azurajs/logger`**; ou **`new Logger()`** de **`azurajs/utils`**. |
 | Swagger vazio ou 404 na spec | URL da spec errada | Alinha **`specPath`** com o URL que a UI pede (por defeito **`/openapi.json`**). |
 | Conflito de tipos **`ValidationError`** | Misturar DTO com **`v`** | **`DtoValidationError`** para erros do **DTOValidator**; **`ValidationError`** para **`v`**. |
+| Tipos não resolvem subcaminho | `moduleResolution` antigo | **`"Bundler"`** ou **`"NodeNext"`** no `tsconfig.json`. |
 
 ## Próximos passos
 
+- [Pacote npm e exports](/docs/pt/v3/referencia/pacote-e-exports) — tabela completa do `exports`  
 - [Instalação](/docs/pt/v3/comecando/instalacao)  
 - [Início rápido](/docs/pt/v3/comecando/inicio-rapido)  
 - [OpenAPI e Swagger](/docs/pt/v3/recursos/swagger-openapi)  

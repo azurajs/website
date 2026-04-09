@@ -1,6 +1,6 @@
 ---
 title: Importações Modulares
-description: Otimize o tamanho do seu bundle com os 8 subcaminhos de importação do AzuraJS
+description: Otimize o bundle com todos os subcaminhos publicados no package.json do AzuraJS v3 (exports + typesVersions)
 category: Avançado
 icon: lucide:box
 order: 1
@@ -8,23 +8,32 @@ order: 1
 
 # Importações Modulares 📦
 
-O AzuraJS v3 expõe **vários subcaminhos** via `exports` no `package.json`. Cada um aponta para um módulo isolado com tipos dedicados, para tree-shaking e resolução correta no TypeScript.
+O AzuraJS v3 publica **todos os subcaminhos** no campo `exports` do `package.json` (mais `typesVersions` para o TypeScript). Cada entrada aponta para um módulo com tipos dedicados — ideal para **tree-shaking** e imports mínimos.
 
-## Mapa de Subcaminhos
+Índice alinhado ao npm: [Pacote npm e exports](/docs/pt/v3/referencia/pacote-e-exports).
+
+## Mapa completo de subcaminhos
 
 | Subcaminho | Descrição | Exports principais |
 |---|---|---|
-| `azurajs` | Reexporta tudo — conveniente para prototipação | `AzuraServer`, `Router`, todos os decorators, plugins, utils, types |
-| `azurajs/core` | Núcleo do servidor e roteador | `AzuraServer`, `Router` |
-| `azurajs/plugins` | Plugins oficiais | `CORSPlugin`, `RateLimitPlugin`, `HelmetPlugin`, `JWTPlugin`, `SessionPlugin`, `CompressionPlugin`, `StaticPlugin`, `ETagPlugin`, `RequestIdPlugin`, `TimeoutPlugin`, `HealthCheckPlugin`, `CircuitBreakerPlugin`, `SSEPlugin`, `SSEManager`, `ProxyPlugin`, `MultipartPlugin`, `signJWT`, `verifyJWT` |
-| `azurajs/decorators` | Decorators de classe, método e parâmetro | `Controller`, `Get`, `Post`, `Put`, `Delete`, `Patch`, `Head`, `Options`, `Body`, `Query`, `Param`, `Headers`, `Cookies`, `Req`, `Res`, `NextFunc`, `Ip`, `Session`, `UseMiddleware`, `applyDecorators`, `Meta` |
-| `azurajs/types` | Interfaces, enums e type aliases | `AzuraRequest`, `AzuraResponse`, `NextFunction`, `MiddlewareHandler`, `RouteHandler`, `ErrorHandler`, `HttpMethod`, `HttpStatus`, `HttpStatusText`, `AzuraConfig`, `ServerConfig`, `CORSOptions`, `RateLimitOptions` e 20+ tipos de plugin |
-| `azurajs/utils` | Utilitários e validação | `Logger`, `HttpError`, `v`, `ValidationError`, `DTOValidator`, `SchemaValidator`, parsers, cookies, … |
-| `azurajs/validators` | Só validação | `v`, `ValidationError`, `DTOValidator`, `SchemaValidator`, `Infer`, … |
-| `azurajs/logger` | Logger chamável (estilo v2) | `logger`, `log`, `configureLogger`, `colors` |
-| `azurajs/swagger` | OpenAPI / docs | `SwaggerPlugin`, `ApiTags`, `ApiOperation`, `buildOpenApiDocument`, … |
+| `azurajs` | Entrada completa | `AzuraServer`, `Router`, decorators, plugins, utils, config, middleware, types |
+| `azurajs/core` | Núcleo | `AzuraServer`, `Router` |
+| `azurajs/plugins` | Plugins oficiais (incl. Swagger) | `CORSPlugin`, `RateLimitPlugin`, `HelmetPlugin`, `JWTPlugin`, `SessionPlugin`, `CompressionPlugin`, `StaticPlugin`, `ETagPlugin`, `RequestIdPlugin`, `TimeoutPlugin`, `HealthCheckPlugin`, `CircuitBreakerPlugin`, `SSEPlugin`, `SSEManager`, `ProxyPlugin`, `MultipartPlugin`, `SwaggerPlugin`, `signJWT`, `verifyJWT`, … |
+| `azurajs/decorators` | Decorators | `Controller`, `Get`, `Post`, …, `Body`, `Query`, `Param`, `UseMiddleware`, `applyDecorators`, `Meta`, … |
+| `azurajs/types` | Tipos e constantes HTTP | `AzuraRequest`, `AzuraResponse`, `HttpStatus`, `HttpStatusText`, opções de plugins, … |
+| `azurajs/utils` | Utilitários | `Logger`, `HttpError`, `v`, `DTOValidator`, `SchemaValidator`, parsers, cookies, `resolveIp` |
+| `azurajs/validators` | Só validação | `v`, `ValidationError`, `Infer`, `DTOValidator`, `SchemaValidator`, … |
+| `azurajs/logger` | Logger chamável (v2) | `logger`, `log`, `configureLogger`, `colors` |
 | `azurajs/config` | Configuração | `ConfigModule` |
 | `azurajs/middleware` | Middlewares embutidos | `LoggingMiddleware` |
+| `azurajs/router` | Só roteador | `Router` |
+| `azurajs/cookies` | Cookies (helpers) | `serializeCookie`, `clearCookieHeader` |
+| `azurajs/http-error` | Só erros HTTP | `HttpError` |
+| `azurajs/cors` | CORS mínimo | `CORSPlugin`, `CORSOptions` |
+| `azurajs/rate-limit` | Rate limit mínimo | `RateLimitPlugin`, `RateLimitOptions` |
+| `azurajs/infra` | Compatível com imports “infra” da v2 | `ConfigModule`, `resolveIp` |
+| `azurajs/swagger` | OpenAPI + UI | `SwaggerPlugin`, `buildOpenApiDocument`, `ApiTags`, `ApiOperation`, `renderSwaggerUiPage`, … |
+| `azurajs/swagger-ui` | Ficheiro estático | `swagger-ui-modern.html` (não é módulo JS) |
 
 ## Importação Completa vs. Modular
 
@@ -82,7 +91,7 @@ app.plugin(JWTPlugin({ secret: process.env.JWT_SECRET! }));
 const token = signJWT({ userId: "123" }, process.env.JWT_SECRET!);
 ```
 
-Cada plugin é uma factory que retorna um `PluginHandler`. A lista completa inclui 16 plugins oficiais: CORS, Rate Limit, Helmet, JWT, Session, Compression, Static, ETag, Request ID, Timeout, Health Check, Circuit Breaker, SSE, Proxy e Multipart.
+Cada plugin é uma factory que retorna um `PluginHandler`. A lista completa inclui **16** plugins oficiais (incluindo **Swagger**): CORS, Rate Limit, Helmet, JWT, Session, Compression, Static, ETag, Request ID, Timeout, Health Check, Circuit Breaker, SSE, Proxy, Multipart e Swagger.
 
 ### `azurajs/decorators`
 
@@ -189,7 +198,7 @@ import { Controller, Get } from "azurajs/decorators";
 import { CORSPlugin } from "azurajs/plugins";
 ```
 
-Neste cenário, o bundler **não inclui** no output final: os outros 15 plugins, os 19 decorators não importados, `Logger`, `HttpError`, `DTOValidator`, `SchemaValidator`, `ConfigModule`, `LoggingMiddleware` nem nenhuma das 30+ interfaces de tipo.
+Neste cenário, o bundler **não inclui** no output final: os outros plugins, decorators não usados, `Logger`, `HttpError`, validadores extra, `ConfigModule`, `LoggingMiddleware`, etc.
 
 <Callout type="tip" title="Dica de Performance">
   Para builds de produção com `tsup`, `esbuild` ou `rollup`, importações modulares podem reduzir o tamanho do bundle em **40-60%** comparado com `import * from "azurajs"`.

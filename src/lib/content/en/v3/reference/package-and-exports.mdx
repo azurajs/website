@@ -1,0 +1,99 @@
+---
+title: npm package and exports
+description: azurajs 3.x package metadata, package.json exports field, public subpath entries, and the static Swagger UI asset.
+category: Reference
+icon: lucide:package
+order: 1
+---
+
+# npm package and exports (`azurajs`)
+
+This page documents the **published package** as shipped on [npm](https://www.npmjs.com/package/azurajs): name, version, runtime requirements, and **every subpath** declared under `exports` in `package.json`. Use it as a single index for **where to import** each public API in v3.
+
+<Callout type="info" title="Reference version">
+  Documentation targets **`azurajs@^3`** (for example **3.0.9**). Verify your install with `npm ls azurajs` or the `version` field in `node_modules/azurajs/package.json`.
+</Callout>
+
+## Package metadata
+
+| Field | Value |
+| :--- | :--- |
+| **Name** | `azurajs` |
+| **Description** | Ultra-fast TypeScript-first web framework for Node.js and Bun with decorator-based routing, zero runtime dependencies, and a built-in plugin system. |
+| **License** | MIT |
+| **Engines** | Node.js **>= 18.0.0** |
+| **Optional peer** | `typescript` **>= 5.0.0** (recommended for TS projects) |
+| **Repository** | [github.com/azurajs/azura](https://github.com/azurajs/azura) |
+| **Homepage** | [azura.js.org](https://azura.js.org) |
+
+## Install
+
+```bash
+npm install azurajs@^3
+```
+
+```bash
+bun add azurajs@^3
+```
+
+## Root entry (`azurajs`)
+
+The main entry re-exports the core plus the most common modules:
+
+- **`AzuraServer`**, **`Router`**
+- Everything from **`azurajs/decorators`**, **`azurajs/plugins`**, **`azurajs/utils`**, **`azurajs/config`**, **`azurajs/middleware`**, **`azurajs/types`**
+
+Convenient for prototypes; for production bundles and tree-shaking, prefer granular subpaths (below and [Modular imports](/docs/en/v3/advanced/modular-imports)).
+
+## Full `exports` map (subpaths)
+
+Each row is a key in `package.json` `exports`. All entries support **ESM** (`import`) and **CommonJS** (`require`) with dedicated type declarations.
+
+| Subpath | What you get |
+| :--- | :--- |
+| **`azurajs`** | Full surface: server, decorators, plugins, utils, config, middleware, types. |
+| **`azurajs/core`** | `AzuraServer`, `Router`. |
+| **`azurajs/plugins`** | All first-party plugin factories: `CORSPlugin`, `RateLimitPlugin`, `HelmetPlugin`, `JWTPlugin`, `SessionPlugin`, `CompressionPlugin`, `StaticPlugin`, `ETagPlugin`, `RequestIdPlugin`, `TimeoutPlugin`, `HealthCheckPlugin`, `CircuitBreakerPlugin`, `SSEPlugin`, `SSEManager`, `ProxyPlugin`, `MultipartPlugin`, `SwaggerPlugin`, plus `signJWT`, `verifyJWT`, and types such as `JWTPayload`, `UploadedFile`, `SSEClient`. |
+| **`azurajs/decorators`** | `Controller`, HTTP method decorators, parameter decorators, `UseMiddleware`, `Meta`, `applyDecorators`, etc. |
+| **`azurajs/types`** | Shared types: request/response, handlers, `HttpStatus`, `HttpStatusText`, plugin option types, etc. |
+| **`azurajs/utils`** | `Logger`, `HttpError`, validation (`v`, `DTOValidator`, `SchemaValidator`), parsers (`parseBody`, `parseQueryString`, …), cookies (`serializeCookie`, `clearCookieHeader`), `resolveIp`. |
+| **`azurajs/validators`** | Validation-only: `v`, `ValidationError`, `Infer`, `DTOValidator`, `SchemaValidator`, base validators, `DtoValidationError`, etc. |
+| **`azurajs/logger`** | **Callable** logger (v2-style): `logger`, `log`, `configureLogger`, `colors`. |
+| **`azurajs/config`** | `ConfigModule` (`azura.config.*` files). |
+| **`azurajs/middleware`** | `LoggingMiddleware` and other built-in middleware factories. |
+| **`azurajs/router`** | `Router` only (same radix-tree router; minimal import surface). |
+| **`azurajs/cookies`** | `serializeCookie`, `clearCookieHeader` without pulling all of `utils`. |
+| **`azurajs/http-error`** | `HttpError` only. |
+| **`azurajs/cors`** | `CORSPlugin` + `CORSOptions` type. |
+| **`azurajs/rate-limit`** | `RateLimitPlugin` + `RateLimitOptions` type. |
+| **`azurajs/infra`** | v2-friendly bridge: `ConfigModule`, `resolveIp`. |
+| **`azurajs/swagger`** | `SwaggerPlugin`, `buildOpenApiDocument`, `toOpenApiPath`, `ApiTags`, `ApiOperation`, `renderSwaggerUiPage`, OpenAPI constants. |
+| **`azurajs/swagger-ui`** | Static **`swagger-ui-modern.html`** asset (not a JS module). |
+
+The **`azurajs/package.json`** path is exposed for tooling that needs to read package metadata.
+
+## `typesVersions` (TypeScript)
+
+The package ships `typesVersions` so editors and `tsc` resolve typings for subpaths even on older setups. Typical keys: `core`, `plugins`, `decorators`, `types`, `utils`, `validators`, `logger`, `config`, `middleware`, `router`, `cookies`, `http-error`, `cors`, `rate-limit`, `infra`, `swagger`.
+
+Set **`moduleResolution`** to **`"Bundler"`** or **`"NodeNext"`** in `tsconfig.json` for best `exports` alignment.
+
+## Official plugins (count)
+
+The `azurajs/plugins` index exports **16** named plugins (including **`SwaggerPlugin`**), plus JWT helpers and related types. See [Plugins overview](/docs/en/v3/features/plugins) for details.
+
+## Files published to npm
+
+The tarball includes **`dist`**, **`src`**, **`README.md`**, and **`LICENSE`** per the `files` field in `package.json`.
+
+## Relation to v2
+
+- The package name remains **`azurajs`**; **major 3** introduces `AzuraServer`, the plugin model, and granular subpaths.
+- **`azurajs/infra`** helps older code that imported infrastructure paths from v2.
+- Step-by-step upgrade guide: [Migrating from v2 to v3](/docs/en/v3/getting-started/migrating-from-v2).
+
+## Next steps
+
+- [Migrating from v2 to v3](/docs/en/v3/getting-started/migrating-from-v2)  
+- [Modular imports](/docs/en/v3/advanced/modular-imports)  
+- [Installation](/docs/en/v3/getting-started/installation)  

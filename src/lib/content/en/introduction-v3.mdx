@@ -23,7 +23,7 @@ AzuraJS is an **ultra-fast, TypeScript-first web framework** built from the grou
 | **Zero dependencies** | Yes | No | No | No |
 | **TypeScript-first** | Yes | No | Partial | Yes |
 | **Decorator routing** | Built-in | No | No | Yes |
-| **Built-in plugins** | 15+ | 0 | ~5 | Varies |
+| **Built-in plugins** | 16 | 0 | ~5 | Varies |
 | **Radix-tree router** | Yes + LRU cache | No | Yes | No |
 | **Runtime support** | Node.js + Bun | Node.js | Node.js | Node.js |
 | **Config file support** | TS / JS / JSON / YAML | No | No | No |
@@ -33,12 +33,12 @@ AzuraJS is an **ultra-fast, TypeScript-first web framework** built from the grou
 
 - **Zero Dependencies** — The entire framework ships with no external packages. Everything from routing to JWT signing is implemented natively.
 - **Blazing-Fast Router** — A radix-tree router with an integrated LRU cache delivers sub-microsecond route lookups for registered paths.
-- **15+ Built-in Plugins** — CORS, Helmet, Rate Limiting, JWT, Sessions, Compression, Static Files, ETag, Request IDs, Timeouts, Health Checks, Circuit Breaker, SSE, Proxy, and Multipart — all included out of the box.
+- **16 Built-in Plugins** — CORS, Helmet, Rate Limiting, JWT, Sessions, Compression, Static Files, ETag, Request IDs, Timeouts, Health Checks, Circuit Breaker, SSE, Proxy, Multipart, and **Swagger/OpenAPI** — all included out of the box.
 - **Decorator-Based Controllers** — Use `@Controller`, `@Get`, `@Post`, `@Body`, `@Param`, `@Query`, and more to build clean, class-based APIs.
 - **Express-Style Routing** — Prefer functional routing? Use `app.get()`, `app.post()`, etc., just like Express — no decorators required.
 - **TypeScript-First** — Written entirely in TypeScript with full type coverage. Strong types for requests, responses, configuration, and plugins.
 - **Node.js & Bun** — Runs on Node.js 18+ and Bun with no extra configuration needed.
-- **Modular Imports** — `azurajs/core`, `plugins`, `decorators`, `types`, `utils`, `validators`, `logger`, `swagger`, `config`, `middleware`, and more. See [Modular imports](/docs/en/v3/advanced/modular-imports).
+- **Modular Imports** — `azurajs/core`, `plugins`, `decorators`, `types`, `utils`, `validators`, `logger`, `swagger`, `config`, `middleware`, `router`, `cookies`, `http-error`, `cors`, `rate-limit`, `infra`, `swagger-ui`, and more. See [Modular imports](/docs/en/v3/advanced/modular-imports) and the full table in [npm package and exports](/docs/en/v3/reference/package-and-exports).
 - **Config File System** — Automatically loads `azura.config.ts`, `.js`, `.json`, or `.yaml` from your project root.
 - **Built-in Validation** — Zod-like **`v`** from `azurajs/validators`, **`DTOValidator`** for rule objects, and **`SchemaValidator`** for Zod/Joi.
 - **Structured Error Handling** — `HttpError.notFound()`, `HttpError.badRequest()`, and more provide consistent, JSON-serializable error responses.
@@ -99,7 +99,7 @@ app.listen(3000);
 
 ## Built-in Plugins
 
-AzuraJS v3 ships with **15 production-ready plugins**:
+AzuraJS v3 ships with **16 production-ready plugins** (including OpenAPI docs):
 
 | Plugin | Description |
 |---|---|
@@ -118,6 +118,7 @@ AzuraJS v3 ships with **15 production-ready plugins**:
 | `SSEPlugin` | Server-Sent Events support |
 | `ProxyPlugin` | HTTP reverse proxy |
 | `MultipartPlugin` | Multipart form / file upload handling |
+| `SwaggerPlugin` | OpenAPI spec, `/docs` UI, configurable JSON path |
 
 ## Project Structure
 
@@ -142,8 +143,9 @@ my-app/
   Head over to the guides below to set up your first AzuraJS v3 project.
 </Callout>
 
+- [**Migrating from v2 to v3**](/docs/en/v3/getting-started/migrating-from-v2) — Checklist, `AzuraServer`, Swagger, validators, logger, npm subpaths.
+- [**npm package and exports**](/docs/en/v3/reference/package-and-exports) — Full `package.json` `exports` reference.
 - [**Installation**](/docs/en/v3/getting-started/installation) — Install AzuraJS and set up your TypeScript project.
 - [**Quick Start**](/docs/en/v3/getting-started/quick-start) — Build your first API in under 5 minutes.
-- [**Migrating from v2 to v3**](/docs/en/v3/getting-started/migrating-from-v2) — Upgrade paths, `v`, logger, Swagger, imports.
 - [**Configuration**](/docs/en/v3/getting-started/configuration) — Learn about the configuration system.
 - [**Usage with JavaScript**](/docs/en/v3/getting-started/usage-with-javascript) — Use AzuraJS without TypeScript.
