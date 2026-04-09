@@ -8,7 +8,7 @@ order: 1
 
 # Importações Modulares 📦
 
-O AzuraJS v3 expõe **8 subcaminhos de importação** via `exports` no `package.json`. Cada subcaminho aponta para um módulo isolado com declarações de tipo dedicadas, permitindo que bundlers realizem tree-shaking completo e que o TypeScript resolva tipos sem configuração extra.
+O AzuraJS v3 expõe **vários subcaminhos** via `exports` no `package.json`. Cada um aponta para um módulo isolado com tipos dedicados, para tree-shaking e resolução correta no TypeScript.
 
 ## Mapa de Subcaminhos
 
@@ -19,8 +19,11 @@ O AzuraJS v3 expõe **8 subcaminhos de importação** via `exports` no `package.
 | `azurajs/plugins` | Plugins oficiais | `CORSPlugin`, `RateLimitPlugin`, `HelmetPlugin`, `JWTPlugin`, `SessionPlugin`, `CompressionPlugin`, `StaticPlugin`, `ETagPlugin`, `RequestIdPlugin`, `TimeoutPlugin`, `HealthCheckPlugin`, `CircuitBreakerPlugin`, `SSEPlugin`, `SSEManager`, `ProxyPlugin`, `MultipartPlugin`, `signJWT`, `verifyJWT` |
 | `azurajs/decorators` | Decorators de classe, método e parâmetro | `Controller`, `Get`, `Post`, `Put`, `Delete`, `Patch`, `Head`, `Options`, `Body`, `Query`, `Param`, `Headers`, `Cookies`, `Req`, `Res`, `NextFunc`, `Ip`, `Session`, `UseMiddleware`, `applyDecorators`, `Meta` |
 | `azurajs/types` | Interfaces, enums e type aliases | `AzuraRequest`, `AzuraResponse`, `NextFunction`, `MiddlewareHandler`, `RouteHandler`, `ErrorHandler`, `HttpMethod`, `HttpStatus`, `HttpStatusText`, `AzuraConfig`, `ServerConfig`, `CORSOptions`, `RateLimitOptions` e 20+ tipos de plugin |
-| `azurajs/utils` | Utilitários e validação | `Logger`, `HttpError`, `resolveIp`, `parseQueryString`, `parseCookies`, `parseBody`, `parseUrl`, `serializeCookie`, `clearCookieHeader`, `DTOValidator`, `SchemaValidator` |
-| `azurajs/config` | Módulo de configuração | `ConfigModule` |
+| `azurajs/utils` | Utilitários e validação | `Logger`, `HttpError`, `v`, `ValidationError`, `DTOValidator`, `SchemaValidator`, parsers, cookies, … |
+| `azurajs/validators` | Só validação | `v`, `ValidationError`, `DTOValidator`, `SchemaValidator`, `Infer`, … |
+| `azurajs/logger` | Logger chamável (estilo v2) | `logger`, `log`, `configureLogger`, `colors` |
+| `azurajs/swagger` | OpenAPI / docs | `SwaggerPlugin`, `ApiTags`, `ApiOperation`, `buildOpenApiDocument`, … |
+| `azurajs/config` | Configuração | `ConfigModule` |
 | `azurajs/middleware` | Middlewares embutidos | `LoggingMiddleware` |
 
 ## Importação Completa vs. Modular
@@ -135,7 +138,7 @@ Este subcaminho exporta **apenas tipos** (com exceção de `HttpStatus` e `HttpS
 
 ```typescript
 import { HttpError, Logger, DTOValidator } from "azurajs/utils";
-import type { Schema, ValidationResult } from "azurajs/utils";
+import type { Schema, ValidationResult } from "azurajs/validators";
 
 throw HttpError.badRequest("Campo 'email' é obrigatório");
 
@@ -206,7 +209,8 @@ const { AzuraServer } = require("azurajs/core");
 
 O campo `exports` no `package.json` usa condições `import` (ESM) e `require` (CJS), com `types` dedicado para cada um.
 
-## Próximos Passos 📖
+## Próximos passos
 
-- [🛠️ **Suporte TypeScript**](/docs/pt/v3/avancado/suporte-typescript): Veja como o TypeScript é fundamental para o desenvolvimento com AzuraJS.
-- [🧬 **Extensões de Tipo**](/docs/pt/v3/avancado/extensoes-de-tipo): Aprenda a estender `AzuraRequest` e `AzuraResponse` com propriedades personalizadas.
+- [Migração v2 → v3](/docs/pt/v3/comecando/migracao-da-v2)  
+- [Suporte TypeScript](/docs/pt/v3/avancado/suporte-typescript)  
+- [Extensões de tipo](/docs/pt/v3/avancado/extensoes-de-tipo)  

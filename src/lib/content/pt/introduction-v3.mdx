@@ -13,7 +13,7 @@ order: 1
 AzuraJS é um **framework web ultra-rápido, TypeScript-first**, construído do zero para Node.js e Bun. A versão 3.0 é uma reescrita completa com **zero dependências externas**, um roteador radix-tree com cache LRU, mais de 15 plugins integrados e suporte nativo a decorators.
 
 <Callout type="info" title="O que há de novo na v3?">
-  AzuraJS v3 é uma versão major. O pacote foi renomeado para **azurajs**, a classe principal agora é `AzuraServer`, e todo o sistema de plugins e tipos foi redesenhado. Se você está migrando da v2, consulte os docs do Framework para a API antiga.
+  AzuraJS v3 é uma versão major: pacote **azurajs**, classe principal **`AzuraServer`**, plugins e tipos redesenhados. **Vens da v2?** Usa o guia [Migração da v2 para a v3](/docs/pt/v3/comecando/migracao-da-v2).
 </Callout>
 
 ## Por que AzuraJS v3?
@@ -38,9 +38,9 @@ AzuraJS é um **framework web ultra-rápido, TypeScript-first**, construído do 
 - **Roteamento Estilo Express** — Prefere roteamento funcional? Use `app.get()`, `app.post()`, etc., exatamente como no Express — sem necessidade de decorators.
 - **TypeScript-First** — Escrito inteiramente em TypeScript com cobertura total de tipos. Tipos fortes para requests, responses, configuração e plugins.
 - **Node.js & Bun** — Roda em Node.js 18+ e Bun sem nenhuma configuração extra.
-- **Importações Modulares** — Importe apenas o que precisa: `azurajs/core`, `azurajs/plugins`, `azurajs/decorators`, `azurajs/types`, `azurajs/utils`, `azurajs/config`, `azurajs/middleware`.
+- **Importações modulares** — `azurajs/core`, `plugins`, `decorators`, `types`, `utils`, `validators`, `logger`, `swagger`, `config`, `middleware`, etc. Ver [Importações modulares](/docs/pt/v3/avancado/importacoes-modulares).
 - **Sistema de Arquivos de Config** — Carrega automaticamente `azura.config.ts`, `.js`, `.json` ou `.yaml` na raiz do projeto.
-- **Validação Integrada** — `DTOValidator` para validação baseada em schemas e `SchemaValidator` para schemas compatíveis com Zod.
+- **Validação integrada** — API **`v`** (estilo Zod) em `azurajs/validators`, **`DTOValidator`** por regras e **`SchemaValidator`** para Zod/Joi.
 - **Tratamento de Erros Estruturado** — `HttpError.notFound()`, `HttpError.badRequest()` e mais fornecem respostas de erro consistentes e serializáveis em JSON.
 
 ## Exemplo Rápido
@@ -143,6 +143,7 @@ my-app/
 </Callout>
 
 - [**Instalação**](/docs/pt/v3/comecando/instalacao) — Instale o AzuraJS e configure seu projeto TypeScript.
-- [**Início Rápido**](/docs/pt/v3/comecando/inicio-rapido) — Construa sua primeira API em menos de 5 minutos.
+- [**Início rápido**](/docs/pt/v3/comecando/inicio-rapido) — Construa sua primeira API em menos de 5 minutos.
+- [**Migração v2 → v3**](/docs/pt/v3/comecando/migracao-da-v2) — Atualizar projeto, `v`, logger, Swagger, imports.
 - [**Configuração**](/docs/pt/v3/comecando/configuracao) — Aprenda sobre o sistema de configuração.
 - [**Uso com JavaScript**](/docs/pt/v3/comecando/uso-com-javascript) — Use o AzuraJS sem TypeScript.

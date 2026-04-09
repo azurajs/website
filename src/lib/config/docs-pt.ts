@@ -53,6 +53,7 @@ export const docsConfig = {
         { title: "Início Rápido", slug: "v3/comecando/inicio-rapido" },
         { title: "Uso com JavaScript", slug: "v3/comecando/uso-com-javascript" },
         { title: "Configuração", slug: "v3/comecando/configuracao" },
+        { title: "Migração v2 → v3", slug: "v3/comecando/migracao-da-v2" },
       ],
     },
     {
@@ -82,6 +83,7 @@ export const docsConfig = {
         { title: "Server-Sent Events", slug: "v3/recursos/sse" },
         { title: "Health Check", slug: "v3/recursos/health-check" },
         { title: "Tratamento de Erros", slug: "v3/recursos/error-handling" },
+        { title: "OpenAPI e Swagger", slug: "v3/recursos/swagger-openapi" },
       ],
     },
     {

@@ -1,0 +1,295 @@
+---
+title: Swagger / OpenAPI
+description: Complete API documentation with a modern dark Swagger UI and OpenAPI 3 generation
+category: Features
+icon: lucide:book-open
+order: 16
+---
+
+# Swagger / OpenAPI 3.0
+
+AzuraJS v3 includes a **zero-dependency** OpenAPI 3 generator and a **built-in documentation page** at **`docsPath`**: a **custom HTML UI** (sidebar navigation, **Inter** / **JetBrains Mono**, zinc / indigo theme) aligned with the **v2 “modern”** experience. It is **not** the stock Swagger UI bundle from a CDN — everything ships in the **`azurajs`** package.
+
+> **Note:** The OpenAPI document is built from **registered routes** and optional **`@ApiTags` / `@ApiOperation`** metadata (and **`RouteMeta`** on imperative routes). No separate YAML file is required.
+
+## Installation
+
+Swagger support lives in the main `azurajs` package. Enable the plugin and import decorators from the same entry you use for the rest of the app:
+
+```typescript
+import { AzuraServer, SwaggerPlugin, Controller, Get, ApiTags, ApiOperation } from "azurajs";
+// or modular:
+import { SwaggerPlugin } from "azurajs/plugins";
+import { ApiTags, ApiOperation } from "azurajs/swagger";
+```
+
+## Quick setup
+
+Minimal example: register **`SwaggerPlugin`**, pass **`getDocuments: () => app.getRouteDocuments()`**, and register controllers.
+
+```typescript
+import { AzuraServer, SwaggerPlugin, Controller, Get, Post, Body, Param, ApiTags, ApiOperation } from "azurajs";
+
+@ApiTags("demo")
+@Controller("/api")
+class DemoController {
+  @Get("/items")
+  @ApiOperation({
+    summary: "List items",
+    description: "Returns an example list.",
+  })
+  list() {
+    return { items: [] };
+  }
+
+  @Post("/items")
+  @ApiOperation({ summary: "Create item" })
+  create(@Body() body: Record<string, unknown>) {
+    return { id: Date.now(), ...body };
+  }
+
+  @Get("/items/:id")
+  getOne(@Param("id") id: string) {
+    return { id, name: `item-${id}` };
+  }
+}
+
+const app = new AzuraServer({ server: { port: 3000 } });
+
+app.plugin(
+  SwaggerPlugin({
+    getDocuments: () => app.getRouteDocuments(),
+    info: {
+      title: "My API",
+      version: "1.0.0",
+      description: "Production API",
+    },
+    specPath: "/openapi.json",
+    docsPath: "/docs",
+  }),
+);
+
+app.register(DemoController);
+app.listen(3000);
+```
+
+> **Access the documentation at:**
+>
+> - **Interactive UI:** `http://localhost:3000/docs`
+> - **OpenAPI JSON:** `http://localhost:3000/openapi.json`
+
+## Documentation decorators
+
+### `@ApiTags` — group endpoints
+
+Apply at **class** level (all routes in the controller) or on **individual methods**:
+
+```typescript
+@ApiTags("users", "accounts")
+@Controller("/api/users")
+class UsersController {
+  @Get("/")
+  list() {
+    return { users: [] };
+  }
+}
+```
+
+### `@ApiOperation` — summaries, responses, parameters
+
+Use on **methods** to fill OpenAPI **summary**, **description**, **responses**, **parameters**, etc. (see **`RouteMeta`** in the decorators guide).
+
+**Recommended order:** put HTTP method decorators first (`@Get`, `@Post`, …), then `@ApiOperation` — this matches legacy decorator typing and avoids TypeScript issues with legacy decorators:
+
+```typescript
+@Get("/items")
+@ApiOperation({ summary: "List items", description: "Returns all items." })
+list() {
+  return { items: [] };
+}
+```
+
+### Imperative routes — `RouteMeta`
+
+Pass a **`RouteMeta`** object as the **last** argument after the handler:
+
+```typescript
+app.get(
+  "/health",
+  (req, res) => {
+    res.json({ ok: true });
+  },
+  {
+    summary: "Liveness probe",
+    tags: ["ops"],
+  },
+);
+```
+
+---
+
+## Swagger UI interface
+
+The bundled Swagger UI page provides:
+
+### Modern design
+
+- Dark, minimal layout consistent with AzuraJS branding  
+- Readable typography and clear operation grouping  
+
+### Real-time search
+
+- Filter operations from the Swagger UI search bar (Swagger UI built-in behavior)
+
+### Try it out
+
+- Execute requests from the browser  
+- Edit path, query, headers, and body where the spec allows  
+
+### Features
+
+- Copy request snippets  
+- View status codes and response shapes from the generated spec  
+- Deep linking when **`deepLinking`** is enabled (default on **`SwaggerPlugin`**)
+
+---
+
+## Advanced configuration
+
+### `SwaggerPlugin` options
+
+| Option | Role |
+| :--- | :--- |
+| `getDocuments` | **`() => app.getRouteDocuments()`** — evaluated on each request to the JSON route so new routes appear without restart |
+| `info` | OpenAPI **`info`** (`title`, `version`, `description`, `contact`, `license`) |
+| `servers` | Optional **`servers`** array |
+| `pathPrefix` | Prefix for every path (e.g. `/api/v1`) |
+| `specPath` | OpenAPI JSON path (default **`/openapi.json`**) |
+| `docsPath` | Swagger UI path (default **`/docs`**) |
+| `deepLinking` | Swagger UI deep links (default **`true`**) |
+
+### Multiple servers
+
+```typescript
+app.plugin(
+  SwaggerPlugin({
+    getDocuments: () => app.getRouteDocuments(),
+    info: { title: "My API", version: "1.0.0" },
+    servers: [
+      { url: "http://localhost:3000", description: "Development" },
+      { url: "https://api.example.com", description: "Production" },
+    ],
+  }),
+);
+```
+
+### Contact and license
+
+```typescript
+app.plugin(
+  SwaggerPlugin({
+    getDocuments: () => app.getRouteDocuments(),
+    info: {
+      title: "My API",
+      version: "1.0.0",
+      contact: { name: "API Support", email: "support@example.com", url: "https://example.com/support" },
+      license: { name: "MIT", url: "https://opensource.org/licenses/MIT" },
+    },
+  }),
+);
+```
+
+---
+
+## Programmatic export
+
+Export the spec for CI, tests, or static hosting:
+
+```typescript
+const spec = app.getOpenApiDocument({
+  info: { title: "Export", version: "1.0.0" },
+  servers: [{ url: "https://api.example.com" }],
+});
+```
+
+You can also use **`getRouteDocuments()`** for lower-level access to per-route metadata.
+
+---
+
+## Static HTML export (`azurajs/swagger-ui`)
+
+The UI template is also published as **`swagger-ui-modern.html`** (export **`azurajs/swagger-ui`**) for custom hosting or tools that read the file from disk (similar to v2). For normal apps, **`SwaggerPlugin`** already injects the correct **`specPath`** into the HTML it serves at **`docsPath`**.
+
+## Helmet and Content-Security-Policy
+
+The docs page runs **inline script** to load your OpenAPI JSON from **`specPath`**. If **`HelmetPlugin`** sets a strict **CSP** (`script-src` without **`'unsafe-inline'`**), either relax rules for **`/docs`** (and the JSON route) or disable CSP for those paths. See [Security](/docs/en/v3/features/security).
+
+---
+
+## TypeScript and decorators
+
+Enable legacy decorators in **`tsconfig.json`**:
+
+```json
+{
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+  }
+}
+```
+
+Example files under **`examples/`** can use **`examples/tsconfig.json`** so the IDE type-checks decorators outside **`src/`**.
+
+---
+
+## TypeScript types
+
+```typescript
+import type { SwaggerPluginOptions, BuildOpenApiOptions } from "azurajs/types";
+```
+
+---
+
+## Best practices
+
+### 1. Use `@ApiTags` for navigation
+
+Group related routes so the generated spec and Swagger UI stay easy to scan.
+
+### 2. Prefer `@ApiOperation` for public contracts
+
+Document **summary**, **description**, and response shapes where consumers rely on the spec.
+
+### 3. Keep plugin `getDocuments` fresh
+
+Always use **`() => app.getRouteDocuments()`** so dynamic registration is reflected on the next request.
+
+---
+
+## Troubleshooting
+
+### Empty or incomplete spec
+
+- Confirm controllers are **`app.register(...)`** before you expect them in the document.  
+- Ensure **`SwaggerPlugin`** receives **`getDocuments`** from the same **`AzuraServer`** instance.
+
+### Documentation UI does not load
+
+- Check **`docsPath`** vs the URL you open.  
+- If using **Helmet**, verify **CSP** allows **inline script** on the docs route (or exclude **`/docs`** from strict CSP).
+
+### Decorator type errors in the editor
+
+- Enable **`experimentalDecorators`**.  
+- Put **`@Get` / `@Post`** before **`@ApiOperation`**.  
+- For files outside **`src/`**, align the IDE with **`examples/tsconfig.json`** or include **`examples`** in the root **`tsconfig.json`**.
+
+---
+
+## Next steps
+
+- [Migrating from v2 to v3](/docs/en/v3/getting-started/migrating-from-v2) — **`/api-spec.json`** vs **`/openapi.json`**, Swagger setup  
+- [Plugins overview](/docs/en/v3/features/plugins)  
+- [Decorators & `RouteMeta`](/docs/en/v3/concepts/decorators) — field reference for `@ApiOperation`  
+- [Quick start](/docs/en/v3/getting-started/quick-start)

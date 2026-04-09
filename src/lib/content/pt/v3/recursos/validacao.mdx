@@ -8,7 +8,40 @@ order: 2
 
 # Validação
 
-O AzuraJS v3 oferece duas estratégias de validação integradas, sem dependências externas: o **DTOValidator** para schemas declarativos nativos e o **SchemaValidator** como adaptador universal para bibliotecas externas como Zod e Joi.
+O AzuraJS v3 oferece **três** ferramentas complementares:
+
+- **`v` (estilo Zod)** — em **`azurajs/validators`**: schemas com **`.parse()`**, **`.safeParse()`** e **`Infer<typeof schema>`**, alinhado à API de validação da v2.
+- **DTOValidator** — regras em objetos simples. Importa de **`azurajs/utils`** ou **`azurajs/validators`**.
+- **SchemaValidator** — ponte para **Zod**, **Joi**, etc., a partir de **`azurajs/utils`** ou **`azurajs/validators`**.
+
+<Callout type="info" title="Tipo dos erros do DTO">
+  Os erros do DTO usam **`DtoValidationError`** (`field`, `message`, `value?`) para não conflituar com a classe **`ValidationError`** lançada pelo **`v`**.
+</Callout>
+
+## API `v` (`azurajs/validators`)
+
+Ideal para variáveis de ambiente e objetos de configuração:
+
+```typescript
+import { v, ValidationError, type Infer } from "azurajs/validators";
+
+const envSchema = v.object({
+  PORT: v.string(),
+  NODE_ENV: v.string(),
+});
+
+export type Env = Infer<typeof envSchema>;
+
+try {
+  const env = envSchema.parse(process.env);
+} catch (e) {
+  if (e instanceof ValidationError) {
+    console.error(e.format());
+  }
+}
+```
+
+Usa **`safeParse`** quando quiseres evitar `try/catch`. Para cadeias **`v.string().min(3)`**, etc., o comportamento é análogo ao Zod.
 
 ## DTOValidator
 
@@ -18,7 +51,7 @@ O `DTOValidator` permite definir schemas inline com regras tipadas. Ideal para v
 
 ```typescript
 import { DTOValidator } from "azurajs/utils";
-import type { Schema, ValidationResult, ValidationError } from "azurajs/utils";
+import type { Schema, ValidationResult } from "azurajs/validators";
 ```
 
 ### Definindo um Schema
@@ -88,11 +121,11 @@ if (!result.valid) {
 ```typescript
 interface ValidationResult {
   valid: boolean;
-  errors: ValidationError[];
+  errors: DtoValidationError[];
   data?: any; // presente apenas quando valid === true
 }
 
-interface ValidationError {
+interface DtoValidationError {
   field: string;
   message: string;
   value?: any;
@@ -301,17 +334,22 @@ app.post("/users", zodValidate(CreateUser), (req, res) => {
 });
 ```
 
-## Comparação: DTOValidator vs SchemaValidator
+## Comparação: `v` vs DTOValidator vs SchemaValidator
 
-| Característica | DTOValidator | SchemaValidator |
-| :--- | :--- | :--- |
-| Dependências | Nenhuma | Zod, Joi, ou similar |
-| Complexidade do schema | Simples a moderada | Qualquer complexidade |
-| Inferência de tipos | Manual | Automática (Zod `z.infer`) |
-| Transformações | Não | Sim (depende da biblioteca) |
-| Mensagens customizadas | Sim (`message`) | Depende da biblioteca |
-| Validação aninhada | Não | Sim |
+| Característica | `v` | DTOValidator | SchemaValidator |
+| :--- | :--- | :--- | :--- |
+| Import | `azurajs/validators` | `azurajs/utils` ou `validators` | `azurajs/utils` ou `validators` |
+| Dependências | Nenhuma | Nenhuma | Zod, Joi, etc. |
+| Estilo | Cadeias (`.parse()`) | Objeto de regras | API da biblioteca |
+| Inferência | `Infer<typeof schema>` | Manual | Com Zod (`z.infer`) |
+| Validação aninhada | Sim (`v.object`) | Limitada | Sim |
 
 <Callout>
-Para projetos sem dependências externas, use o `DTOValidator`. Para projetos que já utilizam Zod ou Joi, o `SchemaValidator` integra-se perfeitamente sem forçar migração.
+Sem dependências externas: **`v`** ou **`DTOValidator`**. Com Zod/Joi existente: **`SchemaValidator`**. A migrar da v2: **`v`** costuma ser o caminho mais directo para o código antigo.
 </Callout>
+
+## Próximos passos
+
+- [Migração v2 → v3](/docs/pt/v3/comecando/migracao-da-v2) — `v`, logger, Swagger  
+- [Tratamento de erros](/docs/pt/v3/recursos/error-handling)  
+- [Cookies](/docs/pt/v3/recursos/cookies)  

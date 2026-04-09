@@ -8,10 +8,41 @@ order: 2
 
 # Validation
 
-AzuraJS provides two complementary validators, both imported from `azurajs/utils`:
+AzuraJS provides **three** complementary tools:
 
-- **DTOValidator** — a lightweight, zero-dependency validator with its own schema DSL.
-- **SchemaValidator** — a thin adapter that delegates to external libraries like **Zod** or **Joi**.
+- **`v` (Zod-like)** — from **`azurajs/validators`**: composable schemas with **`.parse()`**, **`.safeParse()`**, and **`Infer<typeof schema>`**. Same style as the legacy v2 validator API.
+- **DTOValidator** — lightweight schema objects (field rules). Import from **`azurajs/utils`** or **`azurajs/validators`**.
+- **SchemaValidator** — adapter for external libraries (**Zod**, **Joi**, etc.) from **`azurajs/utils`** or **`azurajs/validators`**.
+
+<Callout type="info" title="DTO error type name">
+  DTO validation errors use the type **`DtoValidationError`** (`field`, `message`, optional `value`) so they do not clash with the **`ValidationError`** **class** thrown by **`v`**.
+</Callout>
+
+## The `v` API (`azurajs/validators`)
+
+Use **`v`** for env objects, configs, and bodies when you want Zod-style inference without adding Zod:
+
+```typescript
+import { v, ValidationError, type Infer } from "azurajs/validators";
+
+const envSchema = v.object({
+  PORT: v.string(),
+  NODE_ENV: v.string(),
+  DATABASE_URL: v.string(),
+});
+
+export type Env = Infer<typeof envSchema>;
+
+try {
+  const env = envSchema.parse(process.env);
+} catch (e) {
+  if (e instanceof ValidationError) {
+    console.error(e.format());
+  }
+}
+```
+
+Use **`schema.safeParse(data)`** to avoid throwing, and chain modifiers such as **`v.string().min(3)`** like Zod. The AzuraJS repository includes **validator** examples for larger patterns.
 
 ## DTOValidator
 
@@ -64,12 +95,13 @@ A schema is a `Record<string, FieldRule>`. Each key maps to a field on the incom
 ```typescript
 interface ValidationResult {
   valid: boolean;
-  errors: ValidationError[];
+  errors: DtoValidationError[];
 }
 
-interface ValidationError {
+interface DtoValidationError {
   field: string;
   message: string;
+  value?: unknown;
 }
 ```
 
@@ -190,17 +222,18 @@ interface SchemaValidationResult {
 If the schema object doesn't expose `safeParse`, `parse`, or `validate`, `SchemaValidator.validate` returns `{ valid: true, data }` as a passthrough. This makes it safe to call even when you're unsure of the schema type.
 </Callout>
 
-## DTOValidator vs SchemaValidator
+## DTOValidator vs `v` vs SchemaValidator
 
-| Feature | DTOValidator | SchemaValidator |
-| :--- | :--- | :--- |
-| Dependencies | None | Requires Zod, Joi, or similar |
-| Schema format | Plain objects | Library-specific |
-| Type inference | No | Yes (with Zod) |
-| Custom rules | `custom` function | Library-specific |
-| Best for | Simple / lightweight validation | Complex schemas with rich types |
+| Feature | `v` | DTOValidator | SchemaValidator |
+| :--- | :--- | :--- | :--- |
+| Import | `azurajs/validators` | `azurajs/utils` or `azurajs/validators` | `azurajs/utils` or `azurajs/validators` |
+| Dependencies | None | None | Zod / Joi / etc. |
+| Style | Chained API, `.parse()` | Plain rule objects | Library-specific |
+| Type inference | **`Infer<typeof schema>`** | No | Yes (with Zod) |
+| Best for | Configs, DTOs, parity with v2 | Quick inline rules | Existing Zod/Joi schemas |
 
 ## Next Steps
 
-- [Error Handling](/docs/en/v3/features/error-handling) — return structured errors from validation failures
-- [Cookies](/docs/en/v3/features/cookies) — read and set cookies on validated requests
+- [Migrating from v2 to v3](/docs/en/v3/getting-started/migrating-from-v2) — **`v`**, logger, Swagger changes  
+- [Error Handling](/docs/en/v3/features/error-handling) — return structured errors from validation failures  
+- [Cookies](/docs/en/v3/features/cookies) — read and set cookies on validated requests  

@@ -1,6 +1,6 @@
 ---
 title: Logger
-description: Sistema de logging integrado do AzuraJS v3 — Logger colorido, níveis configuráveis e LoggingMiddleware
+description: Logger chamável em azurajs/logger (estilo v2), classe Logger para o servidor e LoggingMiddleware para tempo de resposta
 category: Recursos
 icon: lucide:scroll-text
 order: 4
@@ -8,249 +8,141 @@ order: 4
 
 # Logger
 
-O AzuraJS v3 inclui um sistema de logging integrado com saída colorida no terminal, níveis configuráveis, timestamps e logging automático de requisições HTTP. Não requer dependências externas.
+O AzuraJS expõe **duas** formas de registar mensagens:
 
-## A Classe Logger
+1. **`logger` chamável** e atalhos **`log`** em **`azurajs/logger`** — igual à **v2** (`logger("success", "…")`, ícones e cores).
+2. **Classe `Logger`** em **`azurajs/utils`** — métodos **`.info()`**, **`.error()`**, usada pelo **`AzuraServer`** e middleware.
 
-### Import
+<Callout type="warning" title="Não confundas os dois `logger`">
+  **`import { logger } from "azurajs/logger"`** é uma **função**. **`logger.info(...)`** dá erro de tipo. Usa **`log.info(...)`** do mesmo módulo, ou **`new Logger()`** de **`azurajs/utils`**.
+</Callout>
+
+## Logger chamável (`azurajs/logger`)
+
+Para arranque, Redis, PostgreSQL, scripts:
 
 ```typescript
-import { Logger } from "azurajs/utils";
+import { logger, log, configureLogger } from "azurajs/logger";
+
+logger("log", "A ligar ao Redis…");
+logger("success", "Redis ligado.");
+logger("fatal", "Falha na ligação.");
+
+log.info("À escuta na porta 3000");
+log.error("Algo correu mal");
 ```
 
-### Criando uma Instância
+### Níveis (primeiro argumento)
+
+| Nível | Uso |
+| :--- | :--- |
+| `debug`, `trace` | Diagnóstico |
+| `info`, `log` | Mensagens normais |
+| `success` | Sucesso |
+| `warn` | Avisos |
+| `error`, `fatal` | Saída via **`console.error`** |
+
+### `configureLogger`
 
 ```typescript
-const logger = new Logger({
-  level: "debug",
-  colors: true,
-  timestamp: true,
-  prefix: "minha-app",
+configureLogger({
+  prefix: "MinhaAPI",
+  showTimestamp: true,
+  timestampFormat: "iso",
 });
 ```
 
-### Opções do Construtor
+### `colors`
 
-| Opção | Tipo | Padrão | Descrição |
-| :--- | :--- | :--- | :--- |
-| `level` | `"debug" \| "info" \| "warn" \| "error" \| "silent"` | `"info"` | Nível mínimo de log |
-| `colors` | `boolean` | `true` (se TTY) | Habilita saída colorida |
-| `timestamp` | `boolean` | `true` | Exibe timestamp nas mensagens |
-| `prefix` | `string` | `"azura"` | Prefixo das mensagens |
+`import { colors } from "azurajs/logger"` — **`colors.hex`**, **`colors.ansi`**, etc.
 
-## Níveis de Log
+---
 
-O Logger possui 5 níveis, ordenados por prioridade:
-
-| Nível | Prioridade | Cor | Uso |
-| :--- | :--- | :--- | :--- |
-| `debug` | 0 | Cinza | Informações detalhadas para desenvolvimento |
-| `info` | 1 | Azul | Eventos normais da aplicação |
-| `warn` | 2 | Amarelo | Situações inesperadas que não são erros |
-| `error` | 3 | Vermelho | Erros que requerem atenção |
-| `silent` | 4 | — | Desabilita todo logging |
-
-Quando um nível é configurado, apenas mensagens com prioridade igual ou superior são exibidas:
+## Classe `Logger` (`azurajs/utils`)
 
 ```typescript
-const logger = new Logger({ level: "warn" });
+import { Logger } from "azurajs/utils";
 
-logger.debug("Ignorado");  // não aparece
-logger.info("Ignorado");   // não aparece
-logger.warn("Aparece!");    // ✓ exibido
-logger.error("Aparece!");   // ✓ exibido
+const log = new Logger({
+  level: "debug",
+  prefix: "minha-app",
+  timestamp: true,
+  colors: true,
+});
+
+log.debug("Cache miss");
+log.info("Servidor na porta 3000");
+log.warn("Endpoint depreciado");
+log.error("Erro:", err.message);
 ```
 
-## Métodos de Log
+### Opções do construtor
 
-```typescript
-const logger = new Logger({ level: "debug" });
+| Opção | Tipo | Padrão |
+| :--- | :--- | :--- |
+| `level` | `debug` … `silent` | `"info"` |
+| `prefix` | `string` | `"azura"` |
+| `timestamp` | `boolean` | `true` |
+| `colors` | `boolean` | auto (TTY) |
 
-logger.debug("Conexão com banco estabelecida");
-logger.info("Servidor iniciado na porta 3000");
-logger.warn("Cache quase cheio: 95% utilizado");
-logger.error("Falha ao conectar ao Redis:", error);
-```
+### Níveis (classe)
 
-Cada método aceita uma mensagem e argumentos adicionais (passados para `console.*`):
+`debug` < `info` < `warn` < `error` < `silent`.
 
-```typescript
-logger.info("Usuário criado", { id: 1, name: "João" });
-logger.error("Erro na requisição:", { status: 500, path: "/api/users" });
-```
+### `request`, `banner`, `setLevel`
 
-## Log de Requisições HTTP
+- **`request(method, path, status, duraçãoBigInt)`** — linha HTTP (uso interno; ver abaixo).  
+- **`banner(port, host)`** — banner após **`listen`**.  
+- **`setLevel("warn")`** — alterar em runtime.
 
-O método `request()` formata requisições HTTP com cores por método e status:
+### Cores por método e status
 
-```typescript
-logger.request("GET", "/api/users", 200, duration);
-// 10:30:15.123 GET     /api/users 200 1.2ms
-```
+Quando **`requestLogging`** está ativo, o servidor usa o **`Logger`** interno com cores por método HTTP (GET verde, POST azul, etc.) e por faixa de status (2xx verde, 5xx vermelho, …).
 
-O AzuraJS utiliza este método internamente quando `logging.requestLogging` está habilitado na configuração:
+## Configuração no `AzuraServer`
 
 ```typescript
 const app = new AzuraServer({
   logging: {
     enabled: true,
     level: "info",
-    requestLogging: true, // habilita log automático de requisições
+    requestLogging: true,
     colors: true,
     timestamp: true,
   },
 });
 ```
 
-### Cores por Método HTTP
+Com **`enabled: false`**, o nível passa a **`silent`**.
 
-| Método | Cor |
-| :--- | :--- |
-| GET | Verde |
-| POST | Azul |
-| PUT | Amarelo |
-| DELETE | Vermelho |
-| PATCH | Magenta |
-| HEAD | Ciano |
-| OPTIONS | Cinza |
-
-### Cores por Status Code
-
-| Faixa | Cor |
-| :--- | :--- |
-| 1xx | Cinza |
-| 2xx | Verde |
-| 3xx | Ciano |
-| 4xx | Amarelo |
-| 5xx | Vermelho |
-
-## Banner de Inicialização
-
-O método `banner()` exibe uma mensagem estilizada quando o servidor inicia:
-
-```
-  ⚡ AzuraJS v3.0.0
-
-  ➜ Local:   http://0.0.0.0:3000/
-  ➜ Press Ctrl+C to stop
-```
-
-Este banner é chamado automaticamente pelo `app.listen()`.
-
-## Alterando o Nível em Runtime
+## `getLogger()` no servidor
 
 ```typescript
-const logger = new Logger({ level: "info" });
-
-logger.debug("Não aparece");
-
-logger.setLevel("debug");
-logger.debug("Agora aparece!");
-
-logger.setLevel("silent"); // desabilita tudo
+const app = new AzuraServer();
+const serverLogger = app.getLogger();
+serverLogger.info("Mensagem com o mesmo Logger da framework");
 ```
 
 ## LoggingMiddleware
 
-O AzuraJS inclui um middleware/plugin de logging que adiciona o header `X-Response-Time` a cada resposta:
-
 ```typescript
-import { AzuraServer } from "azurajs";
 import { LoggingMiddleware } from "azurajs/middleware";
 
-const app = new AzuraServer();
-
 app.plugin(LoggingMiddleware());
-
-app.get("/", (req, res) => {
-  res.json({ hello: "world" });
-});
-
-app.listen(3000);
-// Header de resposta: X-Response-Time: 0.42ms
 ```
 
-O `LoggingMiddleware` mede o tempo de processamento da requisição com `process.hrtime.bigint()` para precisão em microsegundos.
+Mede o tempo com **`process.hrtime.bigint()`**, define **`X-Response-Time`** e regista via logger do servidor.
 
-## Instância Global
+## Quando usar o quê
 
-O pacote exporta uma instância global do Logger:
+| Caso | API |
+| :--- | :--- |
+| Paridade com tutoriais **v2** | **`azurajs/logger`** — **`logger("success", …)`** |
+| Preferes **`.info()`** num único import | **`log`** de **`azurajs/logger`** ou **`new Logger()`** |
+| Prefixo por módulo | **`new Logger({ prefix: "db" })`** |
 
-```typescript
-import { Logger } from "azurajs/utils";
+## Próximos passos
 
-// Instância singleton disponível como export padrão do módulo
-const logger = new Logger();
-
-// Ou acesse o logger do servidor:
-const app = new AzuraServer();
-const serverLogger = app.getLogger();
-```
-
-## Configuração no AzuraServer
-
-O construtor do `AzuraServer` aceita configurações de logging:
-
-```typescript
-const app = new AzuraServer({
-  logging: {
-    enabled: true,       // habilitar logging (padrão: true)
-    level: "debug",      // nível mínimo (padrão: "info")
-    timestamp: true,     // exibir timestamps (padrão: true)
-    colors: true,        // saída colorida (padrão: true)
-    requestLogging: true, // log automático de cada requisição (padrão: true)
-  },
-});
-```
-
-Quando `enabled` é `false`, o nível é automaticamente definido como `"silent"`, desabilitando toda saída do Logger.
-
-## Exemplos Práticos
-
-### Logger por Módulo
-
-```typescript
-const dbLogger = new Logger({ prefix: "database", level: "debug" });
-const authLogger = new Logger({ prefix: "auth", level: "info" });
-const cacheLogger = new Logger({ prefix: "cache", level: "warn" });
-
-dbLogger.debug("Query executada em 3ms");
-authLogger.info("Usuário autenticado: user@example.com");
-cacheLogger.warn("Taxa de miss acima de 50%");
-```
-
-### Logging em Middleware Customizado
-
-```typescript
-import { Logger } from "azurajs/utils";
-import type { MiddlewareHandler } from "azurajs";
-
-const logger = new Logger({ prefix: "audit" });
-
-const auditMiddleware: MiddlewareHandler = (req, res, next) => {
-  logger.info(`${req.method} ${req.pathname} from ${req.ip}`);
-
-  const originalEnd = res.end;
-  (res as any).end = function (...args: any[]) {
-    logger.info(`Response ${res.statusCode} for ${req.method} ${req.pathname}`);
-    return (originalEnd as any).apply(this, args);
-  };
-
-  next();
-};
-
-app.use(auditMiddleware);
-```
-
-### Logging Condicional por Ambiente
-
-```typescript
-const app = new AzuraServer({
-  environment: process.env.NODE_ENV as any,
-  logging: {
-    level: process.env.NODE_ENV === "production" ? "warn" : "debug",
-    requestLogging: process.env.NODE_ENV !== "test",
-    colors: process.env.NODE_ENV !== "production",
-  },
-});
-```
+- [Migração v2 → v3](/docs/pt/v3/comecando/migracao-da-v2)  
+- [Tratamento de erros](/docs/pt/v3/recursos/error-handling)  
+- [Health Check](/docs/pt/v3/recursos/health-check)  
